@@ -51,8 +51,6 @@ const formatMonthYear = (month, year) => `${MONTHS[month]} ${year}`;
 const formatShortMonthYear = (month, year) =>
   `${MONTHS[month].slice(0, 3)} ${year}`;
 
-
-
 function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
@@ -60,7 +58,6 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const [currentWeekStart, setCurrentWeekStart] = useState(
     getStartOfWeek(new Date(2026, 0, 13))
   );
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Handle menu navigation - use parent callback if provided (optional, React Router handles navigation)
   const handleMenuClick = (menu) => {
@@ -262,34 +259,6 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           />
         </div>
       </div>
-
-      {/* Sidebar navigation - sticky on desktop, fixed on mobile */}
-      <Sidebar
-        userName="Sarah Johnson"
-        userEmail="sarahjohnson@gmail.com"
-        mode={mode}
-        selectedMenu="Dashboard"
-        onMenuClick={handleMenuClick}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-primary text-text-onPrimary rounded-lg shadow-lg"
-        aria-label="Toggle menu"
-      >
-        Menu
-      </button>
-
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
 
       {/* Main content area - positioned at top, starts after sidebar */}
       <div className="relative flex flex-col gap-lg items-start pt-10 px-4 md:px-0 w-full flex-1 z-10">

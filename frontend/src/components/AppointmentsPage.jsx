@@ -22,25 +22,12 @@ import {
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
 import { colors, getPrimaryColor } from "../utils/colors";
-import Sidebar from "./Sidebar";
 import AddAppointmentModal from "./AddAppointmentModal";
 
-function AppointmentsPage({
-  userName = "Sarah",
-  mode = "Personal",
-  onMenuClick,
-}) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [selectedYear, setSelectedYear] = useState(2026);
-
-  // Handle menu navigation
-  const handleMenuClick = (menu) => {
-    if (onMenuClick) {
-      onMenuClick(menu);
-    }
-  };
 
   // Sample appointments data (in real app, this would come from API)
   const [appointments, setAppointments] = useState([
@@ -244,7 +231,7 @@ function AppointmentsPage({
   };
 
   return (
-    <div className="bg-background-default w-full min-h-screen overflow-x-hidden flex">
+    <div className="bg-background-default w-full min-h-screen overflow-x-hidden">
       {/* Gradient background decoration */}
       <div className="hidden md:block absolute h-[85rem] left-[4rem] top-[-11rem] w-[88rem] pointer-events-none z-0">
         <div className="absolute inset-[-36%_-35%]">
@@ -257,34 +244,6 @@ function AppointmentsPage({
           />
         </div>
       </div>
-
-      {/* Sidebar navigation */}
-      <Sidebar
-        userName="Sarah Johnson"
-        userEmail="sarahjohnson@gmail.com"
-        mode={mode}
-        selectedMenu="Appointments"
-        onMenuClick={handleMenuClick}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-primary text-text-onPrimary rounded-lg shadow-lg"
-        aria-label="Toggle menu"
-      >
-        Menu
-      </button>
-
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
 
       {/* Main content area */}
       <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full flex-1 z-10 pb-10">

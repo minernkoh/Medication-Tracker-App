@@ -33,9 +33,9 @@ function Sidebar({
   const location = useLocation();
   const currentMenu =
     selectedMenu ||
-    (location.pathname === "/appointments"
+    (location.pathname.includes("/appointments")
       ? "Appointments"
-      : location.pathname === "/medications"
+      : location.pathname.includes("/medication")
       ? "Medications"
       : "Dashboard");
 

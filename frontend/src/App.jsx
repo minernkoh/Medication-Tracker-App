@@ -18,12 +18,7 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-white flex">
         {/* Sidebar is now always visible on desktop, shows on mobile via toggle */}
-        <Sidebar
-          userName={userName}
-          userEmail={userEmail}
-          mode={mode}
-          selectedMenu="Dashboard" // This will be updated by each page
-        />
+        <Sidebar userName={userName} userEmail={userEmail} mode={mode} />
 
         {/* Main content area - moves to accommodate sidebar on desktop */}
         <div className="flex-1 ml-0 md:ml-[256px]">
