@@ -33,17 +33,22 @@ const updateUser = async (req, res) => {
 
 const assignCaregiver = async (req, res) => {
   const patient = await User.findById(req.params.id);
-  const caregiver = await User.findById(req.body.caregiverId);
+  const caregiver = req.body.caregiverId
+    ? await User.findById(req.body.caregiverId)
+    : null;
 
-  if (!patient || !caregiver) {
-    return res.status(404).json({ message: "User not found" });
+  if (!patient || (req.body.caregiverId && !caregiver)) {
+    return res.status(404).json({ message: "User or Caregiver not found" });
   }
 
-  if (patient.role !== "patient" || caregiver.role !== "caregiver") {
+  if (
+    patient.role !== "patient" ||
+    (caregiver && caregiver.role !== "caregiver")
+  ) {
     return res.status(400).json({ message: "Invalid roles" });
   }
 
-  patient.caregiver = caregiver._id;
+  patient.caregiver = caregiver ? caregiver._id : null;
   await patient.save();
 
   res.json(patient);
