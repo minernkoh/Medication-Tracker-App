@@ -16,8 +16,8 @@
  */
 import React from "react";
 import { PillIcon, CheckCircleIcon } from "@phosphor-icons/react";
-import { colors } from "../../utils/colors";
-import { ActionButtons } from "../ui";
+import { colors } from "../../../utils/colors";
+import ActionButtons from "./ActionButtons";
 
 function MedicineDue({
   type = "Due",

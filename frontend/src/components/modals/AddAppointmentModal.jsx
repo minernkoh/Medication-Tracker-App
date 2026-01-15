@@ -9,7 +9,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { XIcon } from "@phosphor-icons/react";
-import { colors, getPrimaryColor } from "../utils/colors";
+import { colors, getPrimaryColor } from "../../utils/colors";
 
 function AddAppointmentModal({
   isOpen,
@@ -74,9 +74,6 @@ function AddAppointmentModal({
 
     if (!formData.title.trim()) {
       newErrors.title = "Appointment title is required";
-    }
-    if (!formData.doctorName.trim()) {
-      newErrors.doctorName = "Doctor name is required";
     }
     if (!formData.location.trim()) {
       newErrors.location = "Location is required";
@@ -167,7 +164,10 @@ function AddAppointmentModal({
             {/* Doctor Name */}
             <div>
               <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Doctor Name *
+                Doctor Name
+                <span className="font-normal text-text-secondary ml-1">
+                  (optional)
+                </span>
               </label>
               <input
                 type="text"
@@ -175,15 +175,8 @@ function AddAppointmentModal({
                 value={formData.doctorName}
                 onChange={handleChange}
                 placeholder="e.g., Dr Williams"
-                className={
-                  errors.doctorName ? inputErrorClass : inputNormalClass
-                }
+                className={inputNormalClass}
               />
-              {errors.doctorName && (
-                <p className="font-poppins text-xs text-red-500 mt-1">
-                  {errors.doctorName}
-                </p>
-              )}
             </div>
 
             {/* Location */}

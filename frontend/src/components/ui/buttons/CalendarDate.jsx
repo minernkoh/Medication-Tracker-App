@@ -1,5 +1,5 @@
 import React from "react";
-import { colors } from "../../utils/colors";
+import { colors } from "../../../utils/colors";
 
 /**
  * CalendarDate Component - Clickable date button in calendar
@@ -13,7 +13,7 @@ import { colors } from "../../utils/colors";
  * @param {function} onMouseEnter - Called when mouse enters
  * @param {function} onMouseLeave - Called when mouse leaves
  */
-function DateButtons({
+function CalendarDate({
   type: controlledType,
   day = "Tue",
   date = 13,
@@ -119,4 +119,4 @@ function DateButtons({
   );
 }
 
-export default DateButtons;
+export default CalendarDate;

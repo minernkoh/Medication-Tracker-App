@@ -22,6 +22,7 @@ export default {
           onSecondary: "#ffffff", // Text on secondary background
         },
         icon: {
+          DEFAULT: "#181818", // Default icon color
           primary: "#181818", // Default icon color
           secondary: "#646464", // Secondary icon color
           onPrimary: "#ffffff", // Icon on primary background
@@ -79,6 +80,55 @@ export default {
         lg: "1rem", // 16px
         xl: "1.25rem", // 20px
         "2xl": "1.5rem", // 24px
+      },
+      boxShadow: {
+        // Button glow effects
+        "glow-primary": "0 0.5rem 1.5rem rgba(21, 93, 252, 0.35)",
+        "glow-primary-hover": "0 0.625rem 2rem rgba(21, 93, 252, 0.45)",
+        "glow-secondary": "0 0.5rem 1.5rem rgba(218, 116, 136, 0.35)",
+        "glow-secondary-hover": "0 0.625rem 2rem rgba(218, 116, 136, 0.45)",
+        "glow-success": "0 0.5rem 1.5rem rgba(16, 185, 129, 0.35)",
+        "glow-success-hover": "0 0.625rem 2rem rgba(16, 185, 129, 0.45)",
+        "glow-danger": "0 0.5rem 1.5rem rgba(239, 68, 68, 0.35)",
+        "glow-danger-hover": "0 0.625rem 2rem rgba(239, 68, 68, 0.45)",
+        // Inner glow for selected states
+        "inner-primary": "inset 0 0 0 2px rgba(21, 93, 252, 0.3)",
+        "inner-secondary": "inset 0 0 0 2px rgba(218, 116, 136, 0.3)",
+        // Card shadows
+        card: "0 0.125rem 0.25rem rgba(0, 0, 0, 0.05)",
+        "card-hover": "0 0.5rem 1rem rgba(0, 0, 0, 0.08)",
+        // Elevated shadows
+        elevated: "0 0.25rem 0.5rem rgba(0, 0, 0, 0.1)",
+        modal: "0 1rem 3rem rgba(0, 0, 0, 0.2)",
+      },
+      animation: {
+        "fade-in": "fadeIn 0.3s ease-out",
+        "slide-up": "slideUp 0.3s ease-out",
+        "slide-down": "slideDown 0.3s ease-out",
+        "scale-in": "scaleIn 0.2s ease-out",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        slideDown: {
+          "0%": { opacity: "0", transform: "translateY(-10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        scaleIn: {
+          "0%": { opacity: "0", transform: "scale(0.95)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
+        },
       },
     },
   },

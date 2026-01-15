@@ -13,8 +13,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FirstAidKitIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
-import { MenuButtons } from "./ui";
-import { colors } from "../utils/colors";
+import { MenuButtons } from "./buttons";
+import { colors } from "../../utils/colors";
 
 function Sidebar({
   userName = "Sarah Johnson",

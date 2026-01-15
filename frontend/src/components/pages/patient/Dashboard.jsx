@@ -13,11 +13,14 @@ import {
   CaretDownIcon,
   CalendarIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../utils/colors";
+import { colors } from "../../../utils/colors";
 import { useNavigate } from "react-router-dom";
-import CalendarDate from "./buttons/CalendarDate";
-import MedicineDue from "./buttons/MedicineDue";
-import AppointmentCard from "./AppointmentCard";
+import {
+  CalendarDate,
+  AppointmentCard,
+  PieChart,
+  MedicationSection,
+} from "../../ui";
 
 // Helper functions for calendar
 const MONTHS = [
@@ -58,6 +61,43 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const [currentWeekStart, setCurrentWeekStart] = useState(
     getStartOfWeek(new Date(2026, 0, 13))
   );
+
+  // State: track medication status (taken/not taken)
+  const [medications, setMedications] = useState([
+    {
+      id: 1,
+      name: "Paracetamol",
+      dosage: "2 pills",
+      time: "Morning",
+      taken: true,
+    },
+    {
+      id: 2,
+      name: "MedicineName1",
+      dosage: "10ml",
+      time: "Morning",
+      additionalInfo: "Before Meal",
+      taken: false,
+    },
+    {
+      id: 3,
+      name: "MedicineName2",
+      dosage: "1 pill",
+      time: "Afternoon",
+      additionalInfo: "After Meal",
+      pillColor: "#ffd5d5",
+      taken: false,
+    },
+    {
+      id: 4,
+      name: "MedicineName3",
+      dosage: "1 pill",
+      time: "Night",
+      additionalInfo: "After Meal",
+      pillColor: "#d9ffaf",
+      taken: false,
+    },
+  ]);
 
   // Handle menu navigation - use parent callback if provided (optional, React Router handles navigation)
   const handleMenuClick = (menu) => {
@@ -244,6 +284,66 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     midWeek.setDate(currentWeekStart.getDate() + 3);
     return formatShortMonthYear(midWeek.getMonth(), midWeek.getFullYear());
   };
+
+  // Check if selected date is today
+  const isSelectedDateToday = () => {
+    return (
+      selectedDate.getDate() === today.getDate() &&
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  // Format selected date for display (e.g., "Mon, Jan 13")
+  const formatSelectedDate = () => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayName = days[selectedDate.getDay()];
+    const monthName = MONTHS[selectedDate.getMonth()].slice(0, 3);
+    const date = selectedDate.getDate();
+    return `${dayName}, ${monthName} ${date}`;
+  };
+
+  // Get the date label for titles (null if today, formatted date otherwise)
+  const getDateLabel = () => {
+    return isSelectedDateToday() ? null : formatSelectedDate();
+  };
+
+  const dateLabel = getDateLabel();
+
+  // Calculate medication stats for today
+  const getMedicationStats = () => {
+    const taken = medications.filter((med) => med.taken).length;
+    const notTaken = medications.filter((med) => !med.taken).length;
+    const total = medications.length;
+    const percentage = total > 0 ? Math.round((taken / total) * 100) : 0;
+
+    return { taken, notTaken, total, percentage };
+  };
+
+  // Handle marking medication as taken
+  const handleMarkAsTaken = (medicationId) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId ? { ...med, taken: true } : med
+      )
+    );
+  };
+
+  // Get medications by status - transform to match MedicationSection format
+  const pendingMedications = medications
+    .filter((med) => !med.taken)
+    .map((med) => ({
+      ...med,
+      timeOfDay: med.time,
+    }));
+  const takenMedications = medications
+    .filter((med) => med.taken)
+    .map((med) => ({
+      ...med,
+      timeOfDay: med.time,
+    }));
+
+  const stats = getMedicationStats();
 
   return (
     <div className="bg-background-default w-full min-h-screen overflow-x-hidden flex">
@@ -459,15 +559,22 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                 />
               </button>
 
-              {calendarDates.map((item, idx) => (
-                <CalendarDate
-                  key={`${item.fullDate.toISOString()}-${idx}`}
-                  day={item.day}
-                  date={item.date}
-                  isSelected={isDateSelected(item)}
-                  onClick={() => handleDateClick(item)}
-                />
-              ))}
+              {calendarDates.map((item, idx) => {
+                const itemIsToday =
+                  item.fullDate.getDate() === today.getDate() &&
+                  item.fullDate.getMonth() === today.getMonth() &&
+                  item.fullDate.getFullYear() === today.getFullYear();
+                return (
+                  <CalendarDate
+                    key={`${item.fullDate.toISOString()}-${idx}`}
+                    day={item.day}
+                    date={item.date}
+                    isSelected={isDateSelected(item)}
+                    isToday={itemIsToday}
+                    onClick={() => handleDateClick(item)}
+                  />
+                );
+              })}
 
               <button
                 onClick={goToNextWeek}
@@ -483,12 +590,69 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           </div>
 
           {/* Stats and appointment cards */}
-          <div className="flex flex-col md:flex-row gap-lg items-stretch w-full">
+          <div className="flex flex-col md:flex-row gap-6 items-stretch w-full mt-6">
             {/* Today's Progress card */}
-            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col items-center p-5 rounded-2xl">
+            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-4 p-5 rounded-2xl">
               <p className="font-poppins font-bold leading-6 text-base text-text-primary w-full">
-                Today's Progress
+                {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
               </p>
+
+              {/* Pie chart and stats */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-6 w-full">
+                {/* Pie Chart */}
+                <PieChart
+                  taken={stats.taken}
+                  notTaken={stats.notTaken}
+                  size={140}
+                />
+
+                {/* Stats */}
+                <div className="flex flex-col gap-3 items-start">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: "#10b981" }}
+                    />
+                    <div className="flex flex-col">
+                      <p className="font-poppins font-bold text-lg text-text-primary">
+                        {stats.taken}
+                      </p>
+                      <p className="font-poppins text-sm text-text-secondary">
+                        Taken
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: colors.border.subtle }}
+                    />
+                    <div className="flex flex-col">
+                      <p className="font-poppins font-bold text-lg text-text-primary">
+                        {stats.notTaken}
+                      </p>
+                      <p className="font-poppins text-sm text-text-secondary">
+                        Pending
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex items-center gap-3 pt-2"
+                    style={{ borderTop: `1px solid ${colors.border.subtle}` }}
+                  >
+                    <div className="flex flex-col">
+                      <p className="font-poppins font-bold text-lg text-text-primary">
+                        {stats.total}
+                      </p>
+                      <p className="font-poppins text-sm text-text-secondary">
+                        Total Medications
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Upcoming Appointment card */}
@@ -496,68 +660,27 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           </div>
 
           {/* Medications section */}
-          <div className="flex flex-col md:flex-row gap-lg items-stretch w-full">
+          <div className="flex flex-col md:flex-row gap-6 items-stretch w-full mt-6">
             {/* Pending medications column */}
-            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-2 items-start overflow-y-auto p-4 md:p-5 rounded-2xl min-h-[18.75rem] max-h-[37.5rem]">
-              <p className="font-poppins font-bold leading-6 text-base text-text-primary w-full shrink-0">
-                Pending
-              </p>
-
-              {/* Morning medications */}
-              <p className="font-poppins font-bold leading-6 text-sm text-text-primary w-full shrink-0 mt-2">
-                Morning
-              </p>
-              <MedicineDue
-                type="Due"
-                medicationName="Paracetamol"
-                dosage="2 pills"
-              />
-              <MedicineDue
-                type="Due"
-                medicationName="MedicineName1"
-                dosage="10ml"
-                additionalInfo="Before Meal"
-              />
-
-              {/* Afternoon medications */}
-              <p className="font-poppins font-bold leading-6 text-sm text-text-primary w-full shrink-0 mt-2">
-                Afternoon
-              </p>
-              <MedicineDue
-                type="Due"
-                medicationName="MedicineName2"
-                dosage="1 pill"
-                additionalInfo="After Meal"
-                pillColor="#ffd5d5"
-              />
-
-              {/* Night medications */}
-              <p className="font-poppins font-bold leading-6 text-sm text-text-primary w-full shrink-0 mt-2">
-                Night
-              </p>
-              <MedicineDue
-                type="Due"
-                medicationName="MedicineName3"
-                dosage="1 pill"
-                additionalInfo="After Meal"
-                pillColor="#d9ffaf"
+            <div className="flex-1 min-h-[18.75rem]">
+              <MedicationSection
+                variant="pending"
+                medications={pendingMedications}
+                onMarkAsTaken={handleMarkAsTaken}
+                showTimeGroups={true}
+                compact={true}
+                dateLabel={dateLabel}
               />
             </div>
 
             {/* Taken medications column */}
-            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-2 items-start overflow-y-auto p-4 md:p-5 rounded-2xl min-h-[18.75rem] max-h-[37.5rem]">
-              <p className="font-poppins font-bold leading-6 text-base text-text-primary w-full shrink-0">
-                Taken
-              </p>
-
-              {/* Medications grouped by time taken */}
-              <p className="font-poppins font-bold leading-6 text-sm text-text-primary w-full shrink-0 mt-2">
-                9:00 AM
-              </p>
-              <MedicineDue
-                type="Taken"
-                medicationName="Paracetamol"
-                dosage="2 pills"
+            <div className="flex-1 min-h-[18.75rem]">
+              <MedicationSection
+                variant="taken"
+                medications={takenMedications}
+                showTimeGroups={true}
+                compact={true}
+                dateLabel={dateLabel}
               />
             </div>
           </div>

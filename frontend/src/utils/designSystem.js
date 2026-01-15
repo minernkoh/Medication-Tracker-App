@@ -116,6 +116,83 @@ export const shadows = {
   xl: "0 1rem 2rem rgba(0, 0, 0, 0.2)",
 };
 
+import { colors } from "./colors";
+
+// Button glow effects (for primary action buttons)
+// Uses color values from colors.js for consistency
+export const glowEffects = {
+  // Primary button glow (blue)
+  primary: `0 0.5rem 1.5rem ${colors.primary.DEFAULT}59`, // 35% opacity
+  primaryHover: `0 0.625rem 2rem ${colors.primary.DEFAULT}73`, // 45% opacity
+  // Secondary/Caregiver button glow (pink)
+  secondary: `0 0.5rem 1.5rem ${colors.secondary.DEFAULT}59`,
+  secondaryHover: `0 0.625rem 2rem ${colors.secondary.DEFAULT}73`,
+  // Success button glow (green)
+  success: "0 0.5rem 1.5rem rgba(16, 185, 129, 0.35)",
+  successHover: "0 0.625rem 2rem rgba(16, 185, 129, 0.45)",
+  // Danger button glow (red)
+  danger: "0 0.5rem 1.5rem rgba(239, 68, 68, 0.35)",
+  dangerHover: "0 0.625rem 2rem rgba(239, 68, 68, 0.45)",
+  // Subtle inner glow for selected states
+  innerPrimary: `inset 0 0 0 2px ${colors.primary.DEFAULT}4D`, // 30% opacity
+  innerSecondary: `inset 0 0 0 2px ${colors.secondary.DEFAULT}4D`,
+};
+
+// Button variants configuration - references colors.js for consistency
+export const buttonVariants = {
+  primary: {
+    bg: colors.primary.DEFAULT,
+    bgHover: colors.primary.hover,
+    text: colors.text.onPrimary,
+    shadow: glowEffects.primary,
+    shadowHover: glowEffects.primaryHover,
+  },
+  secondary: {
+    bg: colors.secondary.DEFAULT,
+    bgHover: colors.secondary.hover,
+    text: colors.text.onSecondary,
+    shadow: glowEffects.secondary,
+    shadowHover: glowEffects.secondaryHover,
+  },
+  success: {
+    bg: "#10b981",
+    bgHover: "#059669",
+    text: "#ffffff",
+    shadow: glowEffects.success,
+    shadowHover: glowEffects.successHover,
+  },
+  danger: {
+    bg: "#ef4444",
+    bgHover: "#dc2626",
+    text: "#ffffff",
+    shadow: glowEffects.danger,
+    shadowHover: glowEffects.dangerHover,
+  },
+  outline: {
+    bg: "transparent",
+    bgHover: `${colors.primary.DEFAULT}0D`, // 5% opacity
+    text: colors.primary.DEFAULT,
+    border: colors.primary.DEFAULT,
+    shadow: "none",
+    shadowHover: "none",
+  },
+  ghost: {
+    bg: "transparent",
+    bgHover: "rgba(0, 0, 0, 0.05)",
+    text: colors.text.primary,
+    shadow: "none",
+    shadowHover: "none",
+  },
+};
+
+// Animation durations
+export const transitions = {
+  fast: "150ms",
+  base: "200ms",
+  slow: "300ms",
+  easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+};
+
 // Z-index scale
 export const zIndex = {
   base: 0,

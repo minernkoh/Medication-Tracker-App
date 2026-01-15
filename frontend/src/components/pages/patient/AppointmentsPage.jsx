@@ -20,14 +20,20 @@ import {
   CaretRightIcon,
   CheckCircleIcon,
   CalendarCheckIcon,
+  CaretUpIcon,
+  CaretDownIcon,
 } from "@phosphor-icons/react";
-import { colors, getPrimaryColor } from "../utils/colors";
-import AddAppointmentModal from "./AddAppointmentModal";
+import { colors, getPrimaryColor } from "../../../utils/colors";
+import AddAppointmentModal from "../../modals/AddAppointmentModal";
 
 function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [sortConfig, setSortConfig] = useState({
+    key: "date",
+    direction: "asc",
+  });
 
   // Sample appointments data (in real app, this would come from API)
   const [appointments, setAppointments] = useState([
@@ -127,10 +133,66 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
     return aptDate.getFullYear() === selectedYear;
   });
 
-  // Sort appointments by date
-  const sortedAppointments = [...yearAppointments].sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
-  );
+  // Sort appointments based on sortConfig
+  const sortedAppointments = [...yearAppointments].sort((a, b) => {
+    const { key, direction } = sortConfig;
+    const multiplier = direction === "asc" ? 1 : -1;
+
+    if (key === "date") {
+      return multiplier * (new Date(a.date) - new Date(b.date));
+    }
+    if (key === "status") {
+      const statusOrder = { today: 0, upcoming: 1, past: 2 };
+      return (
+        multiplier *
+        (statusOrder[getStatus(a.date)] - statusOrder[getStatus(b.date)])
+      );
+    }
+    if (key === "title") {
+      return multiplier * a.title.localeCompare(b.title);
+    }
+    if (key === "doctorName") {
+      return multiplier * a.doctorName.localeCompare(b.doctorName);
+    }
+    if (key === "location") {
+      return multiplier * a.location.localeCompare(b.location);
+    }
+    return 0;
+  });
+
+  // Handle sort column click
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  // Sort indicator component
+  const SortIndicator = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) {
+      return (
+        <span className="ml-1 opacity-0 group-hover:opacity-40 transition-opacity">
+          <CaretUpIcon size={12} weight="bold" />
+        </span>
+      );
+    }
+    return sortConfig.direction === "asc" ? (
+      <CaretUpIcon
+        size={12}
+        weight="bold"
+        className="ml-1"
+        color={primaryColor}
+      />
+    ) : (
+      <CaretDownIcon
+        size={12}
+        weight="bold"
+        className="ml-1"
+        color={primaryColor}
+      />
+    );
+  };
 
   // Today's date for comparison
   const today = new Date();
@@ -342,20 +404,50 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border-default bg-background-subtle">
-                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                        Status
+                      <th
+                        onClick={() => handleSort("status")}
+                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      >
+                        <div className="flex items-center">
+                          Status
+                          <SortIndicator columnKey="status" />
+                        </div>
                       </th>
-                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                        Date & Time
+                      <th
+                        onClick={() => handleSort("date")}
+                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      >
+                        <div className="flex items-center">
+                          Date & Time
+                          <SortIndicator columnKey="date" />
+                        </div>
                       </th>
-                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                        Appointment
+                      <th
+                        onClick={() => handleSort("title")}
+                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      >
+                        <div className="flex items-center">
+                          Appointment
+                          <SortIndicator columnKey="title" />
+                        </div>
                       </th>
-                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                        Doctor
+                      <th
+                        onClick={() => handleSort("doctorName")}
+                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      >
+                        <div className="flex items-center">
+                          Doctor
+                          <SortIndicator columnKey="doctorName" />
+                        </div>
                       </th>
-                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                        Location
+                      <th
+                        onClick={() => handleSort("location")}
+                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      >
+                        <div className="flex items-center">
+                          Location
+                          <SortIndicator columnKey="location" />
+                        </div>
                       </th>
                       <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
                         Actions
@@ -428,24 +520,24 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => openEditModal(apt)}
-                                className="p-2 rounded-lg hover:bg-background-hover transition-colors"
+                                className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/edit"
                                 aria-label="Edit appointment"
                               >
                                 <PencilSimpleIcon
                                   size={18}
                                   weight="regular"
-                                  color={primaryColor}
+                                  className="text-icon-primary group-hover/edit:text-blue-500 transition-colors"
                                 />
                               </button>
                               <button
                                 onClick={() => handleDeleteAppointment(apt.id)}
-                                className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                className="p-2 rounded-lg hover:bg-red-50 transition-colors group/delete"
                                 aria-label="Delete appointment"
                               >
                                 <TrashIcon
                                   size={18}
                                   weight="regular"
-                                  color="#ef4444"
+                                  className="text-icon-primary group-hover/delete:text-red-500 transition-colors"
                                 />
                               </button>
                             </div>

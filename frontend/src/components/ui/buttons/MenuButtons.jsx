@@ -5,8 +5,9 @@ import {
   StethoscopeIcon,
   UsersIcon,
   PlusIcon,
+  GearIcon,
 } from "@phosphor-icons/react";
-import { getPrimaryColor, colors } from "../../utils/colors";
+import { getPrimaryColor, colors } from "../../../utils/colors";
 
 /**
  * MenuButtons Component
@@ -57,6 +58,8 @@ function MenuButtons({
         return <PlusIcon {...iconProps} />;
       case "Patients":
         return <UsersIcon {...iconProps} />;
+      case "Settings":
+        return <GearIcon {...iconProps} />;
       default:
         return <SquaresFourIcon {...iconProps} />;
     }

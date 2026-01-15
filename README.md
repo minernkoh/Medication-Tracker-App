@@ -9,13 +9,34 @@ A full-stack web application for tracking medications, appointments, and health 
 - **Medication Management**: Track medications with dosage, frequency, and timing information
 - **Appointment Tracking**: View and manage upcoming medical appointments
 - **Daily Progress**: Monitor medication completion status throughout the day
-- **Calendar Integration**: Weekly calendar view for medication scheduling
-- **Dual Modes**: Personal and Caregiver modes for different user types
+- **Calendar Integration**: Weekly calendar view with date picker and today indicator
+- **Supply Management**: Track medication inventory with refill reminders
+- **Low Supply Alerts**: Visual indicators for medications running low
+
+### Dual Mode Support
+
+- **Personal Mode**: Individual medication and appointment tracking
+- **Caregiver Mode**: Manage multiple patients with consolidated views
+  - Patient overview dashboard
+  - Aggregate medication schedules
+  - Multi-patient appointment management
+
+### Authentication & Onboarding
+
+- **Sign Up/Login**: Email authentication with form validation
+- **Account Types**: Choose between Patient or Caregiver accounts
+- **Onboarding Tutorial**: Step-by-step guide for new users
+- **Mode Switching**: Seamlessly switch between Personal and Caregiver modes
+
+### Settings & Preferences
+
+- **Account Management**: Profile display, password change
+- **Privacy Controls**: Account deletion with data cleanup
 
 ### User Interface
 
 - **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
-- **Interactive Components**: Hover states, selections, and smooth transitions
+- **Interactive Components**: Hover states with glow effects, smooth transitions
 - **Modern UI**: Clean design with Tailwind CSS and Phosphor Icons
 - **Accessibility**: Screen reader friendly with proper ARIA labels
 
@@ -24,10 +45,10 @@ A full-stack web application for tracking medications, appointments, and health 
 ### Frontend
 
 - **React 18**: Modern React with hooks and functional components
+- **React Router**: Client-side routing for SPA navigation
 - **Vite**: Fast build tool and development server
-- **Tailwind CSS**: Utility-first CSS framework with semantic color tokens
+- **Tailwind CSS**: Utility-first CSS framework with custom design tokens
 - **Phosphor Icons**: `@phosphor-icons/react` v2.1+ (use `Icon` suffix: `UserIcon`, `PillIcon`)
-- **Semantic Design Tokens**: Centralized color system in `utils/colors.js`
 
 ### Backend
 
@@ -42,9 +63,11 @@ A full-stack web application for tracking medications, appointments, and health 
 - **Typography**: Poppins font family (Regular, SemiBold, Bold)
 - **Color Palette**:
   - Personal Mode: Blue (#155dfc)
-  - Caregiver Mode: Dark Pink (#da7488)
-  - Neutral: Grey scale for backgrounds and text
-- **Spacing**: Consistent 4px, 8px, 16px, 24px grid system
+  - Caregiver Mode: Rose/Pink (#da7488)
+  - Status Colors: Success (green), Warning (amber), Danger (red)
+- **Spacing**: Consistent rem-based scale (0.25rem to 5rem)
+- **Button Glow Effects**: Subtle shadows on hover for interactive elements
+- **Animations**: fadeIn, slideUp, slideDown, scaleIn
 
 ## 📁 Project Structure
 
@@ -52,48 +75,69 @@ A full-stack web application for tracking medications, appointments, and health 
 Medication-Tracker-App/
 ├── backend/
 │   ├── config/
-│   │   └── db.js              # MongoDB connection configuration
+│   │   └── db.js                    # MongoDB connection
 │   ├── controllers/
-│   │   ├── appointments.js    # Appointment business logic
-│   │   ├── auth.js            # Authentication logic
-│   │   ├── medications.js     # Medication CRUD operations
-│   │   └── users.js           # User management
+│   │   ├── appointments.js          # Appointment logic
+│   │   ├── auth.js                  # Authentication
+│   │   ├── medications.js           # Medication CRUD
+│   │   └── users.js                 # User management
 │   ├── middleware/
-│   │   ├── auth.js            # Authentication middleware
-│   │   └── permissions.js     # Authorization middleware
+│   │   ├── auth.js                  # Auth middleware
+│   │   └── permissions.js           # Authorization
 │   ├── models/
-│   │   ├── Appointments.js    # Appointment data model
-│   │   ├── Medication.js      # Medication data model
-│   │   └── User.js            # User data model
+│   │   ├── Appointments.js          # Appointment model
+│   │   ├── Medication.js            # Medication model
+│   │   └── User.js                  # User model
 │   ├── routes/
-│   │   ├── appointments.js    # Appointment API routes
-│   │   ├── auth.js            # Authentication routes
-│   │   ├── medications.js     # Medication API routes
-│   │   └── users.js           # User API routes
-│   └── server.js              # Express server entry point
+│   │   ├── appointments.js          # Appointment routes
+│   │   ├── auth.js                  # Auth routes
+│   │   ├── medications.js           # Medication routes
+│   │   └── users.js                 # User routes
+│   └── server.js                    # Express entry point
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── buttons/
-│   │   │   │   ├── CalendarDate.jsx    # Date picker component
-│   │   │   │   ├── MedicineDue.jsx     # Medication card component
-│   │   │   │   └── SideMenu.jsx        # Navigation menu button
-│   │   │   ├── AppointmentCard.jsx     # Appointment display card
-│   │   │   ├── Dashboard.jsx           # Main dashboard page
-│   │   │   └── Sidebar.jsx             # Navigation sidebar
+│   │   │   ├── ui/                  # All reusable UI components
+│   │   │   │   ├── buttons/         # Interactive button elements
+│   │   │   │   │   ├── ActionButtons.jsx
+│   │   │   │   │   ├── Button.jsx
+│   │   │   │   │   ├── CalendarDate.jsx
+│   │   │   │   │   ├── MedicineDue.jsx
+│   │   │   │   │   ├── MenuButtons.jsx
+│   │   │   │   │   └── index.js
+│   │   │   │   ├── AppointmentCard.jsx
+│   │   │   │   ├── DataTable.jsx
+│   │   │   │   ├── ErrorBoundary.jsx
+│   │   │   │   ├── MedicationSection.jsx
+│   │   │   │   ├── OnboardingTutorial.jsx
+│   │   │   │   ├── PieChart.jsx
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   └── index.js
+│   │   │   ├── modals/              # Modal components
+│   │   │   │   ├── AddAppointmentModal.jsx
+│   │   │   │   ├── CaregiverAuthModal.jsx
+│   │   │   │   └── index.js
+│   │   │   ├── pages/               # Page components
+│   │   │   │   ├── caregiver/       # Caregiver mode pages
+│   │   │   │   ├── patient/         # Patient mode pages
+│   │   │   │   ├── AuthPage.jsx
+│   │   │   │   ├── SettingsPage.jsx
+│   │   │   │   └── index.js
+│   │   │   └── index.js             # Central barrel export
 │   │   ├── utils/
-│   │   │   └── colors.js               # Semantic color tokens
-│   │   ├── App.jsx                     # Root component
-│   │   ├── main.jsx                    # React entry point
-│   │   └── index.css                   # Global styles
-│   ├── index.html                      # HTML template
-│   ├── tailwind.config.js              # Tailwind config with design tokens
-│   ├── vite.config.js                  # Vite configuration
-│   └── package.json                    # Frontend dependencies
+│   │   │   ├── colors.js            # Color tokens
+│   │   │   └── designSystem.js      # Design tokens
+│   │   ├── App.jsx                  # Root component
+│   │   ├── main.jsx                 # React entry
+│   │   └── index.css                # Global styles
+│   ├── index.html
+│   ├── tailwind.config.js           # Tailwind + design tokens
+│   ├── vite.config.js
+│   └── package.json
 │
-├── CHANGES.md                          # Detailed change log
-└── README.md                           # This file
+├── CHANGELOG.md                     # Version history
+└── README.md
 ```
 
 ## 🚦 Getting Started
@@ -151,11 +195,13 @@ Medication-Tracker-App/
    The backend will run on `http://localhost:5000`
 
 2. **Start the frontend development server**
+
    ```bash
    cd frontend
    npm run dev
    ```
-   The frontend will run on `http://localhost:5173` (or another port if 5173 is taken)
+
+   The frontend will run on `http://localhost:5173`
 
 #### Production Build
 
@@ -176,50 +222,93 @@ Medication-Tracker-App/
 
 ### Semantic Color Tokens
 
-Colors are defined in `frontend/src/utils/colors.js` and `tailwind.config.js`:
+Colors are defined in `frontend/src/utils/colors.js` and mirrored in `tailwind.config.js`:
 
-| Token                      | Value                   | Usage                        |
-| -------------------------- | ----------------------- | ---------------------------- |
-| `primary`                  | `#155dfc`               | Personal mode buttons, links |
-| `secondary`                | `#da7488`               | Caregiver mode buttons       |
-| `text-primary`             | `#181818`               | Main text                    |
-| `text-secondary`           | `#646464`               | Subdued text                 |
-| `background-default`       | `#ffffff`               | Page background              |
-| `background-subtle`        | `#f9f9f9`               | Card backgrounds             |
-| `background-success-hover` | `#e9ffee`               | Medication hover state       |
-| `border-default`           | `rgba(100,100,100,0.2)` | Card borders                 |
+| Token                | Value                   | Usage                  |
+| -------------------- | ----------------------- | ---------------------- |
+| `primary`            | `#155dfc`               | Personal mode actions  |
+| `secondary`          | `#da7488`               | Caregiver mode actions |
+| `text-primary`       | `#181818`               | Main text              |
+| `text-secondary`     | `#646464`               | Subdued text           |
+| `background-default` | `#ffffff`               | Page background        |
+| `background-subtle`  | `#f9f9f9`               | Card backgrounds       |
+| `border-default`     | `rgba(100,100,100,0.2)` | Default borders        |
+
+### Button Variants
+
+The `Button` component (`ui/buttons/Button.jsx`) supports these variants:
+
+| Variant     | Use Case                      |
+| ----------- | ----------------------------- |
+| `primary`   | Main actions (blue glow)      |
+| `secondary` | Caregiver actions (pink glow) |
+| `success`   | Positive actions (green)      |
+| `danger`    | Destructive actions (red)     |
+| `outline`   | Secondary actions             |
+| `ghost`     | Tertiary/subtle actions       |
+
+### Action Buttons
+
+The `ActionButtons` component (`ui/buttons/ActionButtons.jsx`) provides consistent edit/delete actions:
+
+| Size   | Icon Size | Padding | Use Case             |
+| ------ | --------- | ------- | -------------------- |
+| `sm`   | 16px      | p-1.5   | Compact table rows   |
+| `base` | 18px      | p-2     | Default (tables)     |
+| `lg`   | 20px      | p-2.5   | Large interactive UI |
+
+- **Edit**: Blue hover state (`hover:bg-blue-50`, `text-blue-500`)
+- **Delete**: Red hover state (`hover:bg-red-50`, `text-red-500`)
 
 ### Typography
 
 - **Font Family**: Poppins
 - **Weights**: 400 (Regular), 600 (SemiBold), 700 (Bold)
-- **Sizes**: 12px, 14px, 16px, 20px, 32px
+- **Sizes**: xs (12px), sm (14px), base (16px), lg (18px), xl+ (20-40px)
 
-### Spacing
+### Spacing & Sizing
 
-- Consistent spacing scale: 4px, 8px, 16px, 24px
-- Border radius: 8px (cards), 16px (large cards), 44px (avatars)
+All values use rem units for accessibility:
+
+- **Spacing Scale**: xs (0.25rem) → 5xl (5rem)
+- **Border Radius**: sm (4px) → 2xl (24px)
+- **Icon Sizes**: xs (12px) → lg (32px)
 
 ## 🔌 API Endpoints
 
-The backend provides RESTful API endpoints for:
-
-- **Authentication**: `/api/auth/*`
-- **Users**: `/api/users/*`
-- **Medications**: `/api/medications/*`
-- **Appointments**: `/api/appointments/*`
+| Endpoint               | Method | Description        |
+| ---------------------- | ------ | ------------------ |
+| `/api/auth/login`      | POST   | User login         |
+| `/api/auth/register`   | POST   | User registration  |
+| `/api/users/:id`       | GET    | Get user profile   |
+| `/api/medications`     | GET    | List medications   |
+| `/api/medications/:id` | PUT    | Update medication  |
+| `/api/appointments`    | GET    | List appointments  |
+| `/api/appointments`    | POST   | Create appointment |
 
 ## 🧪 Development
 
 ### Code Style
 
-- ES6+ JavaScript
-- React functional components with hooks
+- ES6+ JavaScript with React best practices
+- Functional components with hooks
 - JSDoc comments for component documentation
-- Consistent naming conventions
+- Consistent naming: PascalCase components, camelCase functions
 
 ### State Management
 
-- React useState hooks for local state
+- React `useState`/`useEffect` for local state
+- `localStorage` for session persistence
 - Props for component communication
 - Callback functions for parent-child interaction
+
+### Component Guidelines
+
+1. **Keep components focused**: Single responsibility principle
+2. **Use design tokens**: Import from `utils/colors.js` and `utils/designSystem.js`
+3. **Mode-aware styling**: Use `getPrimaryColor(mode)` for mode-specific colors
+4. **Reuse shared components**: `DataTable`, `MedicationSection`, `Button`
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
