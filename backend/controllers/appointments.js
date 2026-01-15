@@ -94,7 +94,7 @@ const getAppointmentById = async (req, res) => {
     const patient = await User.findById(appt.patient);
     if (!patient) return res.status(404).json({ message: "Patient not found" });
 
-    const isPatient = req.user.id === patient.id && !patient.caregiver;
+    const isPatient = req.user.id === patient.id;
     const isCaregiver =
       req.user.role === "caregiver" &&
       patient.caregiver?.toString() === req.user.id;
@@ -111,6 +111,11 @@ const getAppointmentById = async (req, res) => {
 
 const createAppointment = async (req, res) => {
   try {
+    const patient = await User.findById(req.params.patientId);
+    if (patient && patient.caregiver && req.user.id === patient.id) {
+      return res.status(403).json({ message: "Patient has read only access" });
+    }
+
     processAppointmentDate(req.body);
 
     const appt = await Appointment.create({
@@ -142,10 +147,14 @@ const updateAppointment = async (req, res) => {
     const patient = await User.findById(appt.patient);
     if (!patient) return res.status(404).json({ message: "Patient not found" });
 
-    const isPatient = req.user.id === patient.id && !patient.caregiver;
+    const isPatient = req.user.id === patient.id;
     const isCaregiver =
       req.user.role === "caregiver" &&
       patient.caregiver?.toString() === req.user.id;
+
+    if (isPatient && patient.caregiver) {
+      return res.status(403).json({ message: "Patient has read only access" });
+    }
 
     if (!isPatient && !isCaregiver) {
       return res.status(403).json({ message: "Not authorized" });
@@ -183,10 +192,14 @@ const deleteAppointment = async (req, res) => {
     }
 
     const patient = await User.findById(appt.patient);
-    const isPatient = req.user.id === patient.id && !patient.caregiver;
+    const isPatient = req.user.id === patient.id;
     const isCaregiver =
       req.user.role === "caregiver" &&
       patient.caregiver?.toString() === req.user.id;
+
+    if (isPatient && patient.caregiver) {
+      return res.status(403).json({ message: "Patient has read only access" });
+    }
 
     if (!isPatient && !isCaregiver) {
       return res.status(403).json({ message: "Not authorized" });

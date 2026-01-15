@@ -1,12 +1,15 @@
 const router = require("express").Router();
 const verifyToken = require("../middleware/auth");
-const { canModifyPatientData } = require("../middleware/permissions");
+const {
+  canModifyPatientData,
+  canViewPatientData,
+} = require("../middleware/permissions");
 const apptCtrl = require("../controllers/appointments");
 
 router.get(
   "/patients/:patientId/appointments",
   verifyToken,
-  canModifyPatientData,
+  canViewPatientData,
   apptCtrl.getAppointments
 );
 
@@ -20,7 +23,7 @@ router.post(
 router.get(
   "/patients/:patientId/appointments/:id",
   verifyToken,
-  canModifyPatientData,
+  canViewPatientData,
   apptCtrl.getAppointmentById
 );
 
