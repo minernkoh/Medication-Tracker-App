@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./components/Dashboard";
 import AppointmentsPage from "./components/AppointmentsPage";
 import MedicationPage from "./components/MedicationPage";
+import Sidebar from "./components/Sidebar";
 
 function App() {
   const mode = "Personal";

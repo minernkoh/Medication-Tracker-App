@@ -4,6 +4,7 @@
  * @param {string} userName - User's name (default: "Sarah")
  * @param {string} mode - "Personal" or "Caregiver" (default: "Personal")
  */
+
 import React, { useState, useRef, useEffect } from "react";
 import {
   CaretLeftIcon,
@@ -13,7 +14,7 @@ import {
   CalendarIcon,
 } from "@phosphor-icons/react";
 import { colors } from "../utils/colors";
-import Sidebar from "./Sidebar";
+import { useNavigate } from "react-router-dom";
 import CalendarDate from "./buttons/CalendarDate";
 import MedicineDue from "./buttons/MedicineDue";
 import AppointmentCard from "./AppointmentCard";
@@ -49,6 +50,8 @@ const formatMonthYear = (month, year) => `${MONTHS[month]} ${year}`;
 
 const formatShortMonthYear = (month, year) =>
   `${MONTHS[month].slice(0, 3)} ${year}`;
+
+
 
 function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   // State: tracks selected date, menu item, and date picker
