@@ -71,7 +71,7 @@ function MedicineDue({
 
   return (
     <div
-      className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-lg w-full max-w-[496px] transition-colors cursor-pointer"
+      className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-lg w-full max-w-[31rem] transition-colors cursor-pointer"
       style={{ backgroundColor }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -136,7 +136,7 @@ function MedicineDue({
       </div>
 
       {/* Right section: Action buttons */}
-      <div className="flex gap-[13.333px] items-center justify-end shrink-0">
+      <div className="flex gap-[0.833rem] items-center justify-end shrink-0">
         {type === "Due" && (
           <button
             onClick={onCheck}

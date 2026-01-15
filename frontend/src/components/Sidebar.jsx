@@ -5,12 +5,13 @@
  * @param {string} userEmail - User's email address
  * @param {string} mode - "Personal" or "Caregiver"
  * @param {string} selectedMenu - Currently selected menu item
- * @param {function} onMenuClick - Called when menu item is clicked
+ * @param {function} onMenuClick - Called when menu item is clicked (deprecated, using React Router now)
  * @param {function} onSwitchMode - Called when switching modes
  * @param {boolean} isOpen - Whether sidebar is open on mobile
  * @param {function} onClose - Function to close sidebar on mobile
  */
 import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import { FirstAidKitIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
 import MenuButtons from "./buttons/SideMenu";
 import { colors } from "../utils/colors";
@@ -19,7 +20,7 @@ function Sidebar({
   userName = "Sarah Johnson",
   userEmail = "sarahjohnson@gmail.com",
   mode = "Personal",
-  selectedMenu = "Dashboard",
+  selectedMenu,
   onMenuClick,
   onSwitchMode,
   isOpen = false,
@@ -28,9 +29,19 @@ function Sidebar({
   // Get first letter of name for avatar
   const userInitial = userName.charAt(0).toUpperCase();
 
+  // Get current route to determine selected menu
+  const location = useLocation();
+  const currentMenu =
+    selectedMenu ||
+    (location.pathname === "/appointments"
+      ? "Appointments"
+      : location.pathname === "/medications"
+      ? "Medications"
+      : "Dashboard");
+
   return (
     <div
-      className={`fixed md:static bg-background-default border-r border-border-default flex flex-col h-screen md:h-screen items-center justify-between left-0 top-0 w-[256px] z-40 transform ${
+      className={`fixed md:static bg-background-default border-r border-border-default flex flex-col h-screen md:h-screen items-center justify-between left-0 top-0 w-[16rem] z-40 transform ${
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       } transition-transform duration-300 ease-in-out`}
     >
@@ -46,7 +57,7 @@ function Sidebar({
       {/* Top section: Logo and menu */}
       <div className="flex flex-col items-start shrink-0 w-full pt-16 md:pt-0">
         {/* Logo section */}
-        <div className="flex gap-[13px] items-center opacity-80 pb-6 pt-8 px-5 shrink-0 w-full">
+        <div className="flex gap-[0.8125rem] items-center opacity-80 pb-6 pt-8 px-5 shrink-0 w-full">
           <div className="flex-shrink-0 w-8 h-8">
             <FirstAidKitIcon
               size={32}
@@ -71,7 +82,7 @@ function Sidebar({
               {userInitial}
             </p>
           </div>
-          <div className="flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary w-[159px]">
+          <div className="flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary w-[9.9375rem]">
             <p className="font-poppins font-semibold text-sm w-full">
               {userName}
             </p>
@@ -83,33 +94,58 @@ function Sidebar({
 
         {/* Navigation menu buttons */}
         <div className="flex flex-col gap-4 items-start px-2 py-5 shrink-0 w-full">
-          <MenuButtons
-            type="Dashboard"
-            isSelected={selectedMenu === "Dashboard"}
-            mode={mode}
-            onClick={() => {
+          <Link
+            to="/dashboard"
+            onClick={(e) => {
               onMenuClick?.("Dashboard");
               onClose?.();
             }}
-          />
-          <MenuButtons
-            type="Medications"
-            isSelected={selectedMenu === "Medications"}
-            mode={mode}
-            onClick={() => {
+            className="w-full no-underline"
+          >
+            <MenuButtons
+              type="Dashboard"
+              isSelected={currentMenu === "Dashboard"}
+              mode={mode}
+              onClick={(e) => {
+                // Let Link handle navigation, just close sidebar if needed
+                onClose?.();
+              }}
+            />
+          </Link>
+          <Link
+            to="/medications"
+            onClick={(e) => {
               onMenuClick?.("Medications");
               onClose?.();
             }}
-          />
-          <MenuButtons
-            type="Appointments"
-            isSelected={selectedMenu === "Appointments"}
-            mode={mode}
-            onClick={() => {
+            className="w-full no-underline"
+          >
+            <MenuButtons
+              type="Medications"
+              isSelected={currentMenu === "Medications"}
+              mode={mode}
+              onClick={(e) => {
+                onClose?.();
+              }}
+            />
+          </Link>
+          <Link
+            to="/appointments"
+            onClick={(e) => {
               onMenuClick?.("Appointments");
               onClose?.();
             }}
-          />
+            className="w-full no-underline"
+          >
+            <MenuButtons
+              type="Appointments"
+              isSelected={currentMenu === "Appointments"}
+              mode={mode}
+              onClick={(e) => {
+                onClose?.();
+              }}
+            />
+          </Link>
         </div>
       </div>
 
@@ -124,7 +160,7 @@ function Sidebar({
         <div className="flex-shrink-0 w-6 h-6">
           <UsersIcon size={24} weight="regular" color={colors.icon.primary} />
         </div>
-        <div className="flex flex-col items-start shrink-0 w-[159px]">
+        <div className="flex flex-col items-start shrink-0 w-[9.9375rem]">
           <p className="font-poppins font-normal leading-6 text-xs text-text-primary">
             Switch to{" "}
           </p>

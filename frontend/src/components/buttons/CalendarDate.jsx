@@ -59,7 +59,8 @@ function DateButtons({
 
   const styles = getStyles();
 
-  const paddingY = currentType === "Selected" ? "py-[6px]" : "py-[7px]";
+  const paddingY =
+    currentType === "Selected" ? "py-[0.375rem]" : "py-[0.4375rem]";
   const pxValue = currentType === "Selected" ? "px-0" : "px-px";
 
   const handleMouseEnter = (e) => {
@@ -76,7 +77,7 @@ function DateButtons({
 
   return (
     <div
-      className={`flex flex-col h-[60px] items-center justify-center ${pxValue} ${paddingY} rounded-lg border border-solid flex-1 min-w-[60px] cursor-pointer transition-colors`}
+      className={`flex flex-col h-[3.75rem] items-center justify-center ${pxValue} ${paddingY} rounded-lg border border-solid flex-1 min-w-[3.75rem] cursor-pointer transition-colors`}
       style={{
         backgroundColor: styles.backgroundColor,
         borderColor: styles.borderColor,

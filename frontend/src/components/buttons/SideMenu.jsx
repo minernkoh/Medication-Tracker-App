@@ -107,26 +107,28 @@ function MenuButtons({
   };
 
   return (
-    <div
-      className="flex gap-2 items-center px-4 py-3 rounded-lg transition-colors cursor-pointer w-full"
+    <button
+      type="button"
+      className="flex gap-2 items-center px-4 py-3 rounded-lg transition-colors cursor-pointer w-full text-left border-none"
       style={{
         backgroundColor: styles.backgroundColor,
       }}
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      aria-label={getLabel()}
       data-name={`Type=${type}, State=${currentState}, Mode=${mode}`}
     >
       <div className="flex-shrink-0" style={{ color: styles.iconColor }}>
         {getIcon()}
       </div>
-      <p
+      <span
         className="font-poppins font-semibold leading-6 text-base whitespace-pre shrink-0"
         style={{ color: styles.textColor }}
       >
         {getLabel()}
-      </p>
-    </div>
+      </span>
+    </button>
   );
 }
 

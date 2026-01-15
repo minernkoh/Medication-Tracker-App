@@ -1,0 +1,552 @@
+/**
+ * AppointmentsPage Component - Full appointments management for Personal mode
+ * Shows all appointments for the year in a table format
+ *
+ * @param {string} userName - User's name
+ * @param {string} mode - "Personal" or "Caregiver"
+ * @param {function} onMenuClick - Navigation callback
+ */
+import React, { useState } from "react";
+import {
+  PlusIcon,
+  CalendarBlankIcon,
+  StethoscopeIcon,
+  MapPinIcon,
+  ClockIcon,
+  PencilSimpleIcon,
+  TrashIcon,
+  NoteBlankIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  CalendarCheckIcon,
+} from "@phosphor-icons/react";
+import { colors, getPrimaryColor } from "../utils/colors";
+import Sidebar from "./Sidebar";
+import AddAppointmentModal from "./AddAppointmentModal";
+
+function AppointmentsPage({
+  userName = "Sarah",
+  mode = "Personal",
+  onMenuClick,
+}) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(2026);
+
+  // Handle menu navigation
+  const handleMenuClick = (menu) => {
+    if (onMenuClick) {
+      onMenuClick(menu);
+    }
+  };
+
+  // Sample appointments data (in real app, this would come from API)
+  const [appointments, setAppointments] = useState([
+    {
+      id: 1,
+      title: "Annual Physical Check Up",
+      doctorName: "Dr Williams",
+      location: "Singapore General Hospital",
+      date: "2026-01-15",
+      time: "14:00",
+      notes: "Bring previous test results",
+    },
+    {
+      id: 2,
+      title: "Dental Cleaning",
+      doctorName: "Dr Chen",
+      location: "Smile Dental Clinic",
+      date: "2026-01-22",
+      time: "10:30",
+      notes: "",
+    },
+    {
+      id: 3,
+      title: "Eye Examination",
+      doctorName: "Dr Tan",
+      location: "Vision Care Center",
+      date: "2026-02-05",
+      time: "09:00",
+      notes: "Prescription glasses renewal",
+    },
+    {
+      id: 4,
+      title: "Follow-up Consultation",
+      doctorName: "Dr Williams",
+      location: "Singapore General Hospital",
+      date: "2026-02-18",
+      time: "15:30",
+      notes: "",
+    },
+    {
+      id: 5,
+      title: "Blood Test",
+      doctorName: "Dr Lee",
+      location: "HealthFirst Lab",
+      date: "2026-04-10",
+      time: "08:00",
+      notes: "Fasting required",
+    },
+    {
+      id: 6,
+      title: "Vaccination",
+      doctorName: "Dr Williams",
+      location: "Singapore General Hospital",
+      date: "2026-06-20",
+      time: "11:00",
+      notes: "",
+    },
+  ]);
+
+  const primaryColor = getPrimaryColor(mode);
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return `${days[date.getDay()]}, ${date.getDate()} ${
+      monthNames[date.getMonth()]
+    }`;
+  };
+
+  // Format time for display
+  const formatTime = (timeStr) => {
+    const [hours, minutes] = timeStr.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  // Filter appointments by selected year
+  const yearAppointments = appointments.filter((apt) => {
+    const aptDate = new Date(apt.date);
+    return aptDate.getFullYear() === selectedYear;
+  });
+
+  // Sort appointments by date
+  const sortedAppointments = [...yearAppointments].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
+  // Today's date for comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get appointment status
+  const getStatus = (dateStr) => {
+    const aptDate = new Date(dateStr);
+    aptDate.setHours(0, 0, 0, 0);
+
+    if (aptDate.getTime() === today.getTime()) return "today";
+    if (aptDate < today) return "past";
+    return "upcoming";
+  };
+
+  // Count stats
+  const upcomingCount = sortedAppointments.filter(
+    (apt) => getStatus(apt.date) === "upcoming"
+  ).length;
+  const completedCount = sortedAppointments.filter(
+    (apt) => getStatus(apt.date) === "past"
+  ).length;
+  const todayCount = sortedAppointments.filter(
+    (apt) => getStatus(apt.date) === "today"
+  ).length;
+
+  // Handle add appointment
+  const handleAddAppointment = (newAppointment) => {
+    const id = Math.max(...appointments.map((a) => a.id), 0) + 1;
+    setAppointments([...appointments, { ...newAppointment, id }]);
+    setIsModalOpen(false);
+  };
+
+  // Handle edit appointment
+  const handleEditAppointment = (updatedAppointment) => {
+    setAppointments(
+      appointments.map((apt) =>
+        apt.id === updatedAppointment.id ? updatedAppointment : apt
+      )
+    );
+    setEditingAppointment(null);
+    setIsModalOpen(false);
+  };
+
+  // Handle delete appointment
+  const handleDeleteAppointment = (id) => {
+    if (window.confirm("Are you sure you want to delete this appointment?")) {
+      setAppointments(appointments.filter((apt) => apt.id !== id));
+    }
+  };
+
+  // Open modal for editing
+  const openEditModal = (appointment) => {
+    setEditingAppointment(appointment);
+    setIsModalOpen(true);
+  };
+
+  // Open modal for adding
+  const openAddModal = () => {
+    setEditingAppointment(null);
+    setIsModalOpen(true);
+  };
+
+  // Navigate years
+  const goToPreviousYear = () => setSelectedYear(selectedYear - 1);
+  const goToNextYear = () => setSelectedYear(selectedYear + 1);
+
+  // Status badge component
+  const StatusBadge = ({ status }) => {
+    const styles = {
+      today: {
+        bg: "bg-amber-100",
+        text: "text-amber-700",
+        label: "Today",
+      },
+      upcoming: {
+        bg: "bg-blue-50",
+        text: "text-blue-600",
+        label: "Upcoming",
+      },
+      past: {
+        bg: "bg-gray-100",
+        text: "text-gray-500",
+        label: "Completed",
+      },
+    };
+
+    const style = styles[status];
+
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-poppins font-medium ${style.bg} ${style.text}`}
+      >
+        {status === "past" && <CheckCircleIcon size={12} weight="fill" />}
+        {style.label}
+      </span>
+    );
+  };
+
+  return (
+    <div className="bg-background-default w-full min-h-screen overflow-x-hidden flex">
+      {/* Gradient background decoration */}
+      <div className="hidden md:block absolute h-[85rem] left-[4rem] top-[-11rem] w-[88rem] pointer-events-none z-0">
+        <div className="absolute inset-[-36%_-35%]">
+          <div
+            className="w-full h-full opacity-10"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(21, 93, 252, 0.1) 0%, rgba(218, 116, 136, 0.1) 100%)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Sidebar navigation */}
+      <Sidebar
+        userName="Sarah Johnson"
+        userEmail="sarahjohnson@gmail.com"
+        mode={mode}
+        selectedMenu="Appointments"
+        onMenuClick={handleMenuClick}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+
+      {/* Mobile menu button */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-primary text-text-onPrimary rounded-lg shadow-lg"
+        aria-label="Toggle menu"
+      >
+        Menu
+      </button>
+
+      {/* Mobile overlay */}
+      {isSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main content area */}
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full flex-1 z-10 pb-10">
+        <div className="w-full max-w-[1000px] mx-auto">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
+                Appointments
+              </h1>
+              <p className="font-poppins text-sm text-text-secondary mt-1">
+                {sortedAppointments.length} appointment
+                {sortedAppointments.length !== 1 ? "s" : ""} in {selectedYear}
+              </p>
+            </div>
+
+            {/* Add appointment button */}
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 shadow-sm"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <PlusIcon size={18} weight="bold" />
+              <span>New Appointment</span>
+            </button>
+          </div>
+
+          {/* Year navigation & Stats */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            {/* Year selector */}
+            <div className="bg-background-default border border-border-default flex items-center justify-between px-4 py-3 rounded-xl flex-1 sm:flex-none sm:min-w-[200px]">
+              <button
+                onClick={goToPreviousYear}
+                className="p-1.5 rounded-lg hover:bg-background-hover transition-colors"
+                aria-label="Previous year"
+              >
+                <CaretLeftIcon
+                  size={20}
+                  weight="bold"
+                  color={colors.icon.primary}
+                />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <CalendarCheckIcon
+                  size={20}
+                  weight="fill"
+                  color={primaryColor}
+                />
+                <span className="font-poppins font-bold text-lg text-text-primary">
+                  {selectedYear}
+                </span>
+              </div>
+
+              <button
+                onClick={goToNextYear}
+                className="p-1.5 rounded-lg hover:bg-background-hover transition-colors"
+                aria-label="Next year"
+              >
+                <CaretRightIcon
+                  size={20}
+                  weight="bold"
+                  color={colors.icon.primary}
+                />
+              </button>
+            </div>
+
+            {/* Quick stats */}
+            <div className="flex gap-3 flex-1">
+              <div className="bg-background-default border border-border-default rounded-xl px-4 py-3 flex-1">
+                <p className="font-poppins text-xs text-text-secondary uppercase tracking-wide">
+                  Upcoming
+                </p>
+                <p
+                  className="font-poppins font-bold text-xl"
+                  style={{ color: primaryColor }}
+                >
+                  {upcomingCount + todayCount}
+                </p>
+              </div>
+              <div className="bg-background-default border border-border-default rounded-xl px-4 py-3 flex-1">
+                <p className="font-poppins text-xs text-text-secondary uppercase tracking-wide">
+                  Completed
+                </p>
+                <p className="font-poppins font-bold text-xl text-text-primary">
+                  {completedCount}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Appointments table */}
+          <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden shadow-sm">
+            {sortedAppointments.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border-default bg-background-subtle">
+                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                        Status
+                      </th>
+                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                        Date & Time
+                      </th>
+                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                        Appointment
+                      </th>
+                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                        Doctor
+                      </th>
+                      <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                        Location
+                      </th>
+                      <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedAppointments.map((apt) => {
+                      const status = getStatus(apt.date);
+                      const isPast = status === "past";
+                      const isToday = status === "today";
+
+                      return (
+                        <tr
+                          key={apt.id}
+                          className={`border-b border-border-default transition-colors hover:bg-background-hover ${
+                            isPast ? "opacity-50" : ""
+                          } ${isToday ? "bg-amber-50/30" : ""}`}
+                        >
+                          <td className="px-5 py-4">
+                            <StatusBadge status={status} />
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex flex-col">
+                              <span className="font-poppins font-medium text-sm text-text-primary">
+                                {formatDate(apt.date)}
+                              </span>
+                              <span className="font-poppins text-xs text-text-secondary mt-0.5">
+                                {formatTime(apt.time)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex flex-col">
+                              <span className="font-poppins font-semibold text-sm text-text-primary">
+                                {apt.title}
+                              </span>
+                              {apt.notes && (
+                                <span className="font-poppins text-xs text-text-secondary mt-0.5 italic max-w-[200px] truncate">
+                                  {apt.notes}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <StethoscopeIcon
+                                size={16}
+                                weight="regular"
+                                color={colors.icon.secondary}
+                              />
+                              <span className="font-poppins text-sm text-text-primary">
+                                {apt.doctorName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <MapPinIcon
+                                size={16}
+                                weight="regular"
+                                color={colors.icon.secondary}
+                              />
+                              <span className="font-poppins text-sm text-text-primary max-w-[180px] truncate">
+                                {apt.location}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => openEditModal(apt)}
+                                className="p-2 rounded-lg hover:bg-background-hover transition-colors"
+                                aria-label="Edit appointment"
+                              >
+                                <PencilSimpleIcon
+                                  size={18}
+                                  weight="regular"
+                                  color={primaryColor}
+                                />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAppointment(apt.id)}
+                                className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                aria-label="Delete appointment"
+                              >
+                                <TrashIcon
+                                  size={18}
+                                  weight="regular"
+                                  color="#ef4444"
+                                />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                  style={{ backgroundColor: `${primaryColor}15` }}
+                >
+                  <CalendarBlankIcon
+                    size={32}
+                    weight="light"
+                    color={primaryColor}
+                  />
+                </div>
+                <p className="font-poppins font-medium text-text-primary">
+                  No appointments in {selectedYear}
+                </p>
+                <p className="font-poppins text-sm text-text-secondary mt-1 max-w-xs">
+                  Schedule your medical appointments to keep track of your
+                  healthcare
+                </p>
+                <button
+                  onClick={openAddModal}
+                  className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <PlusIcon size={18} weight="bold" />
+                  <span>Schedule Appointment</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Add/Edit Appointment Modal */}
+      {isModalOpen && (
+        <AddAppointmentModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingAppointment(null);
+          }}
+          onSave={
+            editingAppointment ? handleEditAppointment : handleAddAppointment
+          }
+          appointment={editingAppointment}
+          mode={mode}
+        />
+      )}
+    </div>
+  );
+}
+
+export default AppointmentsPage;
