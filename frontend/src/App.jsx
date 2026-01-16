@@ -100,6 +100,7 @@ function AppLayout({
                 <MedicationPage
                   userName={user.name.split(" ")[0]}
                   mode={mode}
+                  userId={user.id}
                 />
               ) : (
                 <Navigate to="/dashboard" replace />

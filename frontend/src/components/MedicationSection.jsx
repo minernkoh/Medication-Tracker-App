@@ -175,7 +175,9 @@ function MedicationSection({
                       onCheck={
                         isPending ? () => onMarkAsTaken?.(med.id) : undefined
                       }
-                      onEdit={!isPending ? () => onEdit?.(med.id) : undefined}
+                      onEdit={
+                        !isPending ? () => handleEditClick(med) : undefined
+                      }
                       onDelete={
                         !isPending ? () => onDelete?.(med.id) : undefined
                       }
@@ -203,7 +205,7 @@ function MedicationSection({
                 }
                 pillColor={med.pillColor}
                 onCheck={isPending ? () => onMarkAsTaken?.(med.id) : undefined}
-                onEdit={!isPending ? () => onEdit?.(med.id) : undefined}
+                onEdit={!isPending ? () => handleEditClick(med) : undefined}
                 onDelete={!isPending ? () => onDelete?.(med.id) : undefined}
               />
             ))}

@@ -153,7 +153,7 @@ function MedicineDue({
 
         {(type === "Taken" || type === "Supply") && (
           <ActionButtons
-            onEdit={onEdit}
+            onClick={onEdit}
             onDelete={onDelete}
             size="base"
             editLabel="Edit medication"

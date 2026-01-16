@@ -31,16 +31,17 @@ function MedicationSection({
   // Group medications by time of day
   const groupByTime = (meds) => {
     const groups = {};
-    
+
     meds.forEach((med) => {
       const time = med.timeOfDay || med.time || "Other";
-      const normalizedTime = time.charAt(0).toUpperCase() + time.slice(1).toLowerCase();
+      const normalizedTime =
+        time.charAt(0).toUpperCase() + time.slice(1).toLowerCase();
       if (!groups[normalizedTime]) {
         groups[normalizedTime] = [];
       }
       groups[normalizedTime].push(med);
     });
-    
+
     // Sort groups by time order
     const sortedGroups = {};
     ["Morning", "Afternoon", "Night", "Other"].forEach((time) => {
@@ -48,7 +49,7 @@ function MedicationSection({
         sortedGroups[time] = groups[time];
       }
     });
-    
+
     return sortedGroups;
   };
 
@@ -75,7 +76,9 @@ function MedicationSection({
       compactTitle: dateLabel ? `Pending · ${dateLabel}` : "Pending",
       subtitle: `Medications scheduled for ${dateText.toLowerCase()}`,
       countLabel: "pending",
-      emptyMessage: `No pending medications${isToday ? "" : ` for ${dateLabel}`}`,
+      emptyMessage: `No pending medications${
+        isToday ? "" : ` for ${dateLabel}`
+      }`,
     },
     taken: {
       icon: CheckCircleIcon,
@@ -84,7 +87,9 @@ function MedicationSection({
       compactTitle: dateLabel ? `Taken · ${dateLabel}` : "Taken",
       subtitle: `Medications already taken ${dateText.toLowerCase()}`,
       countLabel: "taken",
-      emptyMessage: `No medications taken${isToday ? " yet today" : ` on ${dateLabel}`}`,
+      emptyMessage: `No medications taken${
+        isToday ? " yet today" : ` on ${dateLabel}`
+      }`,
     },
   };
 
@@ -98,7 +103,11 @@ function MedicationSection({
       }`}
     >
       {/* Section Header */}
-      <div className={`flex justify-between items-center ${compact ? "mb-4" : "mb-6"}`}>
+      <div
+        className={`flex justify-between items-center ${
+          compact ? "mb-4" : "mb-6"
+        }`}
+      >
         <div className="flex items-center gap-3">
           <IconComponent
             size={compact ? 20 : 24}
@@ -134,7 +143,9 @@ function MedicationSection({
               <div key={time} className={compact ? "" : "mb-6 last:mb-0"}>
                 <h3 className="font-poppins font-bold leading-6 text-sm text-text-primary mb-3 flex items-center gap-2">
                   <span
-                    className={`w-2 h-2 rounded-full ${timeColors[time] || timeColors.Other}`}
+                    className={`w-2 h-2 rounded-full ${
+                      timeColors[time] || timeColors.Other
+                    }`}
                   />
                   {time}
                 </h3>
@@ -153,9 +164,13 @@ function MedicationSection({
                           : med.additionalInfo
                       }
                       pillColor={med.pillColor}
-                      onCheck={isPending ? () => onMarkAsTaken?.(med.id) : undefined}
+                      onCheck={
+                        isPending ? () => onMarkAsTaken?.(med.id) : undefined
+                      }
                       onEdit={!isPending ? () => onEdit?.(med.id) : undefined}
-                      onDelete={!isPending ? () => onDelete?.(med.id) : undefined}
+                      onDelete={
+                        !isPending ? () => onDelete?.(med.id) : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -180,7 +195,7 @@ function MedicationSection({
                 }
                 pillColor={med.pillColor}
                 onCheck={isPending ? () => onMarkAsTaken?.(med.id) : undefined}
-                onEdit={!isPending ? () => onEdit?.(med.id) : undefined}
+                onEdit={!isPending ? () => onEdit?.(med) : undefined}
                 onDelete={!isPending ? () => onDelete?.(med.id) : undefined}
               />
             ))}

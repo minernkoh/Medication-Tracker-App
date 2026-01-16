@@ -15,11 +15,8 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { colors, getPrimaryColor } from "../../../utils/colors";
-import {
-  MedicineDue,
-  DataTable,
-  MedicationSection,
-} from "../../ui";
+import { MedicineDue, DataTable, MedicationSection } from "../../ui";
+import EditMedicationModal from "../../modals/EditMedicationModal";
 
 const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   const primaryColor = getPrimaryColor(mode);
@@ -100,6 +97,9 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
     key: "name",
     direction: "asc",
   });
+
+  const [editingMedication, setEditingMedication] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Filter medications by status for display
   const pendingMeds = medications.filter((med) => med.status === "pending");
@@ -223,9 +223,22 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
    * In a full implementation, this would open an edit modal
    */
   const handleEditMedication = (medicationId) => {
-    // For now, just log which medication to edit
-    console.log("Edit medication:", medicationId);
-    // In a real app, you would open an edit form similar to the add form
+    console.log("Opening edit modal for medication:", medicationId);
+    const medication = medications.find((med) => med.id === medicationId);
+    setEditingMedication(medication);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditedMedication = (updatedMedication) => {
+    console.log("Saving edited medication:", updatedMedication);
+    // Update the medication in state
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === updatedMedication.id ? { ...med, ...updatedMedication } : med
+      )
+    );
+    setShowEditModal(false);
+    setEditingMedication(null);
   };
 
   /**
@@ -262,15 +275,18 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
       const times = newMedication.frequencyValue;
       frequencyString = times === "1" ? "Once daily" : `${times} times per day`;
     } else if (newMedication.frequencyType === "everyHours") {
-      frequencyString = `Every ${newMedication.frequencyValue} hour${newMedication.frequencyValue !== "1" ? "s" : ""}`;
+      frequencyString = `Every ${newMedication.frequencyValue} hour${
+        newMedication.frequencyValue !== "1" ? "s" : ""
+      }`;
     } else {
       frequencyString = newMedication.frequencyText;
     }
 
     // Format instructions into additionalInfo string
-    const additionalInfo = newMedication.instructions.length > 0
-      ? newMedication.instructions.join(", ")
-      : null;
+    const additionalInfo =
+      newMedication.instructions.length > 0
+        ? newMedication.instructions.join(", ")
+        : null;
 
     // Create new medication object
     const newMed = {
@@ -368,6 +384,19 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
               <span>Add Medication</span>
             </button>
           </div>
+
+          {showEditModal && editingMedication && (
+            <EditMedicationModal
+              isOpen={showEditModal}
+              onClose={() => {
+                setShowEditModal(false);
+                setEditingMedication(null);
+              }}
+              onSave={handleSaveEditedMedication}
+              medication={editingMedication}
+              mode={mode}
+            />
+          )}
 
           {/* PENDING TODAY and TAKEN TODAY Sections - Horizontal Layout */}
           <div className="flex flex-col md:flex-row gap-6 mb-6">
@@ -629,7 +658,9 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
                       >
                         <input
                           type="checkbox"
-                          checked={newMedication.instructions.includes(instruction)}
+                          checked={newMedication.instructions.includes(
+                            instruction
+                          )}
                           onChange={() => handleInstructionChange(instruction)}
                           className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
                           style={{
