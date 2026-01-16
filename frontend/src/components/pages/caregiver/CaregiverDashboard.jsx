@@ -16,7 +16,9 @@ import {
   BellIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react";
-import { colors, getModeColors } from "../../../utils/colors";
+import { getModeHexColor } from "../../../utils/modeUtils";
+import { GradientBackground } from "../../ui";
+import { colors } from "../../../../tailwind.config.js";
 
 // Mock patient data
 const mockPatients = [
@@ -24,7 +26,7 @@ const mockPatients = [
     id: 1,
     name: "Mom (Linda)",
     initials: "L",
-    color: "#da7488",
+    color: colors.patient.pink,
     medicationsTaken: 3,
     medicationsTotal: 4,
     nextMedication: "2:00 PM",
@@ -36,7 +38,7 @@ const mockPatients = [
     id: 2,
     name: "Dad (Robert)",
     initials: "R",
-    color: "#155dfc",
+    color: colors.patient.blue,
     medicationsTaken: 5,
     medicationsTotal: 5,
     nextMedication: null,
@@ -48,7 +50,7 @@ const mockPatients = [
     id: 3,
     name: "Grandma (Eleanor)",
     initials: "E",
-    color: "#10b981",
+    color: colors.patient.green,
     medicationsTaken: 2,
     medicationsTotal: 6,
     nextMedication: "1:30 PM",
@@ -60,7 +62,7 @@ const mockPatients = [
 
 function CaregiverDashboard({ userName = "Caregiver" }) {
   const navigate = useNavigate();
-  const modeColors = getModeColors("Caregiver");
+  const modeHexColor = getModeHexColor("Caregiver");
 
   // Calculate totals
   const totalPatients = mockPatients.length;
@@ -110,7 +112,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
             <span className="font-poppins text-xs text-text-secondary">Today's Progress</span>
             <span
               className="font-poppins text-xs font-semibold"
-              style={{ color: completionPercent === 100 ? "#10b981" : modeColors.DEFAULT }}
+              style={{ color: completionPercent === 100 ? colors.success.DEFAULT : modeHexColor }}
             >
               {completionPercent}%
             </span>
@@ -120,7 +122,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
               className="h-full rounded-full transition-all duration-300"
               style={{
                 width: `${completionPercent}%`,
-                backgroundColor: completionPercent === 100 ? "#10b981" : modeColors.DEFAULT,
+                backgroundColor: completionPercent === 100 ? colors.success.DEFAULT : modeHexColor,
               }}
             />
           </div>
@@ -163,27 +165,34 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
   };
 
   return (
-    <div className="bg-background-default w-full min-h-screen p-6 md:p-10">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-2 mb-2">
-          <HeartIcon size={28} weight="fill" color={modeColors.DEFAULT} />
-          <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-            Good Morning, {userName}!
-          </h1>
-        </div>
-        <p className="font-poppins text-text-secondary mb-8">
-          Here's an overview of your patients for today
-        </p>
+    <div className="bg-background-default w-full overflow-x-hidden relative">
+      {/* Gradient background decoration */}
+      <GradientBackground />
 
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Main content area */}
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-10">
+        <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <HeartIcon size={32} weight="fill" color={modeHexColor} />
+            <div>
+              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
+                Good Morning, {userName}!
+              </h1>
+              <p className="font-poppins text-sm text-text-secondary mt-2">
+                Here's an overview of your patients for today
+              </p>
+            </div>
+          </div>
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="bg-background-default border border-border-default rounded-2xl p-4">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-              style={{ backgroundColor: `${modeColors.DEFAULT}15` }}
+              style={{ backgroundColor: `${modeHexColor}15` }}
             >
-              <UsersIcon size={20} weight="fill" color={modeColors.DEFAULT} />
+              <UsersIcon size={20} weight="fill" color={modeHexColor} />
             </div>
             <p className="font-poppins font-bold text-2xl text-text-primary">{totalPatients}</p>
             <p className="font-poppins text-sm text-text-secondary">Patients</p>
@@ -191,7 +200,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
 
           <div className="bg-background-default border border-border-default rounded-2xl p-4">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
-              <PillIcon size={20} weight="fill" color="#10b981" />
+              <PillIcon size={20} weight="fill" color={colors.success.DEFAULT} />
             </div>
             <p className="font-poppins font-bold text-2xl text-text-primary">
               {totalMedicationsTaken}/{totalMedicationsToday}
@@ -201,7 +210,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
 
           <div className="bg-background-default border border-border-default rounded-2xl p-4">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-              <CalendarCheckIcon size={20} weight="fill" color="#155dfc" />
+              <CalendarCheckIcon size={20} weight="fill" color={colors.primary.DEFAULT} />
             </div>
             <p className="font-poppins font-bold text-2xl text-text-primary">{upcomingAppointments}</p>
             <p className="font-poppins text-sm text-text-secondary">Upcoming Appointments</p>
@@ -214,9 +223,9 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
               }`}
             >
               {totalAlerts > 0 ? (
-                <BellIcon size={20} weight="fill" color="#ef4444" />
+                <BellIcon size={20} weight="fill" color={colors.danger.DEFAULT} />
               ) : (
-                <CheckCircleIcon size={20} weight="fill" color="#10b981" />
+                <CheckCircleIcon size={20} weight="fill" color={colors.success.DEFAULT} />
               )}
             </div>
             <p className="font-poppins font-bold text-2xl text-text-primary">{totalAlerts}</p>
@@ -226,28 +235,28 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
           </div>
         </div>
 
-        {/* Patients section */}
-        <div className="flex items-center justify-between mb-4">
+          {/* Patients section */}
+          <div className="flex items-center justify-between mb-4">
           <h2 className="font-poppins font-bold text-xl text-text-primary">Your Patients</h2>
           <button
             onClick={() => navigate("/patients")}
             className="font-poppins text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"
-            style={{ color: modeColors.DEFAULT }}
+            style={{ color: modeHexColor }}
           >
             View All
             <CaretRightIcon size={16} weight="bold" />
           </button>
         </div>
 
-        {/* Patient cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Patient cards grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mockPatients.map((patient) => (
             <PatientCard key={patient.id} patient={patient} />
           ))}
         </div>
 
-        {/* Today's schedule section */}
-        <div className="mt-8">
+          {/* Today's schedule section */}
+          <div>
           <h2 className="font-poppins font-bold text-xl text-text-primary mb-4">
             Today's Medication Schedule
           </h2>
@@ -276,7 +285,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
                       <div className="flex items-center gap-3">
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-white font-poppins font-semibold text-sm"
-                          style={{ backgroundColor: "#da7488" }}
+                          style={{ backgroundColor: colors.patient.pink }}
                         >
                           L
                         </div>
@@ -301,7 +310,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
                       <div className="flex items-center gap-3">
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-white font-poppins font-semibold text-sm"
-                          style={{ backgroundColor: "#10b981" }}
+                          style={{ backgroundColor: colors.patient.green }}
                         >
                           E
                         </div>
@@ -326,7 +335,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
                       <div className="flex items-center gap-3">
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-white font-poppins font-semibold text-sm"
-                          style={{ backgroundColor: "#155dfc" }}
+                          style={{ backgroundColor: colors.patient.blue }}
                         >
                           R
                         </div>
@@ -349,6 +358,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
                 </tbody>
               </table>
             </div>
+          </div>
           </div>
         </div>
       </div>

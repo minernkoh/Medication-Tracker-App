@@ -8,8 +8,8 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 import React, { useState, useEffect } from "react";
-import { XIcon } from "@phosphor-icons/react";
-import { colors, getPrimaryColor } from "../../utils/colors";
+import { Modal, FormField, Button } from "../ui";
+import { getModeHexColor } from "../../utils/modeUtils";
 
 function AddAppointmentModal({
   isOpen,
@@ -19,7 +19,6 @@ function AddAppointmentModal({
   mode = "Personal",
 }) {
   const isEditing = !!appointment;
-  const primaryColor = getPrimaryColor(mode);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -103,182 +102,123 @@ function AddAppointmentModal({
     onSave(appointmentData);
   };
 
-  // Handle backdrop click
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   if (!isOpen) return null;
 
-  // Common input styles
-  const inputBaseClass =
-    "w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none transition-colors";
-  const inputNormalClass = `${inputBaseClass} border-border-default focus:border-primary`;
-  const inputErrorClass = `${inputBaseClass} border-red-400 focus:border-red-500`;
+  const primaryColor = getModeHexColor(mode);
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
-      <div className="bg-background-default rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border-default">
-          <h2 className="font-poppins font-bold text-xl text-text-primary">
-            {isEditing ? "Edit Appointment" : "New Appointment"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-background-hover transition-colors"
-            aria-label="Close modal"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? "Edit Appointment" : "New Appointment"}
+      size="md"
+      footerContent={
+        <>
+          <Button variant="outline" onClick={onClose} fullWidth>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              const form = document.getElementById("appointment-form");
+              if (form) {
+                form.requestSubmit();
+              }
+            }}
+            fullWidth
+            style={{ backgroundColor: primaryColor }}
           >
-            <XIcon size={24} weight="regular" color={colors.icon.primary} />
-          </button>
+            {isEditing ? "Save Changes" : "Add Appointment"}
+          </Button>
+        </>
+      }
+    >
+      <form id="appointment-form" onSubmit={handleSubmit} className="p-5">
+        <div className="flex flex-col gap-4">
+          {/* Title */}
+          <FormField
+            label="Appointment Title"
+            name="title"
+            type="text"
+            value={formData.title}
+            onChange={handleChange}
+            placeholder="e.g., Annual Physical Check Up"
+            error={errors.title}
+            required
+          />
+
+          {/* Doctor Name */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Doctor Name
+              <span className="font-normal text-text-secondary ml-1">
+                (optional)
+              </span>
+            </label>
+            <input
+              type="text"
+              name="doctorName"
+              value={formData.doctorName}
+              onChange={handleChange}
+              placeholder="e.g., Dr Williams"
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+            />
+          </div>
+
+          {/* Location */}
+          <FormField
+            label="Location"
+            name="location"
+            type="text"
+            value={formData.location}
+            onChange={handleChange}
+            placeholder="e.g., Singapore General Hospital"
+            error={errors.location}
+            required
+          />
+
+          {/* Date and Time row */}
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              label="Date"
+              name="date"
+              type="date"
+              value={formData.date}
+              onChange={handleChange}
+              error={errors.date}
+              required
+            />
+            <FormField
+              label="Time"
+              name="time"
+              type="time"
+              value={formData.time}
+              onChange={handleChange}
+              error={errors.time}
+              required
+            />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Notes
+              <span className="font-normal text-text-secondary ml-1">
+                (optional)
+              </span>
+            </label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              placeholder="Add any additional notes..."
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-colors"
+            />
+          </div>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5">
-          <div className="flex flex-col gap-4">
-            {/* Title */}
-            <div>
-              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Appointment Title *
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                placeholder="e.g., Annual Physical Check Up"
-                className={errors.title ? inputErrorClass : inputNormalClass}
-              />
-              {errors.title && (
-                <p className="font-poppins text-xs text-red-500 mt-1">
-                  {errors.title}
-                </p>
-              )}
-            </div>
-
-            {/* Doctor Name */}
-            <div>
-              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Doctor Name
-                <span className="font-normal text-text-secondary ml-1">
-                  (optional)
-                </span>
-              </label>
-              <input
-                type="text"
-                name="doctorName"
-                value={formData.doctorName}
-                onChange={handleChange}
-                placeholder="e.g., Dr Williams"
-                className={inputNormalClass}
-              />
-            </div>
-
-            {/* Location */}
-            <div>
-              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Location *
-              </label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleChange}
-                placeholder="e.g., Singapore General Hospital"
-                className={errors.location ? inputErrorClass : inputNormalClass}
-              />
-              {errors.location && (
-                <p className="font-poppins text-xs text-red-500 mt-1">
-                  {errors.location}
-                </p>
-              )}
-            </div>
-
-            {/* Date and Time row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Date */}
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Date *
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  className={errors.date ? inputErrorClass : inputNormalClass}
-                />
-                {errors.date && (
-                  <p className="font-poppins text-xs text-red-500 mt-1">
-                    {errors.date}
-                  </p>
-                )}
-              </div>
-
-              {/* Time */}
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Time *
-                </label>
-                <input
-                  type="time"
-                  name="time"
-                  value={formData.time}
-                  onChange={handleChange}
-                  className={errors.time ? inputErrorClass : inputNormalClass}
-                />
-                {errors.time && (
-                  <p className="font-poppins text-xs text-red-500 mt-1">
-                    {errors.time}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Notes
-                <span className="font-normal text-text-secondary ml-1">
-                  (optional)
-                </span>
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                placeholder="Add any additional notes..."
-                rows={3}
-                className={`${inputNormalClass} resize-none`}
-              />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-text-primary border border-border-default hover:bg-background-hover transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{ backgroundColor: primaryColor }}
-            >
-              {isEditing ? "Save Changes" : "Add Appointment"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 

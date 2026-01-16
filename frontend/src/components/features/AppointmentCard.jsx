@@ -6,11 +6,12 @@ import {
   MapPinIcon,
   CaretRightIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../utils/colors";
+import Card from "../ui/Card";
+import { colors } from "../../../tailwind.config.js";
 
 /**
  * AppointmentCard Component
- * Displays upcoming appointment information
+ * Displays upcoming appointment information - accessible and keyboard navigable
  *
  * @param {string} title - Appointment title (default: "Annual Physical Check Up")
  * @param {string} date - Appointment date and time (default: "Thu, Jan 15, 2:00 PM")
@@ -36,9 +37,10 @@ function AppointmentCard({
   };
 
   return (
-    <div
-      className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-2 items-center p-5 rounded-2xl cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all group"
+    <Card
       onClick={handleClick}
+      className="flex flex-[1_0_0] flex-col gap-2 items-start group text-left w-full"
+      aria-label={`View appointment: ${title} on ${date}`}
     >
       <div className="flex justify-between items-center w-full">
         <p className="font-poppins font-bold leading-6 text-base text-text-primary">
@@ -91,7 +93,7 @@ function AppointmentCard({
           </p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 

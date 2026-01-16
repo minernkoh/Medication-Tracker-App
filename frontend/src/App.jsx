@@ -11,7 +11,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import {
-  Dashboard,
+  DashboardPage,
   AppointmentsPage,
   MedicationPage,
   Sidebar,
@@ -23,6 +23,14 @@ import {
   PatientDetailPage,
   CaregiverAppointmentsPage,
 } from "./components";
+import { ErrorProvider } from "./contexts/ErrorContext";
+import NotFoundPage from "./components/pages/NotFoundPage";
+import {
+  getAuthData,
+  setAuthData,
+  removeAuthData,
+  getAuthField,
+} from "./utils/storageUtils";
 
 // Lazy load SettingsPage
 const SettingsPage = React.lazy(() =>
@@ -39,6 +47,8 @@ function AppLayout({
   setShowCaregiverModal,
   onCaregiverLogin,
   onCaregiverSignup,
+  onShowOnboarding,
+  onDeleteAccount,
 }) {
   const location = useLocation();
 
@@ -54,7 +64,7 @@ function AppLayout({
       />
 
       {/* Main content area - scrollable, moves to accommodate sidebar on desktop */}
-      <main className="flex-1 ml-0 md:ml-[256px] overflow-y-auto h-screen">
+      <main className="flex-1 ml-0 md:ml-[256px] overflow-y-auto overflow-x-hidden min-h-0">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
@@ -65,7 +75,7 @@ function AppLayout({
               mode === "Caregiver" ? (
                 <CaregiverDashboard userName={user.name.split(" ")[0]} />
               ) : (
-                <Dashboard userName={user.name.split(" ")[0]} mode={mode} />
+                <DashboardPage userName={user.name.split(" ")[0]} mode={mode} />
               )
             }
           />
@@ -134,10 +144,19 @@ function AppLayout({
                   </div>
                 }
               >
-                <SettingsPage user={user} mode={mode} onLogout={onLogout} />
+                <SettingsPage
+                  user={user}
+                  mode={mode}
+                  onLogout={onLogout}
+                  onShowOnboarding={onShowOnboarding}
+                  onDeleteAccount={onDeleteAccount}
+                />
               </React.Suspense>
             }
           />
+
+          {/* 404 - Catch all unmatched routes */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
 
@@ -155,9 +174,7 @@ function AppLayout({
 function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // Check localStorage for existing session
-    const saved = localStorage.getItem("medtracker_auth");
-    return saved ? JSON.parse(saved).isAuthenticated : false;
+    return getAuthField("isAuthenticated", false);
   });
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -165,16 +182,17 @@ function App() {
 
   // User state
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("medtracker_auth");
-    return saved
-      ? JSON.parse(saved).user
-      : { name: "Sarah Johnson", email: "sarahjohnson@gmail.com" };
+    return (
+      getAuthField("user") || {
+        name: "Sarah Johnson",
+        email: "sarahjohnson@gmail.com",
+      }
+    );
   });
 
   // Mode state (Personal or Caregiver)
   const [mode, setMode] = useState(() => {
-    const saved = localStorage.getItem("medtracker_auth");
-    return saved ? JSON.parse(saved).mode : "Personal";
+    return getAuthField("mode", "Personal");
   });
 
   // Caregiver modal state
@@ -183,10 +201,14 @@ function App() {
   // Save auth state to localStorage
   useEffect(() => {
     if (isAuthenticated) {
-      localStorage.setItem(
-        "medtracker_auth",
-        JSON.stringify({ isAuthenticated, user, mode })
-      );
+      const existing = getAuthData() || {};
+      setAuthData({
+        isAuthenticated,
+        user,
+        mode,
+        onboardingSkipped: existing.onboardingSkipped || false,
+        onboardingCompleted: existing.onboardingCompleted || false,
+      });
     }
   }, [isAuthenticated, user, mode]);
 
@@ -208,6 +230,22 @@ function App() {
 
   // Handle onboarding completion
   const handleOnboardingComplete = (userData) => {
+    // If user is already authenticated (viewing from Settings), just close onboarding
+    if (isAuthenticated) {
+      setShowOnboarding(false);
+      setPendingUser(null);
+
+      // Mark onboarding as completed
+      const existing = getAuthData() || {};
+      setAuthData({
+        ...existing,
+        onboardingCompleted: true,
+        onboardingSkipped: false,
+      });
+      return;
+    }
+
+    // New user flow - authenticate and complete onboarding
     setUser({
       name: userData.name,
       email: userData.email,
@@ -216,6 +254,27 @@ function App() {
     setIsAuthenticated(true);
     setShowOnboarding(false);
     setPendingUser(null);
+
+    // Mark onboarding as completed
+    const existing = getAuthData() || {};
+    setAuthData({
+      ...existing,
+      isAuthenticated: true,
+      user: { name: userData.name, email: userData.email },
+      mode: userData.mode,
+      onboardingCompleted: true,
+      onboardingSkipped: false,
+    });
+  };
+
+  // Handle showing onboarding from Settings
+  const handleShowOnboardingFromSettings = () => {
+    setPendingUser({
+      name: user.name,
+      email: user.email,
+      mode: mode,
+    });
+    setShowOnboarding(true);
   };
 
   // Handle switching to caregiver mode
@@ -247,7 +306,14 @@ function App() {
     setIsAuthenticated(false);
     setUser({ name: "Sarah Johnson", email: "sarahjohnson@gmail.com" });
     setMode("Personal");
-    localStorage.removeItem("medtracker_auth");
+    removeAuthData();
+  };
+
+  // Handle delete account
+  const handleDeleteAccount = () => {
+    // TODO: Call API to delete account
+    // For now, just log out the user
+    handleLogout();
   };
 
   // Show onboarding tutorial for new users
@@ -263,24 +329,33 @@ function App() {
   // Show auth page if not authenticated
   if (!isAuthenticated) {
     return (
-      <AuthPage onLogin={handleLogin} onShowOnboarding={handleShowOnboarding} />
+      <ErrorProvider>
+        <AuthPage
+          onLogin={handleLogin}
+          onShowOnboarding={handleShowOnboarding}
+        />
+      </ErrorProvider>
     );
   }
 
   // Show main app
   return (
-    <BrowserRouter>
-      <AppLayout
-        user={user}
-        mode={mode}
-        onSwitchMode={handleSwitchMode}
-        onLogout={handleLogout}
-        showCaregiverModal={showCaregiverModal}
-        setShowCaregiverModal={setShowCaregiverModal}
-        onCaregiverLogin={handleCaregiverLogin}
-        onCaregiverSignup={handleCaregiverSignup}
-      />
-    </BrowserRouter>
+    <ErrorProvider>
+      <BrowserRouter>
+        <AppLayout
+          user={user}
+          mode={mode}
+          onSwitchMode={handleSwitchMode}
+          onLogout={handleLogout}
+          showCaregiverModal={showCaregiverModal}
+          setShowCaregiverModal={setShowCaregiverModal}
+          onCaregiverLogin={handleCaregiverLogin}
+          onCaregiverSignup={handleCaregiverSignup}
+          onShowOnboarding={handleShowOnboardingFromSettings}
+          onDeleteAccount={handleDeleteAccount}
+        />
+      </BrowserRouter>
+    </ErrorProvider>
   );
 }
 

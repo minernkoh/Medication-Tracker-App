@@ -19,7 +19,7 @@ import {
   BellIcon,
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../utils/colors";
+import { colors } from "../../../tailwind.config.js";
 
 function AuthPage({ onLogin, onShowOnboarding }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -44,23 +44,23 @@ function AuthPage({ onLogin, onShowOnboarding }) {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!isLogin && !formData.name.trim()) {
       newErrors.name = "Name is required";
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Please enter a valid email";
     }
-    
+
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else if (!isLogin && formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
     }
-    
+
     if (!isLogin && formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
@@ -79,7 +79,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
       // For demo purposes, just trigger login
       const isFirstTime = !isLogin;
       const mode = accountType === "caregiver" ? "Caregiver" : "Personal";
-      
+
       if (isFirstTime) {
         onShowOnboarding?.({
           name: formData.name,
@@ -97,7 +97,13 @@ function AuthPage({ onLogin, onShowOnboarding }) {
   };
 
   // Account type selection for signup
-  const AccountTypeCard = ({ type, icon: Icon, title, description, selected }) => (
+  const AccountTypeCard = ({
+    type,
+    icon: Icon,
+    title,
+    description,
+    selected,
+  }) => (
     <button
       type="button"
       onClick={() => setAccountType(type)}
@@ -121,7 +127,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
         <Icon
           size={24}
           weight={selected ? "fill" : "regular"}
-          color={selected ? "#ffffff" : colors.icon.primary}
+          color={selected ? colors.text.onPrimary : colors.icon.primary}
         />
       </div>
       <h3 className="font-poppins font-bold text-lg text-text-primary mb-1">
@@ -153,15 +159,23 @@ function AuthPage({ onLogin, onShowOnboarding }) {
           <div className="absolute bottom-40 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white rounded-full blur-3xl opacity-5" />
         </div>
-        
+
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-            <FirstAidKitIcon size={28} weight="fill" color="#ffffff" />
+            <FirstAidKitIcon
+              size={28}
+              weight="fill"
+              color={colors.text.onPrimary}
+            />
           </div>
           <div>
-            <h1 className="font-poppins font-bold text-2xl text-white">MedTracker</h1>
-            <p className="font-poppins text-white/70 text-sm">Your health companion</p>
+            <h1 className="font-poppins font-bold text-2xl text-white">
+              MedTracker
+            </h1>
+            <p className="font-poppins text-white/70 text-sm">
+              Your health companion
+            </p>
           </div>
         </div>
 
@@ -172,36 +186,61 @@ function AuthPage({ onLogin, onShowOnboarding }) {
               Track your health journey with confidence
             </h2>
             <p className="font-poppins text-white/80 text-lg leading-relaxed max-w-md">
-              Never miss a medication or appointment again. MedTracker helps you stay on top of your health.
+              Never miss a medication or appointment again. MedTracker helps you
+              stay on top of your health.
             </p>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <BellIcon size={20} weight="fill" color="#ffffff" />
+                <BellIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.text.onPrimary}
+                />
               </div>
               <div>
-                <p className="font-poppins font-semibold text-white">Smart Reminders</p>
-                <p className="font-poppins text-white/70 text-sm">Never miss a dose</p>
+                <p className="font-poppins font-semibold text-white">
+                  Smart Reminders
+                </p>
+                <p className="font-poppins text-white/70 text-sm">
+                  Never miss a dose
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <CalendarCheckIcon size={20} weight="fill" color="#ffffff" />
+                <CalendarCheckIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.text.onPrimary}
+                />
               </div>
               <div>
-                <p className="font-poppins font-semibold text-white">Appointment Tracking</p>
-                <p className="font-poppins text-white/70 text-sm">Keep all your appointments organized</p>
+                <p className="font-poppins font-semibold text-white">
+                  Appointment Tracking
+                </p>
+                <p className="font-poppins text-white/70 text-sm">
+                  Keep all your appointments organized
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <HeartIcon size={20} weight="fill" color="#ffffff" />
+                <HeartIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.text.onPrimary}
+                />
               </div>
               <div>
-                <p className="font-poppins font-semibold text-white">Health Insights</p>
-                <p className="font-poppins text-white/70 text-sm">Track your progress over time</p>
+                <p className="font-poppins font-semibold text-white">
+                  Health Insights
+                </p>
+                <p className="font-poppins text-white/70 text-sm">
+                  Track your progress over time
+                </p>
               </div>
             </div>
           </div>
@@ -218,9 +257,15 @@ function AuthPage({ onLogin, onShowOnboarding }) {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <FirstAidKitIcon size={24} weight="fill" color="#ffffff" />
+              <FirstAidKitIcon
+                size={24}
+                weight="fill"
+                color={colors.text.onPrimary}
+              />
             </div>
-            <h1 className="font-poppins font-bold text-xl text-text-primary">MedTracker</h1>
+            <h1 className="font-poppins font-bold text-xl text-text-primary">
+              MedTracker
+            </h1>
           </div>
 
           {/* Form header */}
@@ -259,7 +304,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   />
                 </div>
                 {errors.accountType && (
-                  <p className="text-red-500 text-sm font-poppins">{errors.accountType}</p>
+                  <p className="text-red-500 text-sm font-poppins">
+                    {errors.accountType}
+                  </p>
                 )}
               </div>
             )}
@@ -274,8 +321,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   <UserIcon
                     size={20}
                     weight="regular"
-                    color={colors.icon.secondary}
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
+                    className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                   />
                   <input
                     type="text"
@@ -291,7 +337,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   />
                 </div>
                 {errors.name && (
-                  <p className="text-red-500 text-sm font-poppins">{errors.name}</p>
+                  <p className="text-red-500 text-sm font-poppins">
+                    {errors.name}
+                  </p>
                 )}
               </div>
             )}
@@ -305,8 +353,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <EnvelopeIcon
                   size={20}
                   weight="regular"
-                  color={colors.icon.secondary}
-                  className="absolute left-4 top-1/2 -translate-y-1/2"
+                  className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="email"
@@ -322,7 +369,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 />
               </div>
               {errors.email && (
-                <p className="text-red-500 text-sm font-poppins">{errors.email}</p>
+                <p className="text-red-500 text-sm font-poppins">
+                  {errors.email}
+                </p>
               )}
             </div>
 
@@ -335,8 +384,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <LockIcon
                   size={20}
                   weight="regular"
-                  color={colors.icon.secondary}
-                  className="absolute left-4 top-1/2 -translate-y-1/2"
+                  className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -363,7 +411,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-red-500 text-sm font-poppins">{errors.password}</p>
+                <p className="text-red-500 text-sm font-poppins">
+                  {errors.password}
+                </p>
               )}
             </div>
 
@@ -377,8 +427,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   <LockIcon
                     size={20}
                     weight="regular"
-                    color={colors.icon.secondary}
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
+                    className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                   />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -394,7 +443,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   />
                 </div>
                 {errors.confirmPassword && (
-                  <p className="text-red-500 text-sm font-poppins">{errors.confirmPassword}</p>
+                  <p className="text-red-500 text-sm font-poppins">
+                    {errors.confirmPassword}
+                  </p>
                 )}
               </div>
             )}

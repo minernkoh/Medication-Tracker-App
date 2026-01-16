@@ -16,7 +16,16 @@ import {
   XCircleIcon,
   FunnelIcon,
 } from "@phosphor-icons/react";
-import { colors, getModeColors } from "../../../utils/colors";
+import { getModeHexColor, formatDateLocale } from "../../../utils";
+import { GradientBackground, PageHeader } from "../../ui";
+import { colors } from "../../../../tailwind.config.js";
+
+// Patient color mapping using design tokens
+const PATIENT_COLOR_MAP = {
+  1: colors.patient.pink,
+  2: colors.patient.blue,
+  3: colors.patient.green,
+};
 
 // Mock appointments data across all patients
 const mockAppointments = [
@@ -25,7 +34,7 @@ const mockAppointments = [
     patientId: 1,
     patientName: "Mom (Linda)",
     patientInitials: "L",
-    patientColor: "#da7488",
+    patientColor: PATIENT_COLOR_MAP[1],
     title: "Cardiology Checkup",
     doctor: "Dr. Williams",
     location: "Singapore Heart Center",
@@ -39,7 +48,7 @@ const mockAppointments = [
     patientId: 2,
     patientName: "Dad (Robert)",
     patientInitials: "R",
-    patientColor: "#155dfc",
+    patientColor: PATIENT_COLOR_MAP[2],
     title: "Physical Therapy",
     doctor: "PT Center",
     location: "Rehab Clinic",
@@ -53,7 +62,7 @@ const mockAppointments = [
     patientId: 3,
     patientName: "Grandma (Eleanor)",
     patientInitials: "E",
-    patientColor: "#10b981",
+    patientColor: PATIENT_COLOR_MAP[3],
     title: "Eye Exam",
     doctor: "Dr. Martinez",
     location: "Vision Center",
@@ -67,7 +76,7 @@ const mockAppointments = [
     patientId: 1,
     patientName: "Mom (Linda)",
     patientInitials: "L",
-    patientColor: "#da7488",
+    patientColor: PATIENT_COLOR_MAP[1],
     title: "Blood Work",
     doctor: "Quest Diagnostics",
     location: "Lab Center",
@@ -81,7 +90,7 @@ const mockAppointments = [
     patientId: 3,
     patientName: "Grandma (Eleanor)",
     patientInitials: "E",
-    patientColor: "#10b981",
+    patientColor: PATIENT_COLOR_MAP[3],
     title: "Diabetes Checkup",
     doctor: "Dr. Lee",
     location: "Endocrine Clinic",
@@ -95,7 +104,7 @@ const mockAppointments = [
     patientId: 2,
     patientName: "Dad (Robert)",
     patientInitials: "R",
-    patientColor: "#155dfc",
+    patientColor: PATIENT_COLOR_MAP[2],
     title: "General Checkup",
     doctor: "Dr. Johnson",
     location: "Family Clinic",
@@ -108,7 +117,7 @@ const mockAppointments = [
 
 function CaregiverAppointmentsPage() {
   const navigate = useNavigate();
-  const modeColors = getModeColors("Caregiver");
+  const modeHexColor = getModeHexColor("Caregiver");
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "asc" });
   const [filterPatient, setFilterPatient] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -160,46 +169,35 @@ function CaregiverAppointmentsPage() {
     );
   };
 
-  // Format date for display
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   return (
-    <div className="bg-background-default w-full min-h-screen p-6 md:p-10">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <CalendarCheckIcon size={28} weight="fill" color={modeColors.DEFAULT} />
-              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-                All Appointments
-              </h1>
-            </div>
-            <p className="font-poppins text-text-secondary">
-              Manage appointments for all your patients
-            </p>
-          </div>
-          <button
-            className="flex items-center gap-2 px-5 py-3 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all"
-            style={{
-              backgroundColor: modeColors.DEFAULT,
-              boxShadow: `0 10px 25px -5px ${modeColors.DEFAULT}40`,
-            }}
-          >
-            <PlusIcon size={20} weight="bold" />
-            Add Appointment
-          </button>
-        </div>
+    <div className="bg-background-default w-full overflow-x-hidden relative">
+      {/* Gradient background decoration */}
+      <GradientBackground />
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-6">
+      {/* Main content area */}
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-10">
+        <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
+          {/* Header */}
+          <PageHeader
+            title="All Appointments"
+            description="Manage appointments for all your patients"
+            action={
+              <button
+                className="flex items-center gap-2 px-5 py-3 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all"
+                style={{
+                  backgroundColor: modeHexColor,
+                  boxShadow: `0 10px 25px -5px ${modeHexColor}40`,
+                }}
+              >
+                <PlusIcon size={20} weight="bold" />
+                Add Appointment
+              </button>
+            }
+          />
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-6">
           <div className="flex items-center gap-2">
             <FunnelIcon size={18} weight="regular" color={colors.text.secondary} />
             <span className="font-poppins text-sm text-text-secondary">Filter:</span>
@@ -228,8 +226,8 @@ function CaregiverAppointmentsPage() {
           </select>
         </div>
 
-        {/* Appointments table */}
-        <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
+          {/* Appointments table */}
+          <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -295,7 +293,7 @@ function CaregiverAppointmentsPage() {
                     <td className="px-5 py-4">
                       <div>
                         <p className="font-poppins font-medium text-text-primary">
-                          {formatDate(apt.date)}
+                          {formatDateLocale(apt.date)}
                         </p>
                         <p className="font-poppins text-xs text-text-secondary flex items-center gap-1">
                           <ClockIcon size={12} />
@@ -350,8 +348,8 @@ function CaregiverAppointmentsPage() {
           )}
         </div>
 
-        {/* Stats summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          {/* Stats summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
             <p className="font-poppins font-bold text-2xl text-text-primary">
               {mockAppointments.filter((a) => a.status === "upcoming").length}
@@ -378,7 +376,8 @@ function CaregiverAppointmentsPage() {
                   new Date(a.date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
               ).length}
             </p>
-            <p className="font-poppins text-sm text-text-secondary">This Week</p>
+            <p className="font-poppins text-sm text-text-secondary">This Week            </p>
+          </div>
           </div>
         </div>
       </div>

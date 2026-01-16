@@ -1,0 +1,48 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime"
+  ],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "plugins": ["react"],
+  "rules": {
+    "react/prop-types": "off",
+    "no-warning-comments": [
+      "warn",
+      {
+        "terms": ["TODO", "FIXME", "XXX", "HACK"],
+        "location": "anywhere"
+      }
+    ]
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.jsx", "**/*.js"],
+      "rules": {
+        "no-restricted-syntax": [
+          "warn",
+          {
+            "selector": "TemplateLiteral[expressions.length=0] > TemplateElement[value.raw=/font-poppins\\s+font-(bold|semibold|normal)\\s+text-(xs|sm|base|lg|xl|2xl|3xl|4xl)/]",
+            "message": "Consider using textStyles from typography.js instead of hardcoded typography classes. See TYPOGRAPHY_GUIDE.md"
+          }
+        ]
+      }
+    }
+  ]
+}

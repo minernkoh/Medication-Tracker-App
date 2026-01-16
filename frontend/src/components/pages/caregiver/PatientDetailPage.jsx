@@ -18,9 +18,11 @@ import {
   TrendUpIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { colors, getModeColors } from "../../../utils/colors";
-import { MedicationSection } from "../../ui";
+import { getModeHexColor } from "../../../utils/modeUtils";
+import { MedicationSection } from "../../features";
+import { SectionHeader, StatCard, Button } from "../../ui";
 import EditMedicationModal from "../../modals/EditMedicationModal";
+import { colors } from "../../../../tailwind.config.js";
 
 // Mock patient data (in real app, would fetch based on ID)
 const mockPatientData = {
@@ -29,7 +31,7 @@ const mockPatientData = {
     name: "Linda Johnson",
     nickname: "Mom",
     initials: "L",
-    color: "#da7488",
+    color: colors.patient.pink,
     phone: "+1 (555) 123-4567",
     relationship: "Mother",
     age: 68,
@@ -108,7 +110,7 @@ const mockPatientData = {
     name: "Robert Johnson",
     nickname: "Dad",
     initials: "R",
-    color: "#155dfc",
+    color: colors.patient.blue,
     phone: "+1 (555) 234-5678",
     relationship: "Father",
     age: 71,
@@ -187,7 +189,7 @@ const mockPatientData = {
     name: "Eleanor Smith",
     nickname: "Grandma",
     initials: "E",
-    color: "#10b981",
+    color: colors.patient.green,
     phone: "+1 (555) 345-6789",
     relationship: "Grandmother",
     age: 82,
@@ -284,7 +286,7 @@ const mockPatientData = {
 function PatientDetailPage() {
   const { patientId } = useParams();
   const navigate = useNavigate();
-  const modeColors = getModeColors("Caregiver");
+  const modeHexColor = getModeHexColor("Caregiver");
 
   // Convert static mock data to stateful data so medications can be updated
   // This allows caregivers to edit, delete, and mark medications as taken
@@ -359,7 +361,7 @@ function PatientDetailPage() {
   };
 
   return (
-    <div className="bg-background-default w-full min-h-screen p-6 md:p-10">
+    <div className="bg-background-default w-full p-6 md:p-10">
       <div className="max-w-6xl mx-auto">
         {/* Back button */}
         <button
@@ -409,7 +411,7 @@ function PatientDetailPage() {
               </a>
               <button
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white"
-                style={{ backgroundColor: modeColors.DEFAULT }}
+                style={{ backgroundColor: modeHexColor }}
               >
                 <PencilSimpleIcon size={18} weight="regular" />
                 Edit Profile
@@ -459,64 +461,35 @@ function PatientDetailPage() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <PillIcon size={20} weight="fill" color={modeColors.DEFAULT} />
-              <span className="font-poppins text-xs text-text-secondary">
-                Today
-              </span>
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {takenMeds.length}/{patient.medications.length}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">
-              Medications
-            </p>
-          </div>
-
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendUpIcon size={20} weight="fill" color="#10b981" />
-              <span className="font-poppins text-xs text-text-secondary">
-                Weekly
-              </span>
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {avgAdherence}%
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">
-              Avg Adherence
-            </p>
-          </div>
-
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CalendarCheckIcon size={20} weight="fill" color="#155dfc" />
-              <span className="font-poppins text-xs text-text-secondary">
-                Upcoming
-              </span>
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {patient.appointments.length}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">
-              Appointments
-            </p>
-          </div>
-
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <HeartIcon size={20} weight="fill" color="#ef4444" />
-              <span className="font-poppins text-xs text-text-secondary">
-                Blood Type
-              </span>
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {patient.bloodType}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">Type</p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+          <StatCard
+            icon={<PillIcon size={20} weight="fill" />}
+            iconColor={modeHexColor}
+            label="Today"
+            value={`${takenMeds.length}/${patient.medications.length}`}
+            description="Medications"
+          />
+          <StatCard
+            icon={<TrendUpIcon size={20} weight="fill" />}
+            iconColor={colors.success.DEFAULT}
+            label="Weekly"
+            value={`${avgAdherence}%`}
+            description="Avg Adherence"
+          />
+          <StatCard
+            icon={<CalendarCheckIcon size={20} weight="fill" />}
+            iconColor={colors.primary.DEFAULT}
+            label="Upcoming"
+            value={patient.appointments.length}
+            description="Appointments"
+          />
+          <StatCard
+            icon={<HeartIcon size={20} weight="fill" />}
+            iconColor={colors.danger.DEFAULT}
+            label="Blood Type"
+            value={patient.bloodType}
+            description="Type"
+          />
         </div>
 
         {/* Medications section */}
@@ -554,25 +527,26 @@ function PatientDetailPage() {
 
         {/* Appointments section */}
         <div className="bg-background-default border border-border-default rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+          <SectionHeader
+            icon={
               <CalendarCheckIcon
                 size={24}
                 weight="regular"
                 color={colors.icon.primary}
               />
-              <h2 className="font-poppins font-bold text-xl text-text-primary">
-                Upcoming Appointments
-              </h2>
-            </div>
-            <button
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-poppins font-semibold text-sm text-white"
-              style={{ backgroundColor: modeColors.DEFAULT }}
-            >
-              <PlusIcon size={16} weight="bold" />
-              Add
-            </button>
-          </div>
+            }
+            title="Upcoming Appointments"
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<PlusIcon size={16} weight="bold" />}
+                style={{ backgroundColor: modeHexColor }}
+              >
+                Add
+              </Button>
+            }
+          />
 
           {patient.appointments.length > 0 ? (
             <div className="space-y-3">
@@ -584,12 +558,12 @@ function PatientDetailPage() {
                   <div className="flex items-center gap-4">
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${modeColors.DEFAULT}15` }}
+                      style={{ backgroundColor: `${modeHexColor}15` }}
                     >
                       <CalendarCheckIcon
                         size={24}
                         weight="fill"
-                        color={modeColors.DEFAULT}
+                        color={modeHexColor}
                       />
                     </div>
                     <div>
@@ -636,10 +610,10 @@ function PatientDetailPage() {
                     height: `${value}%`,
                     backgroundColor:
                       value >= 90
-                        ? "#10b981"
+                        ? colors.success.DEFAULT
                         : value >= 70
-                        ? "#f59e0b"
-                        : "#ef4444",
+                        ? colors.warning.DEFAULT
+                        : colors.danger.DEFAULT,
                   }}
                 />
                 <span className="font-poppins text-xs text-text-secondary">

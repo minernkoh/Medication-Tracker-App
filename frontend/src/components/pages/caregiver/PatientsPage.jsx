@@ -19,7 +19,18 @@ import {
   PhoneIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { colors, getModeColors } from "../../../utils/colors";
+import { getModeHexColor } from "../../../utils/modeUtils";
+import { colors } from "../../../../tailwind.config.js";
+import ConfirmDialog from "../../ui/ConfirmDialog";
+
+// Patient color palette using design tokens
+const PATIENT_COLORS = [
+  colors.patient.pink,
+  colors.patient.blue,
+  colors.patient.green,
+  colors.patient.amber,
+  colors.patient.purple,
+];
 
 // Mock patient data
 const initialPatients = [
@@ -28,7 +39,7 @@ const initialPatients = [
     name: "Linda Johnson",
     nickname: "Mom",
     initials: "L",
-    color: "#da7488",
+    color: colors.patient.pink,
     phone: "+1 (555) 123-4567",
     relationship: "Mother",
     medicationsTaken: 3,
@@ -52,7 +63,7 @@ const initialPatients = [
     name: "Robert Johnson",
     nickname: "Dad",
     initials: "R",
-    color: "#155dfc",
+    color: colors.patient.blue,
     phone: "+1 (555) 234-5678",
     relationship: "Father",
     medicationsTaken: 5,
@@ -77,7 +88,7 @@ const initialPatients = [
     name: "Eleanor Smith",
     nickname: "Grandma",
     initials: "E",
-    color: "#10b981",
+    color: colors.patient.green,
     phone: "+1 (555) 345-6789",
     relationship: "Grandmother",
     medicationsTaken: 2,
@@ -102,7 +113,7 @@ const initialPatients = [
 
 function PatientsPage() {
   const navigate = useNavigate();
-  const modeColors = getModeColors("Caregiver");
+  const modeHexColor = getModeHexColor("Caregiver");
   const [patients, setPatients] = useState(initialPatients);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -111,6 +122,11 @@ function PatientsPage() {
     nickname: "",
     phone: "",
     relationship: "",
+  });
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    patientId: null,
+    patientName: "",
   });
 
   // Filter patients based on search
@@ -130,9 +146,7 @@ function PatientsPage() {
       name: newPatient.name,
       nickname: newPatient.nickname || newPatient.name.split(" ")[0],
       initials: newPatient.name.charAt(0).toUpperCase(),
-      color: ["#da7488", "#155dfc", "#10b981", "#f59e0b", "#8b5cf6"][
-        Math.floor(Math.random() * 5)
-      ],
+      color: PATIENT_COLORS[Math.floor(Math.random() * PATIENT_COLORS.length)],
       phone: newPatient.phone,
       relationship: newPatient.relationship,
       medicationsTaken: 0,
@@ -150,7 +164,20 @@ function PatientsPage() {
 
   // Handle delete patient
   const handleDeletePatient = (id) => {
-    setPatients(patients.filter((p) => p.id !== id));
+    const patient = patients.find((p) => p.id === id);
+    setDeleteConfirm({
+      isOpen: true,
+      patientId: id,
+      patientName: patient?.name || "this patient",
+    });
+  };
+
+  // Confirm delete
+  const confirmDelete = () => {
+    if (deleteConfirm.patientId) {
+      setPatients(patients.filter((p) => p.id !== deleteConfirm.patientId));
+    }
+    setDeleteConfirm({ isOpen: false, patientId: null, patientName: "" });
   };
 
   // Patient row component
@@ -203,10 +230,10 @@ function PatientsPage() {
                   width: `${patient.adherenceRate}%`,
                   backgroundColor:
                     patient.adherenceRate >= 90
-                      ? "#10b981"
+                      ? colors.success.DEFAULT
                       : patient.adherenceRate >= 70
-                      ? "#f59e0b"
-                      : "#ef4444",
+                      ? colors.warning.DEFAULT
+                      : colors.danger.DEFAULT,
                 }}
               />
             </div>
@@ -293,13 +320,13 @@ function PatientsPage() {
   };
 
   return (
-    <div className="bg-background-default w-full min-h-screen p-6 md:p-10">
+    <div className="bg-background-default w-full p-6 md:p-10">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <UsersIcon size={28} weight="fill" color={modeColors.DEFAULT} />
+              <UsersIcon size={28} weight="fill" color={modeHexColor} />
               <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
                 My Patients
               </h1>
@@ -312,8 +339,8 @@ function PatientsPage() {
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-5 py-3 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all"
             style={{
-              backgroundColor: modeColors.DEFAULT,
-              boxShadow: `0 10px 25px -5px ${modeColors.DEFAULT}40`,
+              backgroundColor: modeHexColor,
+              boxShadow: `0 10px 25px -5px ${modeHexColor}40`,
             }}
           >
             <PlusIcon size={20} weight="bold" />
@@ -389,7 +416,7 @@ function PatientsPage() {
                         <button
                           onClick={() => setShowAddModal(true)}
                           className="mt-3 font-poppins font-semibold text-sm"
-                          style={{ color: modeColors.DEFAULT }}
+                          style={{ color: modeHexColor }}
                         >
                           Add your first patient
                         </button>
@@ -443,10 +470,10 @@ function PatientsPage() {
                   style={{
                     color:
                       patient.adherenceRate >= 90
-                        ? "#10b981"
+                        ? colors.success.DEFAULT
                         : patient.adherenceRate >= 70
-                        ? "#f59e0b"
-                        : "#ef4444",
+                        ? colors.warning.DEFAULT
+                        : colors.danger.DEFAULT,
                   }}
                 >
                   {patient.adherenceRate}% adherence
@@ -468,7 +495,7 @@ function PatientsPage() {
             {/* Modal header */}
             <div
               className="p-6 pb-4"
-              style={{ backgroundColor: `${modeColors.DEFAULT}10` }}
+              style={{ backgroundColor: `${modeHexColor}10` }}
             >
               <button
                 onClick={() => setShowAddModal(false)}
@@ -478,15 +505,15 @@ function PatientsPage() {
               </button>
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-                style={{ backgroundColor: modeColors.DEFAULT }}
+                style={{ backgroundColor: modeHexColor }}
               >
-                <UsersIcon size={24} weight="fill" color="#ffffff" />
+                <UsersIcon size={24} weight="fill" color={colors.text.onPrimary} />
               </div>
               <h2 className="font-poppins font-bold text-xl text-text-primary">
                 Add New Patient
               </h2>
               <p className="font-poppins text-sm text-text-secondary mt-1">
-                Add someone you're caring for
+                Add someone you're caring for. You'll be able to manage their medications and appointments.
               </p>
             </div>
 
@@ -568,8 +595,8 @@ function PatientsPage() {
                 type="submit"
                 className="w-full py-3.5 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all mt-6"
                 style={{
-                  backgroundColor: modeColors.DEFAULT,
-                  boxShadow: `0 10px 25px -5px ${modeColors.DEFAULT}40`,
+                  backgroundColor: modeHexColor,
+                  boxShadow: `0 10px 25px -5px ${modeHexColor}40`,
                 }}
               >
                 Add Patient
@@ -578,6 +605,20 @@ function PatientsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, patientId: null, patientName: "" })
+        }
+        onConfirm={confirmDelete}
+        title="Remove Patient"
+        message={`Are you sure you want to remove ${deleteConfirm.patientName}? This will remove all their medication and appointment data. This action cannot be undone.`}
+        confirmText="Remove Patient"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

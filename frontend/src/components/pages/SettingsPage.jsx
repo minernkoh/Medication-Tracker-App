@@ -1,25 +1,31 @@
 /**
  * SettingsPage Component - User settings and preferences
  */
-import React from "react";
+import React, { useState } from "react";
 import {
   GearIcon,
   UserIcon,
   ShieldCheckIcon,
   SignOutIcon,
   CaretRightIcon,
-  WarningIcon,
+  GraduationCapIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
-import { colors, getModeColors } from "../../utils/colors";
+import { getModeHexColor, getModeClasses } from "../../utils/modeUtils";
+import { GradientBackground } from "../ui";
+import ConfirmDialog from "../ui/ConfirmDialog";
 
-function SettingsPage({ user, mode = "Personal", onLogout }) {
-  const modeColors = getModeColors(mode);
+function SettingsPage({ user, mode = "Personal", onLogout, onShowOnboarding, onDeleteAccount }) {
+  const modeHexColor = getModeHexColor(mode);
+  const modeClasses = getModeClasses(mode);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Settings section component
   const SettingsSection = ({ title, icon: Icon, children }) => (
     <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border-default bg-background-subtle">
-        <Icon size={20} weight="fill" color={modeColors.DEFAULT} />
+        <Icon size={20} weight="fill" color={modeHexColor} />
         <h2 className="font-poppins font-semibold text-text-primary">{title}</h2>
       </div>
       <div className="divide-y divide-border-default">{children}</div>
@@ -40,13 +46,13 @@ function SettingsPage({ user, mode = "Personal", onLogout }) {
             className={`w-10 h-10 rounded-xl flex items-center justify-center ${
               danger ? "bg-red-50 group-hover:bg-red-100" : ""
             }`}
-            style={!danger ? { backgroundColor: `${modeColors.DEFAULT}10` } : undefined}
+            style={!danger ? { backgroundColor: `${modeHexColor}10` } : undefined}
           >
             <Icon
               size={20}
               weight="regular"
               className={danger ? "text-red-500" : ""}
-              color={danger ? undefined : modeColors.DEFAULT}
+              color={danger ? undefined : modeHexColor}
             />
           </div>
         )}
@@ -63,27 +69,32 @@ function SettingsPage({ user, mode = "Personal", onLogout }) {
           )}
         </div>
       </div>
-      {action || (onClick && <CaretRightIcon size={20} color={colors.text.secondary} />)}
+      {action || (onClick && <CaretRightIcon size={20} className="text-text-secondary" />)}
     </div>
   );
 
   return (
-    <div className="bg-background-default w-full min-h-screen p-6 md:p-10">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <GearIcon size={32} weight="fill" color={modeColors.DEFAULT} />
-          <div>
-            <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-              Settings
-            </h1>
-            <p className="font-poppins text-text-secondary">
-              Manage your account and preferences
-            </p>
-          </div>
-        </div>
+    <div className="bg-background-default w-full relative">
+      {/* Gradient background decoration */}
+      <GradientBackground />
 
-        <div className="space-y-6">
+      {/* Main content area */}
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-6">
+        <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <GearIcon size={32} weight="fill" color={modeHexColor} />
+            <div>
+              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
+                Settings
+              </h1>
+              <p className="font-poppins text-sm text-text-secondary mt-2">
+                Manage your account and preferences
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-6">
           {/* Account Section */}
           <SettingsSection title="Account" icon={UserIcon}>
             <SettingsRow
@@ -94,8 +105,8 @@ function SettingsPage({ user, mode = "Personal", onLogout }) {
                 <span
                   className="px-3 py-1 rounded-full text-xs font-poppins font-semibold"
                   style={{
-                    backgroundColor: `${modeColors.DEFAULT}15`,
-                    color: modeColors.DEFAULT,
+                    backgroundColor: `${modeHexColor}15`,
+                    color: modeHexColor,
                   }}
                 >
                   {mode}
@@ -109,17 +120,27 @@ function SettingsPage({ user, mode = "Personal", onLogout }) {
               onClick={() => {}}
             />
             <SettingsRow
-              icon={WarningIcon}
+              icon={TrashIcon}
               label="Delete Account"
               description="Permanently delete your account and all data"
-              onClick={() => {}}
-              danger
+              onClick={() => setShowDeleteConfirm(true)}
+              danger={true}
+            />
+          </SettingsSection>
+
+          {/* Help & Support Section */}
+          <SettingsSection title="Help & Support" icon={GraduationCapIcon}>
+            <SettingsRow
+              icon={GraduationCapIcon}
+              label="View Tutorial"
+              description="Learn how to use MedTracker"
+              onClick={onShowOnboarding}
             />
           </SettingsSection>
 
           {/* Sign Out Button */}
           <button
-            onClick={onLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl border-2 border-red-200 hover:border-red-300 hover:bg-red-50 transition-all group"
           >
             <SignOutIcon
@@ -136,8 +157,40 @@ function SettingsPage({ user, mode = "Personal", onLogout }) {
           <p className="text-center font-poppins text-sm text-text-secondary pt-4">
             MedTracker v1.0.0
           </p>
+          </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={onLogout}
+        title="Sign Out"
+        message="Are you sure you want to sign out? You'll need to sign in again to access your account."
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        variant="warning"
+        icon={<SignOutIcon size={32} weight="fill" />}
+      />
+
+      {/* Delete Account Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          if (onDeleteAccount) {
+            onDeleteAccount();
+          }
+          setShowDeleteConfirm(false);
+        }}
+        title="Delete Account"
+        message="Are you sure you want to delete your account? This action cannot be undone. All your medications, appointments, and data will be permanently deleted."
+        confirmText="Delete Account"
+        cancelText="Cancel"
+        variant="danger"
+        icon={<TrashIcon size={32} weight="fill" />}
+      />
     </div>
   );
 }

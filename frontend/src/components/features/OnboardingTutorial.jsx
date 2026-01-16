@@ -19,7 +19,8 @@ import {
   WarningCircleIcon,
   HeartIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../utils/colors";
+import { colors } from "../../../tailwind.config.js";
+import { getBoxShadow, getAuthData, setAuthData } from "../../utils";
 
 function OnboardingTutorial({ onComplete, user }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -39,7 +40,7 @@ function OnboardingTutorial({ onComplete, user }) {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-blue-100/50 rounded-3xl" />
           <div className="relative flex items-center gap-6">
             <div className="w-24 h-24 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/30 animate-pulse">
-              <FirstAidKitIcon size={48} weight="fill" color="#ffffff" />
+              <FirstAidKitIcon size={48} weight="fill" color={colors.text.onPrimary} />
             </div>
             <div className="text-left">
               <p className="font-poppins font-bold text-2xl text-text-primary">MedTracker</p>
@@ -83,7 +84,7 @@ function OnboardingTutorial({ onComplete, user }) {
                   <PillIcon
                     size={20}
                     weight="fill"
-                    color={med.taken ? "#10b981" : "#f59e0b"}
+                    color={med.taken ? colors.success.DEFAULT : colors.warning.DEFAULT}
                   />
                 </div>
                 <div className="flex-1">
@@ -95,7 +96,7 @@ function OnboardingTutorial({ onComplete, user }) {
                   </p>
                 </div>
                 {med.taken ? (
-                  <CheckCircleIcon size={24} weight="fill" color="#10b981" />
+                  <CheckCircleIcon size={24} weight="fill" color={colors.success.DEFAULT} />
                 ) : (
                   <div className="w-6 h-6 rounded-full border-2 border-amber-400" />
                 )}
@@ -125,12 +126,12 @@ function OnboardingTutorial({ onComplete, user }) {
             <div className="bg-white rounded-2xl shadow-xl p-5 w-80">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-poppins font-bold text-text-primary">Current Supply</span>
-                <PackageIcon size={24} weight="fill" color="#f59e0b" />
+                <PackageIcon size={24} weight="fill" color={colors.warning.DEFAULT} />
               </div>
               {[
-                { name: "Paracetamol", supply: 45, max: 60, color: "#10b981" },
-                { name: "Vitamin D", supply: 12, max: 30, color: "#f59e0b" },
-                { name: "Aspirin", supply: 5, max: 30, color: "#ef4444" },
+                { name: "Paracetamol", supply: 45, max: 60, color: colors.success.DEFAULT },
+                { name: "Vitamin D", supply: 12, max: 30, color: colors.warning.DEFAULT },
+                { name: "Aspirin", supply: 5, max: 30, color: colors.danger.DEFAULT },
               ].map((med, i) => (
                 <div key={med.name} className="mb-3 last:mb-0">
                   <div className="flex justify-between items-center mb-1">
@@ -151,8 +152,8 @@ function OnboardingTutorial({ onComplete, user }) {
                 </div>
               ))}
               <div className="mt-4 pt-3 border-t border-border-default flex items-center gap-2">
-                <WarningCircleIcon size={16} weight="fill" color="#ef4444" />
-                <span className="font-poppins text-xs text-red-500 font-medium">
+                <WarningCircleIcon size={16} weight="fill" color={colors.danger.DEFAULT} />
+                <span className="font-poppins text-xs text-danger font-medium">
                   1 medication needs refill soon
                 </span>
               </div>
@@ -239,8 +240,8 @@ function OnboardingTutorial({ onComplete, user }) {
                       height: `${h}%`,
                       background:
                         h === 100
-                          ? "linear-gradient(to top, #10b981, #34d399)"
-                          : "linear-gradient(to top, #155dfc, #60a5fa)",
+                          ? `linear-gradient(to top, ${colors.success.DEFAULT}, ${colors.success.hover})`
+                          : `linear-gradient(to top, ${colors.primary.DEFAULT}, ${colors.primary.hover})`,
                       animationDelay: `${i * 100}ms`,
                     }}
                   />
@@ -311,7 +312,7 @@ function OnboardingTutorial({ onComplete, user }) {
                             {patient.meds} medications
                           </p>
                           <div className="mt-2 flex items-center justify-center gap-1">
-                            <CheckCircleIcon size={14} weight="fill" color="#10b981" />
+                            <CheckCircleIcon size={14} weight="fill" color={colors.success.DEFAULT} />
                             <span className="font-poppins text-xs text-emerald-600 font-semibold">
                               {patient.adherence}%
                             </span>
@@ -341,11 +342,15 @@ function OnboardingTutorial({ onComplete, user }) {
             <div
               className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center shadow-2xl"
               style={{
-                backgroundColor: isCaregiver ? colors.secondary.DEFAULT : "#10b981",
-                boxShadow: `0 25px 50px -12px ${isCaregiver ? "rgba(218, 116, 136, 0.4)" : "rgba(16, 185, 129, 0.4)"}`,
+                backgroundColor: isCaregiver ? colors.secondary.DEFAULT : colors.success.DEFAULT,
+                boxShadow: getBoxShadow(
+                  isCaregiver ? colors.secondary.DEFAULT : colors.success.DEFAULT,
+                  0.4,
+                  "lg"
+                ),
               }}
             >
-              <CheckCircleIcon size={48} weight="fill" color="#ffffff" />
+              <CheckCircleIcon size={48} weight="fill" color={colors.text.onPrimary} />
             </div>
             <p className="font-poppins font-bold text-xl text-text-primary mb-1">
               Welcome aboard, {user?.name?.split(" ")[0] || "friend"}!
@@ -378,6 +383,15 @@ function OnboardingTutorial({ onComplete, user }) {
   };
 
   const handleSkip = () => {
+    // Mark onboarding as skipped in localStorage
+    const existing = getAuthData();
+    if (existing) {
+      setAuthData({
+        ...existing,
+        onboardingSkipped: true,
+        onboardingCompleted: false,
+      });
+    }
     onComplete?.(user);
   };
 
@@ -396,7 +410,7 @@ function OnboardingTutorial({ onComplete, user }) {
                     ? isCaregiver
                       ? colors.secondary.DEFAULT
                       : colors.primary.DEFAULT
-                    : "#e5e7eb",
+                    : colors.background.subtle,
               }}
             />
           ))}
@@ -452,14 +466,12 @@ function OnboardingTutorial({ onComplete, user }) {
             </button>
 
             <div className="flex items-center gap-3">
-              {!isLastStep && (
-                <button
-                  onClick={handleSkip}
-                  className="font-poppins font-medium text-sm text-text-secondary hover:text-text-primary px-4 py-2.5 rounded-xl transition-colors"
-                >
-                  Skip Tutorial
-                </button>
-              )}
+              <button
+                onClick={handleSkip}
+                className="font-poppins font-medium text-sm text-text-secondary hover:text-text-primary px-4 py-2.5 rounded-xl transition-colors"
+              >
+                {isLastStep ? "Skip" : "Skip Tutorial"}
+              </button>
               <button
                 onClick={handleNext}
                 className="flex items-center gap-2 font-poppins font-semibold text-sm text-white px-6 py-2.5 rounded-xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
@@ -467,9 +479,11 @@ function OnboardingTutorial({ onComplete, user }) {
                   backgroundColor: isCaregiver
                     ? colors.secondary.DEFAULT
                     : colors.primary.DEFAULT,
-                  boxShadow: `0 10px 25px -5px ${
-                    isCaregiver ? "rgba(218, 116, 136, 0.3)" : "rgba(21, 93, 252, 0.3)"
-                  }`,
+                  boxShadow: getBoxShadow(
+                    isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT,
+                    0.3,
+                    "md"
+                  ),
                 }}
               >
                 {isLastStep ? "Get Started" : "Next"}

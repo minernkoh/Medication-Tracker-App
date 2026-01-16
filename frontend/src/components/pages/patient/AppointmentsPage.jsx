@@ -23,8 +23,16 @@ import {
   CaretUpIcon,
   CaretDownIcon,
 } from "@phosphor-icons/react";
-import { colors, getPrimaryColor } from "../../../utils/colors";
+import {
+  getModeHexColor,
+  formatDate,
+  formatTime,
+  textStyles,
+} from "../../../utils";
+import { PageHeader, GradientBackground, Button } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
+import ConfirmDialog from "../../ui/ConfirmDialog";
+import { colors } from "../../../../tailwind.config.js";
 
 function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,6 +41,11 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   const [sortConfig, setSortConfig] = useState({
     key: "date",
     direction: "asc",
+  });
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    appointmentId: null,
+    appointmentTitle: "",
   });
 
   // Sample appointments data (in real app, this would come from API)
@@ -93,39 +106,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
     },
   ]);
 
-  const primaryColor = getPrimaryColor(mode);
-
-  // Format date for display
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const monthNames = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return `${days[date.getDay()]}, ${date.getDate()} ${
-      monthNames[date.getMonth()]
-    }`;
-  };
-
-  // Format time for display
-  const formatTime = (timeStr) => {
-    const [hours, minutes] = timeStr.split(":");
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
+  const primaryColor = getModeHexColor(mode);
 
   // Filter appointments by selected year
   const yearAppointments = appointments.filter((apt) => {
@@ -239,9 +220,26 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
 
   // Handle delete appointment
   const handleDeleteAppointment = (id) => {
-    if (window.confirm("Are you sure you want to delete this appointment?")) {
-      setAppointments(appointments.filter((apt) => apt.id !== id));
+    const appointment = appointments.find((apt) => apt.id === id);
+    setDeleteConfirm({
+      isOpen: true,
+      appointmentId: id,
+      appointmentTitle: appointment?.title || "this appointment",
+    });
+  };
+
+  // Confirm delete
+  const confirmDelete = () => {
+    if (deleteConfirm.appointmentId) {
+      setAppointments(
+        appointments.filter((apt) => apt.id !== deleteConfirm.appointmentId)
+      );
     }
+    setDeleteConfirm({
+      isOpen: false,
+      appointmentId: null,
+      appointmentTitle: "",
+    });
   };
 
   // Open modal for editing
@@ -293,48 +291,33 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   };
 
   return (
-    <div className="bg-background-default w-full min-h-screen overflow-x-hidden">
+    <div className="bg-background-default w-full overflow-x-hidden">
       {/* Gradient background decoration */}
-      <div className="hidden md:block absolute h-[85rem] left-[4rem] top-[-11rem] w-[88rem] pointer-events-none z-0">
-        <div className="absolute inset-[-36%_-35%]">
-          <div
-            className="w-full h-full opacity-10"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(21, 93, 252, 0.1) 0%, rgba(218, 116, 136, 0.1) 100%)",
-            }}
-          />
-        </div>
-      </div>
+      <GradientBackground />
 
       {/* Main content area */}
-      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full flex-1 z-10 pb-10">
-        <div className="w-full max-w-[1000px] mx-auto">
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-10">
+        <div className="w-full max-w-[1000px] mx-auto flex flex-col gap-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div>
-              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-                Appointments
-              </h1>
-              <p className="font-poppins text-sm text-text-secondary mt-1">
-                {sortedAppointments.length} appointment
-                {sortedAppointments.length !== 1 ? "s" : ""} in {selectedYear}
-              </p>
-            </div>
-
-            {/* Add appointment button */}
-            <button
-              onClick={openAddModal}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 shadow-sm"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <PlusIcon size={18} weight="bold" />
-              <span>New Appointment</span>
-            </button>
-          </div>
+          <PageHeader
+            title="Appointments"
+            description={`${sortedAppointments.length} appointment${
+              sortedAppointments.length !== 1 ? "s" : ""
+            } in ${selectedYear}`}
+            action={
+              <Button
+                variant="primary"
+                onClick={openAddModal}
+                icon={<PlusIcon size={18} weight="bold" />}
+                style={{ backgroundColor: primaryColor }}
+              >
+                New Appointment
+              </Button>
+            }
+          />
 
           {/* Year navigation & Stats */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-6">
             {/* Year selector */}
             <div className="bg-background-default border border-border-default flex items-center justify-between px-4 py-3 rounded-xl flex-1 sm:flex-none sm:min-w-[200px]">
               <button
@@ -355,7 +338,9 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                   weight="fill"
                   color={primaryColor}
                 />
-                <span className="font-poppins font-bold text-lg text-text-primary">
+                <span
+                  className={`${textStyles.heading.medium} text-text-primary`}
+                >
                   {selectedYear}
                 </span>
               </div>
@@ -374,23 +359,27 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
             </div>
 
             {/* Quick stats */}
-            <div className="flex gap-3 flex-1">
+            <div className="flex gap-6 flex-1">
               <div className="bg-background-default border border-border-default rounded-xl px-4 py-3 flex-1">
-                <p className="font-poppins text-xs text-text-secondary uppercase tracking-wide">
+                <p
+                  className={`${textStyles.caption.small} uppercase tracking-wide`}
+                >
                   Upcoming
                 </p>
                 <p
-                  className="font-poppins font-bold text-xl"
+                  className={textStyles.heading.xl}
                   style={{ color: primaryColor }}
                 >
                   {upcomingCount + todayCount}
                 </p>
               </div>
               <div className="bg-background-default border border-border-default rounded-xl px-4 py-3 flex-1">
-                <p className="font-poppins text-xs text-text-secondary uppercase tracking-wide">
+                <p
+                  className={`${textStyles.caption.small} uppercase tracking-wide`}
+                >
                   Completed
                 </p>
-                <p className="font-poppins font-bold text-xl text-text-primary">
+                <p className={`${textStyles.heading.xl} text-text-primary`}>
                   {completedCount}
                 </p>
               </div>
@@ -406,7 +395,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                     <tr className="border-b border-border-default bg-background-subtle">
                       <th
                         onClick={() => handleSort("status")}
-                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Status
@@ -415,7 +404,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("date")}
-                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Date & Time
@@ -424,7 +413,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("title")}
-                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Appointment
@@ -433,7 +422,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("doctorName")}
-                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Doctor
@@ -442,14 +431,16 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("location")}
-                        className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none"
+                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Location
                           <SortIndicator columnKey="location" />
                         </div>
                       </th>
-                      <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                      <th
+                        className={`px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
+                      >
                         Actions
                       </th>
                     </tr>
@@ -472,21 +463,29 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col">
-                              <span className="font-poppins font-medium text-sm text-text-primary">
+                              <span
+                                className={`${textStyles.body.small} text-text-primary`}
+                              >
                                 {formatDate(apt.date)}
                               </span>
-                              <span className="font-poppins text-xs text-text-secondary mt-0.5">
+                              <span
+                                className={`${textStyles.caption.small} mt-0.5`}
+                              >
                                 {formatTime(apt.time)}
                               </span>
                             </div>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col">
-                              <span className="font-poppins font-semibold text-sm text-text-primary">
+                              <span
+                                className={`${textStyles.label.medium} text-text-primary`}
+                              >
                                 {apt.title}
                               </span>
                               {apt.notes && (
-                                <span className="font-poppins text-xs text-text-secondary mt-0.5 italic max-w-[200px] truncate">
+                                <span
+                                  className={`${textStyles.caption.small} mt-0.5 italic max-w-[200px] truncate`}
+                                >
                                   {apt.notes}
                                 </span>
                               )}
@@ -520,8 +519,9 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => openEditModal(apt)}
-                                className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/edit"
+                                className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/edit relative"
                                 aria-label="Edit appointment"
+                                title="Edit appointment"
                               >
                                 <PencilSimpleIcon
                                   size={18}
@@ -531,8 +531,9 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                               </button>
                               <button
                                 onClick={() => handleDeleteAppointment(apt.id)}
-                                className="p-2 rounded-lg hover:bg-red-50 transition-colors group/delete"
+                                className="p-2 rounded-lg hover:bg-red-50 transition-colors group/delete relative"
                                 aria-label="Delete appointment"
+                                title="Delete appointment"
                               >
                                 <TrashIcon
                                   size={18}
@@ -560,16 +561,18 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
                     color={primaryColor}
                   />
                 </div>
-                <p className="font-poppins font-medium text-text-primary">
+                <p className={`${textStyles.body.medium} text-text-primary`}>
                   No appointments in {selectedYear}
                 </p>
-                <p className="font-poppins text-sm text-text-secondary mt-1 max-w-xs">
+                <p
+                  className={`${textStyles.body.small} text-text-secondary mt-1 max-w-xs`}
+                >
                   Schedule your medical appointments to keep track of your
                   healthcare
                 </p>
                 <button
                   onClick={openAddModal}
-                  className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90"
+                  className={`mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90`}
                   style={{ backgroundColor: primaryColor }}
                 >
                   <PlusIcon size={18} weight="bold" />
@@ -596,6 +599,24 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
           mode={mode}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() =>
+          setDeleteConfirm({
+            isOpen: false,
+            appointmentId: null,
+            appointmentTitle: "",
+          })
+        }
+        onConfirm={confirmDelete}
+        title="Delete Appointment"
+        message={`Are you sure you want to delete "${deleteConfirm.appointmentTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

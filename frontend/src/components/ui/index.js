@@ -1,28 +1,39 @@
 /**
  * UI Components Index
- * Export all shared UI components
+ * Export all shared UI components (flat structure)
  */
 
 // Buttons
-export {
-  Button,
-  ActionButtons,
-  CalendarDate,
-  MedicineDue,
-  MenuButtons,
-} from "./buttons";
+export { default as Button } from "./Button";
+export { default as ActionButtons } from "./ActionButtons";
+export { default as CalendarDateButton } from "./CalendarDateButton";
+export { default as SideMenuButtons } from "./SideMenuButtons";
 
-// Layout
-export { default as Sidebar } from "./Sidebar";
+// Forms
+export { default as FormField } from "./FormField";
 
-// Data display
-export { default as AppointmentCard } from "./AppointmentCard";
+// Data Display
+export { default as Card } from "./Card";
 export { default as DataTable } from "./DataTable";
-export { default as MedicationSection } from "./MedicationSection";
 export { default as PieChart } from "./PieChart";
+export { default as StatCard } from "./StatCard";
 
-// Auth
-export { default as OnboardingTutorial } from "./OnboardingTutorial";
+// Layout & Structure
+export { default as PageHeader } from "./PageHeader";
+export { default as SectionHeader } from "./SectionHeader";
+export { default as GradientBackground } from "./GradientBackground";
 
-// Utilities
+// Dialogs
+export { default as Modal } from "./Modal";
+export { default as ConfirmDialog } from "./ConfirmDialog";
+
+// Feedback
+export { default as Toast } from "./Toast";
+export {
+  default as LoadingState,
+  SkeletonCard,
+  SkeletonList,
+  SkeletonScreen,
+} from "./LoadingState";
+export { default as EmptyState } from "./EmptyState";
 export { default as ErrorBoundary } from "./ErrorBoundary";
