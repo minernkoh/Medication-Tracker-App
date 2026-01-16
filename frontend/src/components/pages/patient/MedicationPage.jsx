@@ -124,12 +124,20 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   // Filter medications by status for display
   const pendingMeds = medications.filter((med) => med.status === "pending");
   const takenMeds = medications.filter((med) => med.status === "taken");
-  const supplyMeds = medications.filter((med) => med.status === "supply");
+  const supplyOnlyMeds = medications.filter((med) => med.status === "supply");
 
   // Sort pending medications by time ascending so they display in order
   const pendingMedsSorted = [...pendingMeds].sort(
     (a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay)
   );
+
+  // Keep current supply aligned with today's pending meds; include any extra supply-only rows without duplicating IDs
+  const supplyMeds = [
+    ...pendingMedsSorted,
+    ...supplyOnlyMeds.filter(
+      (med) => !pendingMedsSorted.some((pending) => pending.id === med.id)
+    ),
+  ];
 
   // Sort supply medications
   const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {

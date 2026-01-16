@@ -28,7 +28,6 @@ function MedicationSection({
 }) {
   const isPending = variant === "pending";
 
-  // FIXED: Helper function to convert 24-hour time format (HH:MM) to time groups
   // Converts "08:00" -> "Morning", "13:00" -> "Afternoon", "20:00" -> "Night"
   const getTimeGroup = (timeOfDay) => {
     if (!timeOfDay) return "Other";
@@ -54,7 +53,7 @@ function MedicationSection({
     const groups = {};
 
     meds.forEach((med) => {
-      // FIXED: Use getTimeGroup helper to properly convert timeOfDay to group
+      // Use getTimeGroup helper to properly convert timeOfDay to group
       const time = getTimeGroup(med.timeOfDay);
       if (!groups[time]) {
         groups[time] = [];
@@ -115,6 +114,13 @@ function MedicationSection({
 
   const config = sectionConfig[variant];
   const IconComponent = config.icon;
+
+  const buildPendingInfo = (med) => {
+    const timeLabel = med.timeOfDay ? `Take at ${med.timeOfDay}` : null;
+    if (timeLabel && med.additionalInfo)
+      return `${timeLabel}  ${med.additionalInfo}`;
+    return timeLabel || med.additionalInfo || null;
+  };
 
   return (
     <div
@@ -178,7 +184,7 @@ function MedicationSection({
                       dosage={med.dosage}
                       additionalInfo={
                         isPending
-                          ? med.additionalInfo
+                          ? buildPendingInfo(med)
                           : med.takenTime
                           ? `Taken at ${med.takenTime}`
                           : med.additionalInfo
@@ -208,7 +214,7 @@ function MedicationSection({
                 dosage={med.dosage}
                 additionalInfo={
                   isPending
-                    ? med.additionalInfo
+                    ? buildPendingInfo(med)
                     : med.takenTime
                     ? `Taken at ${med.takenTime}`
                     : med.additionalInfo

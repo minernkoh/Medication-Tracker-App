@@ -5,7 +5,7 @@
  * @param {string} mode - "Personal" or "Caregiver" (default: "Personal")
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   CaretLeftIcon,
   CaretRightIcon,
@@ -67,56 +67,112 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // State: track medication status (taken/not taken)
+  // State: track medication status (taken/not taken) — synced with MedicationPage sample data
   const [medications, setMedications] = useState([
     {
       id: 1,
       name: "Paracetamol",
       dosage: "2 pills",
-      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
       timeOfDay: "08:00",
-      // FIXED: Added quantity field to sync with EditMedicationModal
       quantity: "50 pills",
-      taken: true,
-      takenTime: "9:00 AM",
+      taken: false,
+      takenTime: null,
       additionalInfo: "For headache",
     },
     {
       id: 2,
-      name: "MedicineName1",
-      dosage: "10ml",
-      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
-      timeOfDay: "08:00",
-      // FIXED: Added quantity field to sync with EditMedicationModal
-      quantity: "100ml",
-      additionalInfo: "Before Meal",
-      taken: false,
-    },
-    {
-      id: 3,
-      name: "MedicineName2",
+      name: "Ibuprofen",
       dosage: "1 pill",
-      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
       timeOfDay: "13:00",
-      // FIXED: Added quantity field to sync with EditMedicationModal
       quantity: "30 pills",
       additionalInfo: "After Meal",
       pillColor: "#ffd5d5",
       taken: false,
+      takenTime: null,
+    },
+    {
+      id: 3,
+      name: "Vitamin C",
+      dosage: "1 pill",
+      timeOfDay: "20:00",
+      quantity: "45 pills",
+      additionalInfo: "Before Sleep",
+      pillColor: "#d9ffaf",
+      taken: false,
+      takenTime: null,
     },
     {
       id: 4,
-      name: "MedicineName3",
+      name: "Aspirin",
       dosage: "1 pill",
-      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
-      timeOfDay: "20:00",
-      // FIXED: Added quantity field to sync with EditMedicationModal
-      quantity: "45 pills",
-      additionalInfo: "After Meal",
-      pillColor: "#d9ffaf",
-      taken: false,
+      timeOfDay: "08:00",
+      quantity: "100 pills",
+      taken: true,
+      takenTime: "9:00 AM",
+      additionalInfo: "",
     },
   ]);
+
+  // Sample appointments shared with AppointmentsPage to keep Upcoming card consistent
+  const appointments = useMemo(
+    () => [
+      {
+        id: 1,
+        title: "Annual Physical Check Up",
+        doctorName: "Dr Williams",
+        location: "Singapore General Hospital",
+        date: "2026-01-15",
+        time: "14:00",
+        notes: "Bring previous test results",
+      },
+      {
+        id: 2,
+        title: "Dental Cleaning",
+        doctorName: "Dr Chen",
+        location: "Smile Dental Clinic",
+        date: "2026-01-22",
+        time: "10:30",
+        notes: "",
+      },
+      {
+        id: 3,
+        title: "Eye Examination",
+        doctorName: "Dr Tan",
+        location: "Vision Care Center",
+        date: "2026-02-05",
+        time: "09:00",
+        notes: "Prescription glasses renewal",
+      },
+      {
+        id: 4,
+        title: "Follow-up Consultation",
+        doctorName: "Dr Williams",
+        location: "Singapore General Hospital",
+        date: "2026-02-18",
+        time: "15:30",
+        notes: "",
+      },
+      {
+        id: 5,
+        title: "Blood Test",
+        doctorName: "Dr Lee",
+        location: "HealthFirst Lab",
+        date: "2026-04-10",
+        time: "08:00",
+        notes: "Fasting required",
+      },
+      {
+        id: 6,
+        title: "Vaccination",
+        doctorName: "Dr Williams",
+        location: "Singapore General Hospital",
+        date: "2026-06-20",
+        time: "11:00",
+        notes: "",
+      },
+    ],
+    []
+  );
 
   // Helper: convert HH:MM to minutes for sorting
   const timeToMinutes = (timeStr) => {
@@ -126,6 +182,34 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
     return h * 60 + m;
   };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
+  };
+
+  const formatTime = (timeStr) => {
+    const [hours, minutes] = timeStr.split(":");
+    const hourNum = parseInt(hours, 10);
+    const ampm = hourNum >= 12 ? "PM" : "AM";
+    const displayHour = hourNum % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const upcomingAppointment = useMemo(() => {
+    const now = new Date();
+    const parsed = appointments
+      .map((apt) => ({
+        ...apt,
+        dateTime: new Date(`${apt.date}T${apt.time}`),
+      }))
+      .sort((a, b) => a.dateTime - b.dateTime);
+
+    const next = parsed.find((apt) => apt.dateTime >= now);
+    return next || parsed[parsed.length - 1] || null;
+  }, [appointments]);
 
   // Handle menu navigation - use parent callback if provided (optional, React Router handles navigation)
   const handleMenuClick = (menu) => {
@@ -375,7 +459,7 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     setEditingMedication(null);
   };
 
-  // FIXED: Handle deleting a medication from taken section
+  // Handle deleting a medication from taken section
   // Moves medication back to pending status instead of permanently deleting
   // When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
   const handleDeleteMedication = (medicationId) => {
@@ -394,6 +478,17 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const takenMedications = medications.filter((med) => med.taken);
 
   const stats = getMedicationStats();
+
+  const appointmentCardProps = upcomingAppointment
+    ? {
+        title: upcomingAppointment.title,
+        date: `${formatDate(upcomingAppointment.date)}, ${formatTime(
+          upcomingAppointment.time
+        )}`,
+        doctor: upcomingAppointment.doctorName,
+        location: upcomingAppointment.location,
+      }
+    : {};
 
   return (
     <div className="bg-background-default w-full min-h-screen overflow-x-hidden flex">
@@ -706,7 +801,7 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
             </div>
 
             {/* Upcoming Appointment card */}
-            <AppointmentCard />
+            <AppointmentCard {...appointmentCardProps} />
           </div>
 
           {/* Medications section */}
