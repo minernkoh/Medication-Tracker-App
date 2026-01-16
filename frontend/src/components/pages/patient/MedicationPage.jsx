@@ -28,7 +28,8 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
       id: 1,
       name: "Paracetamol",
       dosage: "2 pills",
-      timeOfDay: "morning",
+      timeOfDay: "08:00",
+      quantity: "50 pills",
       status: "pending",
       takenTime: null,
       additionalInfo: "For headache",
@@ -37,7 +38,8 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
       id: 2,
       name: "Ibuprofen",
       dosage: "1 pill",
-      timeOfDay: "afternoon",
+      timeOfDay: "13:00",
+      quantity: "30 pills",
       status: "pending",
       additionalInfo: "After Meal",
       pillColor: "#ffd5d5",
@@ -46,28 +48,35 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
       id: 3,
       name: "Vitamin C",
       dosage: "1 pill",
-      timeOfDay: "night",
+      timeOfDay: "20:00",
+      quantity: "45 pills",
       status: "pending",
       additionalInfo: "Before Sleep",
       pillColor: "#d9ffaf",
     },
+
     // Taken medications (example of already taken today)
+
     {
       id: 4,
       name: "Aspirin",
       dosage: "1 pill",
-      timeOfDay: "morning",
+      timeOfDay: "08:00",
+      quantity: "100 pills",
       status: "taken",
       takenTime: "9:00 AM",
+      additionalInfo: "",
     },
-    // Current supply medications
+
     {
       id: 5,
       name: "Metformin",
       dosage: "500mg",
       status: "supply",
       quantity: "30 pills",
+      timeOfDay: "08:00",
       refillDate: "2026-02-15",
+      additionalInfo: "Before Meal",
     },
     {
       id: 6,
@@ -75,7 +84,9 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
       dosage: "1 pill",
       status: "supply",
       quantity: "60 pills",
+      timeOfDay: "20:00",
       refillDate: "2026-03-10",
+      additionalInfo: "Before Sleep",
     },
   ]);
 
@@ -101,17 +112,24 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Helper: convert HH:MM to minutes for sorting
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":"))
+      return Number.MAX_SAFE_INTEGER;
+    const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
+    return h * 60 + m;
+  };
+
   // Filter medications by status for display
   const pendingMeds = medications.filter((med) => med.status === "pending");
   const takenMeds = medications.filter((med) => med.status === "taken");
   const supplyMeds = medications.filter((med) => med.status === "supply");
 
-  // Group pending medications by time of day
-  const morningMeds = pendingMeds.filter((med) => med.timeOfDay === "morning");
-  const afternoonMeds = pendingMeds.filter(
-    (med) => med.timeOfDay === "afternoon"
+  // Sort pending medications by time ascending so they display in order
+  const pendingMedsSorted = [...pendingMeds].sort(
+    (a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay)
   );
-  const nightMeds = pendingMeds.filter((med) => med.timeOfDay === "night");
 
   // Sort supply medications
   const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
@@ -164,9 +182,43 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
     {
       key: "quantity",
       label: "Quantity",
+      // Display quantity field which is now editable in the modal
       render: (value) => (
-        <span className="font-poppins text-sm text-text-primary">{value}</span>
+        <span className="font-poppins text-sm text-text-primary">
+          {value || "N/A"}
+        </span>
       ),
+    },
+    {
+      key: "timeOfDay",
+      label: "Time",
+      //  Display timeOfDay in readable format (convert 24-hour to readable time)
+      render: (value) => {
+        if (!value)
+          return (
+            <span className="font-poppins text-sm text-text-secondary">
+              N/A
+            </span>
+          );
+        // Convert 24-hour format to readable time (08:00 -> 8:00 AM)
+        if (typeof value === "string" && value.includes(":")) {
+          const [hour, minute] = value.split(":");
+          const numHour = parseInt(hour);
+          const ampm = numHour >= 12 ? "PM" : "AM";
+          const displayHour =
+            numHour > 12 ? numHour - 12 : numHour === 0 ? 12 : numHour;
+          return (
+            <span className="font-poppins text-sm text-text-primary">
+              {displayHour}:{minute} {ampm}
+            </span>
+          );
+        }
+        return (
+          <span className="font-poppins text-sm text-text-primary">
+            {value}
+          </span>
+        );
+      },
     },
     {
       key: "supplyStatus",
@@ -209,22 +261,26 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   };
 
   /**
-   * Handle deleting a medication
-   * Removes medication from the list after confirmation
+   * Handle deleting a medication from taken section
+   * Moves medication back to pending status instead of permanently deleting
+   * When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
    */
   const handleDeleteMedication = (medicationId) => {
-    if (window.confirm("Are you sure you want to delete this medication?")) {
-      setMedications((prev) => prev.filter((med) => med.id !== medicationId));
-    }
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId
+          ? { ...med, status: "pending", takenTime: null }
+          : med
+      )
+    );
   };
 
   /**
    * Handle editing a medication
    * In a full implementation, this would open an edit modal
    */
-  const handleEditMedication = (medicationId) => {
-    console.log("Opening edit modal for medication:", medicationId);
-    const medication = medications.find((med) => med.id === medicationId);
+  const handleEditMedication = (medication) => {
+    console.log("Opening edit modal for medication:", medication?.id);
     setEditingMedication(medication);
     setShowEditModal(true);
   };
@@ -404,7 +460,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
             <div className="flex-1">
               <MedicationSection
                 variant="pending"
-                medications={pendingMeds}
+                medications={pendingMedsSorted}
                 onMarkAsTaken={handleMarkAsTaken}
                 showTimeGroups={true}
                 compact={false}
@@ -452,7 +508,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
               data={sortedSupplyMeds}
               sortConfig={supplySortConfig}
               onSort={setSupplySortConfig}
-              onEdit={(row) => handleEditMedication(row.id)}
+              onEdit={(row) => handleEditMedication(row)}
               onDelete={(row) => handleDeleteMedication(row.id)}
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"

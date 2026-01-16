@@ -21,6 +21,7 @@ import {
   PieChart,
   MedicationSection,
 } from "../../ui";
+import EditMedicationModal from "../../modals/EditMedicationModal";
 
 // Helper functions for calendar
 const MONTHS = [
@@ -62,20 +63,32 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     getStartOfWeek(new Date(2026, 0, 13))
   );
 
+  // Modal state for editing taken-time entries
+  const [editingMedication, setEditingMedication] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
   // State: track medication status (taken/not taken)
   const [medications, setMedications] = useState([
     {
       id: 1,
       name: "Paracetamol",
       dosage: "2 pills",
-      time: "Morning",
+      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
+      timeOfDay: "08:00",
+      // FIXED: Added quantity field to sync with EditMedicationModal
+      quantity: "50 pills",
       taken: true,
+      takenTime: "9:00 AM",
+      additionalInfo: "For headache",
     },
     {
       id: 2,
       name: "MedicineName1",
       dosage: "10ml",
-      time: "Morning",
+      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
+      timeOfDay: "08:00",
+      // FIXED: Added quantity field to sync with EditMedicationModal
+      quantity: "100ml",
       additionalInfo: "Before Meal",
       taken: false,
     },
@@ -83,7 +96,10 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
       id: 3,
       name: "MedicineName2",
       dosage: "1 pill",
-      time: "Afternoon",
+      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
+      timeOfDay: "13:00",
+      // FIXED: Added quantity field to sync with EditMedicationModal
+      quantity: "30 pills",
       additionalInfo: "After Meal",
       pillColor: "#ffd5d5",
       taken: false,
@@ -92,12 +108,24 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
       id: 4,
       name: "MedicineName3",
       dosage: "1 pill",
-      time: "Night",
+      // FIXED: Changed from 'time' string to 'timeOfDay' in 24-hour format for consistency
+      timeOfDay: "20:00",
+      // FIXED: Added quantity field to sync with EditMedicationModal
+      quantity: "45 pills",
       additionalInfo: "After Meal",
       pillColor: "#d9ffaf",
       taken: false,
     },
   ]);
+
+  // Helper: convert HH:MM to minutes for sorting
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":"))
+      return Number.MAX_SAFE_INTEGER;
+    const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
+    return h * 60 + m;
+  };
 
   // Handle menu navigation - use parent callback if provided (optional, React Router handles navigation)
   const handleMenuClick = (menu) => {
@@ -329,19 +357,41 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     );
   };
 
+  // Handle editing taken-time only for taken medications
+  const handleEditMedication = (medication) => {
+    setEditingMedication(medication);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditedMedication = (updatedMedication) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === updatedMedication.id
+          ? { ...med, takenTime: updatedMedication.takenTime }
+          : med
+      )
+    );
+    setShowEditModal(false);
+    setEditingMedication(null);
+  };
+
+  // FIXED: Handle deleting a medication from taken section
+  // Moves medication back to pending status instead of permanently deleting
+  // When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
+  const handleDeleteMedication = (medicationId) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId ? { ...med, taken: false } : med
+      )
+    );
+  };
+
   // Get medications by status - transform to match MedicationSection format
   const pendingMedications = medications
     .filter((med) => !med.taken)
-    .map((med) => ({
-      ...med,
-      timeOfDay: med.time,
-    }));
-  const takenMedications = medications
-    .filter((med) => med.taken)
-    .map((med) => ({
-      ...med,
-      timeOfDay: med.time,
-    }));
+    .sort((a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay));
+
+  const takenMedications = medications.filter((med) => med.taken);
 
   const stats = getMedicationStats();
 
@@ -678,6 +728,8 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
               <MedicationSection
                 variant="taken"
                 medications={takenMedications}
+                onEdit={handleEditMedication}
+                onDelete={handleDeleteMedication}
                 showTimeGroups={true}
                 compact={true}
                 dateLabel={dateLabel}
@@ -686,6 +738,19 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           </div>
         </div>
       </div>
+
+      {showEditModal && editingMedication && (
+        <EditMedicationModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingMedication(null);
+          }}
+          onSave={handleSaveEditedMedication}
+          medication={editingMedication}
+          mode={mode}
+        />
+      )}
     </div>
   );
 }

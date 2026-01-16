@@ -20,7 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { colors, getModeColors } from "../../../utils/colors";
 import { MedicationSection } from "../../ui";
-import MedicationPage from "../patient/MedicationPage";
+import EditMedicationModal from "../../modals/EditMedicationModal";
 
 // Mock patient data (in real app, would fetch based on ID)
 const mockPatientData = {
@@ -42,32 +42,40 @@ const mockPatientData = {
         id: 1,
         name: "Blood Pressure Med",
         dosage: "10mg",
-        timeOfDay: "Morning",
+        quantity: "30 pills",
+        timeOfDay: "08:00",
         taken: true,
         takenTime: "8:00 AM",
+        additionalInfo: "",
       },
       {
         id: 2,
         name: "Vitamin D",
         dosage: "1000 IU",
-        timeOfDay: "Morning",
+        quantity: "60 pills",
+        timeOfDay: "08:00",
         taken: true,
         takenTime: "8:00 AM",
+        additionalInfo: "",
       },
       {
         id: 3,
         name: "Calcium",
         dosage: "500mg",
-        timeOfDay: "Afternoon",
+        quantity: "90 pills",
+        timeOfDay: "13:00",
         taken: true,
         takenTime: "1:00 PM",
+        additionalInfo: "After Meal",
       },
       {
         id: 4,
         name: "Heart Medicine",
         dosage: "5mg",
-        timeOfDay: "Night",
+        quantity: "45 pills",
+        timeOfDay: "20:00",
         taken: false,
+        additionalInfo: "Before Sleep",
       },
     ],
     appointments: [
@@ -113,41 +121,51 @@ const mockPatientData = {
         id: 1,
         name: "Pain Medication",
         dosage: "200mg",
-        timeOfDay: "Morning",
+        quantity: "40 pills",
+        timeOfDay: "07:30",
         taken: true,
         takenTime: "7:30 AM",
+        additionalInfo: "",
       },
       {
         id: 2,
         name: "Blood Thinner",
         dosage: "5mg",
-        timeOfDay: "Morning",
+        quantity: "30 pills",
+        timeOfDay: "07:30",
         taken: true,
         takenTime: "7:30 AM",
+        additionalInfo: "",
       },
       {
         id: 3,
         name: "Statin",
         dosage: "20mg",
-        timeOfDay: "Night",
+        quantity: "30 pills",
+        timeOfDay: "21:00",
         taken: true,
         takenTime: "9:00 PM",
+        additionalInfo: "Before Sleep",
       },
       {
         id: 4,
         name: "Vitamin B12",
         dosage: "1000mcg",
-        timeOfDay: "Morning",
+        quantity: "30 pills",
+        timeOfDay: "07:30",
         taken: true,
         takenTime: "7:30 AM",
+        additionalInfo: "With Food",
       },
       {
         id: 5,
         name: "Probiotic",
         dosage: "1 capsule",
-        timeOfDay: "Morning",
+        quantity: "60 pills",
+        timeOfDay: "07:30",
         taken: true,
         takenTime: "7:30 AM",
+        additionalInfo: "With Food",
       },
     ],
     appointments: [
@@ -182,45 +200,57 @@ const mockPatientData = {
         id: 1,
         name: "Diabetes Medication",
         dosage: "500mg",
-        timeOfDay: "Morning",
+        quantity: "30 pills",
+        timeOfDay: "08:30",
         taken: true,
         takenTime: "8:30 AM",
+        additionalInfo: "Before Meal",
       },
       {
         id: 2,
         name: "Eye Drops",
         dosage: "2 drops",
-        timeOfDay: "Morning",
+        quantity: "1 bottle",
+        timeOfDay: "08:30",
         taken: true,
         takenTime: "8:30 AM",
+        additionalInfo: "Left and Right Eye",
       },
       {
         id: 3,
         name: "Vitamin D",
         dosage: "2000 IU",
-        timeOfDay: "Afternoon",
+        quantity: "60 pills",
+        timeOfDay: "13:00",
         taken: false,
+        additionalInfo: "",
       },
       {
         id: 4,
         name: "Calcium",
         dosage: "600mg",
-        timeOfDay: "Afternoon",
+        quantity: "60 pills",
+        timeOfDay: "13:00",
         taken: false,
+        additionalInfo: "With Food",
       },
       {
         id: 5,
         name: "Blood Pressure Med",
         dosage: "25mg",
-        timeOfDay: "Night",
+        quantity: "30 pills",
+        timeOfDay: "20:00",
         taken: false,
+        additionalInfo: "Before Sleep",
       },
       {
         id: 6,
         name: "Aspirin",
         dosage: "81mg",
-        timeOfDay: "Night",
+        quantity: "100 pills",
+        timeOfDay: "20:00",
         taken: false,
+        additionalInfo: "Before Sleep",
       },
     ],
     appointments: [
@@ -256,8 +286,18 @@ function PatientDetailPage() {
   const navigate = useNavigate();
   const modeColors = getModeColors("Caregiver");
 
-  // Get patient data (would be fetched in real app)
-  const patient = mockPatientData[patientId] || mockPatientData[1];
+  // Convert static mock data to stateful data so medications can be updated
+  // This allows caregivers to edit, delete, and mark medications as taken
+  const [patientData, setPatientData] = useState(
+    mockPatientData[patientId] || mockPatientData[1]
+  );
+
+  // Add state for edit modal control
+  const [editingMedication, setEditingMedication] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Get patient data (now from state instead of directly from mock)
+  const patient = patientData;
 
   // Separate medications by status
   const pendingMeds = patient.medications.filter((m) => !m.taken);
@@ -272,10 +312,50 @@ function PatientDetailPage() {
       patient.adherenceHistory.length
   );
 
-  // Handle mark as taken
+  // Handler to mark medication as taken
   const handleMarkAsTaken = (medId) => {
-    // In real app, would update state/backend
-    console.log("Mark as taken:", medId);
+    const currentTime = new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    setPatientData((prevData) => ({
+      ...prevData,
+      medications: prevData.medications.map((med) =>
+        med.id === medId ? { ...med, taken: true, takenTime: currentTime } : med
+      ),
+    }));
+  };
+
+  // Handler to edit a medication
+  const handleEditMedication = (medication) => {
+    console.log("Opening edit modal for medication:", medication);
+    setEditingMedication(medication);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditedMedication = (updatedMedication) => {
+    console.log("Saving edited medication:", updatedMedication);
+    setPatientData((prevData) => ({
+      ...prevData,
+      medications: prevData.medications.map((med) =>
+        med.id === updatedMedication.id ? { ...med, ...updatedMedication } : med
+      ),
+    }));
+    setShowEditModal(false);
+    setEditingMedication(null);
+  };
+
+  // When user clicks delete on "taken today" section, move medication back to pending
+  // This restores the medication to its pending state instead of permanently deleting it
+  const handleDeleteMedication = (medId) => {
+    setPatientData((prevData) => ({
+      ...prevData,
+      medications: prevData.medications.map((med) =>
+        med.id === medId ? { ...med, taken: false, takenTime: null } : med
+      ),
+    }));
   };
 
   return (
@@ -440,6 +520,7 @@ function PatientDetailPage() {
         </div>
 
         {/* Medications section */}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <MedicationSection
             variant="pending"
@@ -451,10 +532,25 @@ function PatientDetailPage() {
           <MedicationSection
             variant="taken"
             medications={takenMeds}
+            onEdit={handleEditMedication}
+            onDelete={handleDeleteMedication}
             showTimeGroups={true}
             compact={false}
           />
         </div>
+
+        {showEditModal && editingMedication && (
+          <EditMedicationModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingMedication(null);
+            }}
+            onSave={handleSaveEditedMedication}
+            medication={editingMedication}
+            mode="Caregiver"
+          />
+        )}
 
         {/* Appointments section */}
         <div className="bg-background-default border border-border-default rounded-2xl p-6">

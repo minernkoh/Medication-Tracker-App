@@ -28,18 +28,38 @@ function MedicationSection({
 }) {
   const isPending = variant === "pending";
 
+  // FIXED: Helper function to convert 24-hour time format (HH:MM) to time groups
+  // Converts "08:00" -> "Morning", "13:00" -> "Afternoon", "20:00" -> "Night"
+  const getTimeGroup = (timeOfDay) => {
+    if (!timeOfDay) return "Other";
+
+    // If it's already a word format (Morning/Afternoon/Night), return it
+    if (typeof timeOfDay === "string" && /^[A-Z]/.test(timeOfDay)) {
+      return timeOfDay;
+    }
+
+    // Convert 24-hour format (HH:MM) to time groups
+    if (typeof timeOfDay === "string" && timeOfDay.includes(":")) {
+      const hour = parseInt(timeOfDay.split(":")[0]);
+      if (hour >= 5 && hour < 12) return "Morning";
+      if (hour >= 12 && hour < 17) return "Afternoon";
+      if (hour >= 17 || hour < 5) return "Night";
+    }
+
+    return "Other";
+  };
+
   // Group medications by time of day
   const groupByTime = (meds) => {
     const groups = {};
 
     meds.forEach((med) => {
-      const time = med.timeOfDay || med.time || "Other";
-      const normalizedTime =
-        time.charAt(0).toUpperCase() + time.slice(1).toLowerCase();
-      if (!groups[normalizedTime]) {
-        groups[normalizedTime] = [];
+      // FIXED: Use getTimeGroup helper to properly convert timeOfDay to group
+      const time = getTimeGroup(med.timeOfDay);
+      if (!groups[time]) {
+        groups[time] = [];
       }
-      groups[normalizedTime].push(med);
+      groups[time].push(med);
     });
 
     // Sort groups by time order
@@ -167,7 +187,7 @@ function MedicationSection({
                       onCheck={
                         isPending ? () => onMarkAsTaken?.(med.id) : undefined
                       }
-                      onEdit={!isPending ? () => onEdit?.(med.id) : undefined}
+                      onEdit={!isPending ? () => onEdit?.(med) : undefined}
                       onDelete={
                         !isPending ? () => onDelete?.(med.id) : undefined
                       }

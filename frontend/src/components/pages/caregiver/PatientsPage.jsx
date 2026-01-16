@@ -33,8 +33,17 @@ const initialPatients = [
     relationship: "Mother",
     medicationsTaken: 3,
     medicationsTotal: 4,
-    medications: ["Blood Pressure Med", "Vitamin D", "Calcium", "Heart Medicine"],
-    nextAppointment: { title: "Cardiology Checkup", date: "Jan 18, 2026", time: "10:00 AM" },
+    medications: [
+      "Blood Pressure Med",
+      "Vitamin D",
+      "Calcium",
+      "Heart Medicine",
+    ],
+    nextAppointment: {
+      title: "Cardiology Checkup",
+      date: "Jan 18, 2026",
+      time: "10:00 AM",
+    },
     alerts: 1,
     adherenceRate: 92,
   },
@@ -48,8 +57,18 @@ const initialPatients = [
     relationship: "Father",
     medicationsTaken: 5,
     medicationsTotal: 5,
-    medications: ["Pain Medication", "Blood Thinner", "Statin", "Vitamin B12", "Probiotic"],
-    nextAppointment: { title: "Physical Therapy", date: "Jan 20, 2026", time: "3:00 PM" },
+    medications: [
+      "Pain Medication",
+      "Blood Thinner",
+      "Statin",
+      "Vitamin B12",
+      "Probiotic",
+    ],
+    nextAppointment: {
+      title: "Physical Therapy",
+      date: "Jan 20, 2026",
+      time: "3:00 PM",
+    },
     alerts: 0,
     adherenceRate: 98,
   },
@@ -63,8 +82,19 @@ const initialPatients = [
     relationship: "Grandmother",
     medicationsTaken: 2,
     medicationsTotal: 6,
-    medications: ["Diabetes Medication", "Eye Drops", "Vitamin D", "Calcium", "Blood Pressure Med", "Aspirin"],
-    nextAppointment: { title: "Eye Exam", date: "Jan 22, 2026", time: "9:00 AM" },
+    medications: [
+      "Diabetes Medication",
+      "Eye Drops",
+      "Vitamin D",
+      "Calcium",
+      "Blood Pressure Med",
+      "Aspirin",
+    ],
+    nextAppointment: {
+      title: "Eye Exam",
+      date: "Jan 22, 2026",
+      time: "9:00 AM",
+    },
     alerts: 2,
     adherenceRate: 78,
   },
@@ -146,13 +176,19 @@ function PatientsPage() {
               <p className="font-poppins font-semibold text-text-primary">
                 {patient.nickname} ({patient.name.split(" ")[0]})
               </p>
-              <p className="font-poppins text-xs text-text-secondary">{patient.relationship}</p>
+              <p className="font-poppins text-xs text-text-secondary">
+                {patient.relationship}
+              </p>
             </div>
           </div>
         </td>
         <td className="px-5 py-4">
           <div className="flex items-center gap-2">
-            <PillIcon size={16} weight="regular" color={colors.text.secondary} />
+            <PillIcon
+              size={16}
+              weight="regular"
+              color={colors.text.secondary}
+            />
             <span className="font-poppins text-text-primary">
               {patient.medicationsTotal} medications
             </span>
@@ -192,13 +228,19 @@ function PatientsPage() {
         <td className="px-5 py-4">
           {patient.nextAppointment ? (
             <div className="flex items-center gap-2">
-              <CalendarCheckIcon size={16} weight="regular" color={colors.text.secondary} />
+              <CalendarCheckIcon
+                size={16}
+                weight="regular"
+                color={colors.text.secondary}
+              />
               <span className="font-poppins text-sm text-text-primary">
                 {patient.nextAppointment.date}
               </span>
             </div>
           ) : (
-            <span className="font-poppins text-sm text-text-secondary italic">No upcoming</span>
+            <span className="font-poppins text-sm text-text-secondary italic">
+              No upcoming
+            </span>
           )}
         </td>
         <td className="px-5 py-4">
@@ -224,7 +266,11 @@ function PatientsPage() {
               className="p-2 rounded-lg hover:bg-blue-50 transition-colors"
               aria-label="Edit patient"
             >
-              <PencilSimpleIcon size={18} weight="regular" className="text-gray-500 hover:text-blue-600" />
+              <PencilSimpleIcon
+                size={18}
+                weight="regular"
+                className="text-gray-500 hover:text-blue-600"
+              />
             </button>
             <button
               onClick={(e) => {
@@ -234,7 +280,11 @@ function PatientsPage() {
               className="p-2 rounded-lg hover:bg-red-50 transition-colors"
               aria-label="Delete patient"
             >
-              <TrashIcon size={18} weight="regular" className="text-gray-500 hover:text-red-600" />
+              <TrashIcon
+                size={18}
+                weight="regular"
+                className="text-gray-500 hover:text-red-600"
+              />
             </button>
           </div>
         </td>
@@ -331,7 +381,9 @@ function PatientsPage() {
                         className="mx-auto mb-3 opacity-50"
                       />
                       <p className="font-poppins text-text-secondary">
-                        {searchQuery ? "No patients found matching your search" : "No patients added yet"}
+                        {searchQuery
+                          ? "No patients found matching your search"
+                          : "No patients added yet"}
                       </p>
                       {!searchQuery && (
                         <button
@@ -376,7 +428,9 @@ function PatientsPage() {
                 {patient.alerts > 0 && (
                   <span className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-full">
                     <WarningCircleIcon size={12} weight="fill" />
-                    <span className="font-poppins text-xs font-semibold">{patient.alerts}</span>
+                    <span className="font-poppins text-xs font-semibold">
+                      {patient.alerts}
+                    </span>
                   </span>
                 )}
               </div>
@@ -477,7 +531,10 @@ function PatientsPage() {
                   type="text"
                   value={newPatient.relationship}
                   onChange={(e) =>
-                    setNewPatient({ ...newPatient, relationship: e.target.value })
+                    setNewPatient({
+                      ...newPatient,
+                      relationship: e.target.value,
+                    })
                   }
                   placeholder="e.g., Mother, Father, Spouse"
                   className="w-full px-4 py-3 rounded-xl border border-border-default bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
