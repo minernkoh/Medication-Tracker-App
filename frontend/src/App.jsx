@@ -221,46 +221,40 @@ function App() {
 
   // Handle login from auth page
   const handleLogin = async (credentials) => {
-    try {
-      const data = await api.auth.signin(credentials);
-      const normalizedUser = normalizeUser(data.user || {});
-      const userMode =
-        normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
-      setUser(normalizedUser);
-      setMode(userMode);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
+    const data = await api.auth.signin(credentials);
+    const normalizedUser = normalizeUser(data.user || {});
+    const userMode =
+      normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
+    setUser(normalizedUser);
+    setMode(userMode);
+    setIsAuthenticated(true);
+    return data;
   };
 
   const handleSignup = async (signupData) => {
-    try {
-      await api.auth.signup({
-        name: signupData.name,
-        email: signupData.email,
-        password: signupData.password,
-        role: signupData.role === "caregiver" ? "caregiver" : "patient",
-      });
-      const loginData = await api.auth.signin({
-        email: signupData.email,
-        password: signupData.password,
-      });
-      const normalizedUser = normalizeUser(loginData.user || {});
-      const userMode =
-        normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
-      setUser(normalizedUser);
-      setMode(userMode);
-      setIsAuthenticated(true);
-      setPendingUser({
-        name: normalizedUser.name,
-        email: normalizedUser.email,
-        mode: userMode,
-      });
-      setShowOnboarding(true);
-    } catch (error) {
-      console.error("Signup failed:", error);
-    }
+    await api.auth.signup({
+      name: signupData.name,
+      email: signupData.email,
+      password: signupData.password,
+      role: signupData.role === "caregiver" ? "caregiver" : "patient",
+    });
+    const loginData = await api.auth.signin({
+      email: signupData.email,
+      password: signupData.password,
+    });
+    const normalizedUser = normalizeUser(loginData.user || {});
+    const userMode =
+      normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
+    setUser(normalizedUser);
+    setMode(userMode);
+    setIsAuthenticated(true);
+    setPendingUser({
+      name: normalizedUser.name,
+      email: normalizedUser.email,
+      mode: userMode,
+    });
+    setShowOnboarding(true);
+    return loginData;
   };
 
   // Handle onboarding completion
@@ -325,15 +319,17 @@ function App() {
 
   // Handle caregiver login
   const handleCaregiverLogin = async (credentials) => {
-    await handleLogin(credentials);
+    const data = await handleLogin(credentials);
     setMode("Caregiver");
     setShowCaregiverModal(false);
+    return data;
   };
 
   // Handle caregiver signup (show onboarding)
   const handleCaregiverSignup = async (userData) => {
+    const data = await handleSignup({ ...userData, role: "caregiver" });
     setShowCaregiverModal(false);
-    await handleSignup({ ...userData, role: "caregiver" });
+    return data;
   };
 
   // Handle logout

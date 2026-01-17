@@ -20,6 +20,7 @@ import {
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
+import { useError } from "../../contexts/ErrorContext";
 
 function AuthPage({ onLogin, onSignup }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -32,6 +33,7 @@ function AuthPage({ onLogin, onSignup }) {
     confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
+  const { showError } = useError();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -73,23 +75,26 @@ function AuthPage({ onLogin, onSignup }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      // For demo purposes, just trigger login
       const isFirstTime = !isLogin;
-      if (isFirstTime) {
-        onSignup?.({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: accountType,
-        });
-      } else {
-        onLogin?.({
-          email: formData.email,
-          password: formData.password,
-        });
+      try {
+        if (isFirstTime) {
+          await onSignup?.({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: accountType,
+          });
+        } else {
+          await onLogin?.({
+            email: formData.email,
+            password: formData.password,
+          });
+        }
+      } catch (error) {
+        showError(error?.message || "Authentication failed");
       }
     }
   };

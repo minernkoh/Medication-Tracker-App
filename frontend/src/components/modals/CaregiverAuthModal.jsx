@@ -20,6 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { Modal, FormField, Button } from "../ui";
 import { colors } from "../../../tailwind.config.js";
+import { useError } from "../../contexts/ErrorContext";
 
 function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -31,6 +32,7 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
     confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
+  const { showError } = useError();
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -77,21 +79,25 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      if (isLogin) {
-        onLogin?.({
-          email: formData.email,
-          password: formData.password,
-        });
-      } else {
-        onSignup?.({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: "caregiver",
-        });
+      try {
+        if (isLogin) {
+          await onLogin?.({
+            email: formData.email,
+            password: formData.password,
+          });
+        } else {
+          await onSignup?.({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: "caregiver",
+          });
+        }
+      } catch (error) {
+        showError(error?.message || "Authentication failed");
       }
     }
   };

@@ -4,11 +4,17 @@ const medicationSchema = new mongoose.Schema(
   {
     name: { type: String },
     dosage: { type: String },
+    type: { type: String },
     frequency: String,
     timeOfDay: {
       type: String,
       enum: ["morning", "afternoon", "night", null],
       default: null,
+    },
+    timesOfDay: {
+      type: [String],
+      enum: ["morning", "afternoon", "night"],
+      default: undefined,
     },
     time: { type: String }, // Time in HH:MM format
     status: {
@@ -19,6 +25,7 @@ const medicationSchema = new mongoose.Schema(
     taken: { type: Boolean, default: false },
     takenTime: { type: String }, // Time when medication was taken (e.g., "9:30 AM")
     quantity: { type: String }, // Medication quantity (e.g., "30 pills")
+    refillDate: { type: Date },
     additionalInfo: String,
     pillColor: String,
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

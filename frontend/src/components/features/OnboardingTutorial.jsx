@@ -163,7 +163,7 @@ function OnboardingTutorial({ onComplete, user }) {
               <div className="mt-4 pt-3 border-t border-border-default flex items-center gap-2">
                 <WarningCircleIcon size={16} weight="fill" color={colors.danger.DEFAULT} />
                 <span className="font-poppins text-xs text-danger font-medium">
-                  1 medication needs refill soon
+                  Refill reminders appear here
                 </span>
               </div>
             </div>
@@ -234,7 +234,7 @@ function OnboardingTutorial({ onComplete, user }) {
               <div className="flex items-center justify-between mb-4">
                 <span className="font-poppins font-bold text-text-primary">This Week</span>
                 <span className="font-poppins text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-full">
-                  92% adherence
+                  Adherence summary
                 </span>
               </div>
               <div className="flex items-end justify-between h-24 gap-2">
