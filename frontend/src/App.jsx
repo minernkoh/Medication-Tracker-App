@@ -4,7 +4,6 @@
  */
 import React, { useState, useEffect } from "react";
 import {
-  BrowserRouter,
   Routes,
   Route,
   Navigate,
@@ -341,20 +340,18 @@ function App() {
   // Show main app
   return (
     <ErrorProvider>
-      <BrowserRouter>
-        <AppLayout
-          user={user}
-          mode={mode}
-          onSwitchMode={handleSwitchMode}
-          onLogout={handleLogout}
-          showCaregiverModal={showCaregiverModal}
-          setShowCaregiverModal={setShowCaregiverModal}
-          onCaregiverLogin={handleCaregiverLogin}
-          onCaregiverSignup={handleCaregiverSignup}
-          onShowOnboarding={handleShowOnboardingFromSettings}
-          onDeleteAccount={handleDeleteAccount}
-        />
-      </BrowserRouter>
+      <AppLayout
+        user={user}
+        mode={mode}
+        onSwitchMode={handleSwitchMode}
+        onLogout={handleLogout}
+        showCaregiverModal={showCaregiverModal}
+        setShowCaregiverModal={setShowCaregiverModal}
+        onCaregiverLogin={handleCaregiverLogin}
+        onCaregiverSignup={handleCaregiverSignup}
+        onShowOnboarding={handleShowOnboardingFromSettings}
+        onDeleteAccount={handleDeleteAccount}
+      />
     </ErrorProvider>
   );
 }
