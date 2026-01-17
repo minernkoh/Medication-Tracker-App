@@ -68,7 +68,7 @@ function SettingsPage({ user, mode = "Personal", onLogout }) {
   );
 
   return (
-    <div className="bg-background-default w-full min-h-screen p-6 md:p-10">
+    <div className="bg-background-default w-full h-full p-6 md:p-10">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">

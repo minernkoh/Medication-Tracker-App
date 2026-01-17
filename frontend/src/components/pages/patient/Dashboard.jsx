@@ -1,8 +1,9 @@
 /**
  * Dashboard Component - Main page showing calendar, medications, and appointments
+ * All data is fetched from the backend API
  *
- * @param {string} userName - User's name (default: "Sarah")
- * @param {string} mode - "Personal" or "Caregiver" (default: "Personal")
+ * @param {string} userName - User's name (optional, will use localStorage if not provided)
+ * @param {string} mode - "Personal" or "Caregiver" (optional, will detect from user role)
  */
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
@@ -21,6 +22,7 @@ import {
   PieChart,
   MedicationSection,
 } from "../../ui";
+import { api } from "../../../api";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 
 // Helper functions for calendar
@@ -55,124 +57,69 @@ const formatMonthYear = (month, year) => `${MONTHS[month]} ${year}`;
 const formatShortMonthYear = (month, year) =>
   `${MONTHS[month].slice(0, 3)} ${year}`;
 
-function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
+function Dashboard({ userName, mode, onMenuClick }) {
+  // Get user data from localStorage
+  const [userData, setUserData] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const displayName = userName || userData?.name || "User";
+  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 13)); // Jan 13, 2026
+  const [selectedDate, setSelectedDate] = useState(today);
   const [currentWeekStart, setCurrentWeekStart] = useState(
-    getStartOfWeek(new Date(2026, 0, 13))
+    getStartOfWeek(today)
   );
 
   // Modal state for editing taken-time entries
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // State: track medication status (taken/not taken) — synced with MedicationPage sample data
-  const [medications, setMedications] = useState([
-    {
-      id: 1,
-      name: "Paracetamol",
-      dosage: "2 pills",
-      timeOfDay: "08:00",
-      quantity: "50 pills",
-      taken: false,
-      takenTime: null,
-      additionalInfo: "For headache",
-    },
-    {
-      id: 2,
-      name: "Ibuprofen",
-      dosage: "1 pill",
-      timeOfDay: "13:00",
-      quantity: "30 pills",
-      additionalInfo: "After Meal",
-      pillColor: "#ffd5d5",
-      taken: false,
-      takenTime: null,
-    },
-    {
-      id: 3,
-      name: "Vitamin C",
-      dosage: "1 pill",
-      timeOfDay: "20:00",
-      quantity: "45 pills",
-      additionalInfo: "Before Sleep",
-      pillColor: "#d9ffaf",
-      taken: false,
-      takenTime: null,
-    },
-    {
-      id: 4,
-      name: "Aspirin",
-      dosage: "1 pill",
-      timeOfDay: "08:00",
-      quantity: "100 pills",
-      taken: true,
-      takenTime: "9:00 AM",
-      additionalInfo: "",
-    },
-  ]);
+  // State: track medication status (taken/not taken)
+  const [medications, setMedications] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample appointments shared with AppointmentsPage to keep Upcoming card consistent
-  const appointments = useMemo(
-    () => [
-      {
-        id: 1,
-        title: "Annual Physical Check Up",
-        doctorName: "Dr Williams",
-        location: "Singapore General Hospital",
-        date: "2026-01-15",
-        time: "14:00",
-        notes: "Bring previous test results",
-      },
-      {
-        id: 2,
-        title: "Dental Cleaning",
-        doctorName: "Dr Chen",
-        location: "Smile Dental Clinic",
-        date: "2026-01-22",
-        time: "10:30",
-        notes: "",
-      },
-      {
-        id: 3,
-        title: "Eye Examination",
-        doctorName: "Dr Tan",
-        location: "Vision Care Center",
-        date: "2026-02-05",
-        time: "09:00",
-        notes: "Prescription glasses renewal",
-      },
-      {
-        id: 4,
-        title: "Follow-up Consultation",
-        doctorName: "Dr Williams",
-        location: "Singapore General Hospital",
-        date: "2026-02-18",
-        time: "15:30",
-        notes: "",
-      },
-      {
-        id: 5,
-        title: "Blood Test",
-        doctorName: "Dr Lee",
-        location: "HealthFirst Lab",
-        date: "2026-04-10",
-        time: "08:00",
-        notes: "Fasting required",
-      },
-      {
-        id: 6,
-        title: "Vaccination",
-        doctorName: "Dr Williams",
-        location: "Singapore General Hospital",
-        date: "2026-06-20",
-        time: "11:00",
-        notes: "",
-      },
-    ],
-    []
-  );
+  // Fetch data from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get user data to check role
+        const storedUser = localStorage.getItem("user");
+        const userData = storedUser ? JSON.parse(storedUser) : null;
+        
+        // Only fetch if user is a patient (not a caregiver)
+        if (userData?.role === "caregiver") {
+          setMedications([]);
+          setAppointments([]);
+          setLoading(false);
+          return;
+        }
+
+        const [medsData, apptsData] = await Promise.all([
+          api.medications.getAll(),
+          api.appointments.getAll(),
+        ]);
+
+        // Map _id to id for frontend compatibility
+        setMedications(medsData.map((m) => ({ ...m, id: m._id || m.id })));
+        setAppointments(apptsData.map((a) => ({ ...a, id: a._id || a.id })));
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Helper: convert HH:MM to minutes for sorting
   const timeToMinutes = (timeStr) => {
@@ -186,8 +133,23 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return `${days[date.getDay()]}, ${date.getDate()} ${
+      months[date.getMonth()]
+    }`;
   };
 
   const formatTime = (timeStr) => {
@@ -218,8 +180,8 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     }
   };
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState(0); // January
-  const [pickerYear, setPickerYear] = useState(2026);
+  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
+  const [pickerYear, setPickerYear] = useState(today.getFullYear());
 
   const datePickerRef = useRef(null);
 
@@ -433,12 +395,30 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   };
 
   // Handle marking medication as taken
-  const handleMarkAsTaken = (medicationId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId ? { ...med, taken: true } : med
-      )
-    );
+  const handleMarkAsTaken = async (medicationId) => {
+    try {
+      const currentTime = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+      await api.medications.update(medicationId, {
+        taken: true,
+        takenTime: currentTime,
+      });
+
+      // Optimistic update
+      setMedications((prev) =>
+        prev.map((med) =>
+          med.id === medicationId
+            ? { ...med, taken: true, takenTime: currentTime }
+            : med
+        )
+      );
+    } catch (error) {
+      console.error("Failed to mark medication as taken:", error);
+    }
   };
 
   // Handle editing taken-time only for taken medications
@@ -447,27 +427,45 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = (updatedMedication) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === updatedMedication.id
-          ? { ...med, takenTime: updatedMedication.takenTime }
-          : med
-      )
-    );
-    setShowEditModal(false);
-    setEditingMedication(null);
+  const handleSaveEditedMedication = async (updatedMedication) => {
+    try {
+      await api.medications.update(updatedMedication.id, {
+        takenTime: updatedMedication.takenTime,
+      });
+
+      setMedications((prev) =>
+        prev.map((med) =>
+          med.id === updatedMedication.id
+            ? { ...med, takenTime: updatedMedication.takenTime }
+            : med
+        )
+      );
+      setShowEditModal(false);
+      setEditingMedication(null);
+    } catch (error) {
+      console.error("Failed to update medication:", error);
+    }
   };
 
   // Handle deleting a medication from taken section
-  // Moves medication back to pending status instead of permanently deleting
-  // When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
-  const handleDeleteMedication = (medicationId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId ? { ...med, taken: false } : med
-      )
-    );
+  const handleDeleteMedication = async (medicationId) => {
+    try {
+      // Restore to pending
+      await api.medications.update(medicationId, {
+        taken: false,
+        takenTime: null,
+      });
+
+      setMedications((prev) =>
+        prev.map((med) =>
+          med.id === medicationId
+            ? { ...med, taken: false, takenTime: null }
+            : med
+        )
+      );
+    } catch (error) {
+      console.error("Failed to restore medication:", error);
+    }
   };
 
   // Get medications by status - transform to match MedicationSection format
@@ -491,7 +489,7 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     : {};
 
   return (
-    <div className="bg-background-default w-full min-h-screen overflow-x-hidden flex">
+    <div className="bg-background-default w-full h-full overflow-x-hidden">
       {/* Gradient background decoration */}
       <div className="hidden md:block absolute h-[85.6875rem] left-[4.3125rem] top-[-11rem] w-[88.3125rem] pointer-events-none z-0">
         <div className="absolute inset-[-36.47%_-35.39%]">
@@ -506,11 +504,11 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
       </div>
 
       {/* Main content area - positioned at top, starts after sidebar */}
-      <div className="relative flex flex-col gap-lg items-start pt-10 px-4 md:px-0 w-full flex-1 z-10">
+      <div className="relative flex flex-col gap-lg items-start pt-10 px-4 md:px-0 w-full pb-10 z-10">
         <div className="w-full max-w-[67.5rem] mx-auto">
           {/* Header */}
           <p className="font-poppins font-bold leading-none text-2xl md:text-3xl text-text-primary w-full">
-            Good Morning, {userName}!
+            Good Morning, {displayName}!
           </p>
 
           {/* Calendar section */}
@@ -843,7 +841,7 @@ function Dashboard({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           }}
           onSave={handleSaveEditedMedication}
           medication={editingMedication}
-          mode={mode}
+          mode={displayMode}
         />
       )}
     </div>

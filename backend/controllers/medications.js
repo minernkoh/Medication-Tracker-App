@@ -3,7 +3,8 @@ const User = require("../models/User");
 
 const getMedications = async (req, res) => {
   try {
-    const meds = await Medication.find({ patient: req.params.patientId });
+    const patientId = req.params.patientId || req.user.id;
+    const meds = await Medication.find({ patient: patientId });
     res.json(meds);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -35,14 +36,15 @@ const getMedicationById = async (req, res) => {
 
 const createMedication = async (req, res) => {
   try {
-    const patient = await User.findById(req.params.patientId);
+    const patientId = req.params.patientId || req.user.id;
+    const patient = await User.findById(patientId);
     if (patient && patient.caregiver && req.user.id === patient.id) {
       return res.status(403).json({ message: "Patient has read only access" });
     }
 
     const med = await Medication.create({
       ...req.body,
-      patient: req.params.patientId,
+      patient: patientId,
       createdBy: req.user.id,
     });
     res.status(201).json(med);

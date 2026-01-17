@@ -42,7 +42,7 @@ function MedicineDue({
   // Determine background color based on type and state
   const getBackgroundColor = () => {
     if (type === "Due" && currentState === "Hover") {
-      return colors.background.success.hover;
+      return colors.background.hover;
     }
     if (type === "Taken" || type === "Supply") {
       return colors.background.subtle;
@@ -103,7 +103,7 @@ function MedicineDue({
                     <div className="flex-shrink-0 w-1 h-1">
                       <div
                         className="w-full h-full rounded-full"
-                        style={{ backgroundColor: colors.separator.default }}
+                        style={{ backgroundColor: colors.text.secondary }}
                       />
                     </div>
                     <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary whitespace-pre">
@@ -117,7 +117,7 @@ function MedicineDue({
                     <div className="flex-shrink-0 w-1 h-1">
                       <div
                         className="w-full h-full rounded-full"
-                        style={{ backgroundColor: colors.separator.default }}
+                        style={{ backgroundColor: colors.text.secondary }}
                       />
                     </div>
                     <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary whitespace-pre">
@@ -144,7 +144,7 @@ function MedicineDue({
               weight={currentState === "Hover" ? "fill" : "regular"}
               color={
                 currentState === "Hover"
-                  ? colors.icon.interactive
+                  ? colors.primary.DEFAULT
                   : colors.icon.primary
               }
             />

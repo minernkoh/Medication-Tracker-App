@@ -20,6 +20,7 @@ import {
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
 import { colors } from "../../utils/colors";
+import { api } from "../../api";
 
 function AuthPage({ onLogin, onShowOnboarding }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -44,23 +45,23 @@ function AuthPage({ onLogin, onShowOnboarding }) {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!isLogin && !formData.name.trim()) {
       newErrors.name = "Name is required";
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Please enter a valid email";
     }
-    
+
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else if (!isLogin && formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
     }
-    
+
     if (!isLogin && formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
@@ -73,31 +74,69 @@ function AuthPage({ onLogin, onShowOnboarding }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      // For demo purposes, just trigger login
-      const isFirstTime = !isLogin;
-      const mode = accountType === "caregiver" ? "Caregiver" : "Personal";
-      
-      if (isFirstTime) {
-        onShowOnboarding?.({
-          name: formData.name,
+    if (!validateForm()) return;
+
+    try {
+      if (isLogin) {
+        // Real login against backend
+        const data = await api.auth.signin({
           email: formData.email,
+          password: formData.password,
+        });
+
+        const mode = data.user?.role === "caregiver" ? "Caregiver" : "Personal";
+
+        onLogin?.({
+          name: data.user?.name || "User",
+          email: data.user?.email || formData.email,
           mode,
         });
       } else {
-        onLogin?.({
-          name: formData.name || "Sarah Johnson",
+        // Signup then optional onboarding + login
+        await api.auth.signup({
+          name: formData.name,
           email: formData.email,
-          mode: "Personal", // Default to personal for login
+          password: formData.password,
+          role: accountType === "caregiver" ? "caregiver" : "patient",
+        });
+
+        const data = await api.auth.signin({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        const mode = data.user?.role === "caregiver" ? "Caregiver" : "Personal";
+
+        onShowOnboarding?.({
+          name: data.user?.name || formData.name,
+          email: data.user?.email || formData.email,
+          mode,
+        });
+
+        onLogin?.({
+          name: data.user?.name || formData.name,
+          email: data.user?.email || formData.email,
+          mode,
         });
       }
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        form: err.message || "Authentication failed. Please try again.",
+      }));
     }
   };
 
   // Account type selection for signup
-  const AccountTypeCard = ({ type, icon: Icon, title, description, selected }) => (
+  const AccountTypeCard = ({
+    type,
+    icon: Icon,
+    title,
+    description,
+    selected,
+  }) => (
     <button
       type="button"
       onClick={() => setAccountType(type)}
@@ -144,7 +183,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
+    <div className="h-full w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
       {/* Left side - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background pattern */}
@@ -153,15 +192,19 @@ function AuthPage({ onLogin, onShowOnboarding }) {
           <div className="absolute bottom-40 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white rounded-full blur-3xl opacity-5" />
         </div>
-        
+
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
             <FirstAidKitIcon size={28} weight="fill" color="#ffffff" />
           </div>
           <div>
-            <h1 className="font-poppins font-bold text-2xl text-white">MedTracker</h1>
-            <p className="font-poppins text-white/70 text-sm">Your health companion</p>
+            <h1 className="font-poppins font-bold text-2xl text-white">
+              MedTracker
+            </h1>
+            <p className="font-poppins text-white/70 text-sm">
+              Your health companion
+            </p>
           </div>
         </div>
 
@@ -172,7 +215,8 @@ function AuthPage({ onLogin, onShowOnboarding }) {
               Track your health journey with confidence
             </h2>
             <p className="font-poppins text-white/80 text-lg leading-relaxed max-w-md">
-              Never miss a medication or appointment again. MedTracker helps you stay on top of your health.
+              Never miss a medication or appointment again. MedTracker helps you
+              stay on top of your health.
             </p>
           </div>
 
@@ -182,8 +226,12 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <BellIcon size={20} weight="fill" color="#ffffff" />
               </div>
               <div>
-                <p className="font-poppins font-semibold text-white">Smart Reminders</p>
-                <p className="font-poppins text-white/70 text-sm">Never miss a dose</p>
+                <p className="font-poppins font-semibold text-white">
+                  Smart Reminders
+                </p>
+                <p className="font-poppins text-white/70 text-sm">
+                  Never miss a dose
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
@@ -191,8 +239,12 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <CalendarCheckIcon size={20} weight="fill" color="#ffffff" />
               </div>
               <div>
-                <p className="font-poppins font-semibold text-white">Appointment Tracking</p>
-                <p className="font-poppins text-white/70 text-sm">Keep all your appointments organized</p>
+                <p className="font-poppins font-semibold text-white">
+                  Appointment Tracking
+                </p>
+                <p className="font-poppins text-white/70 text-sm">
+                  Keep all your appointments organized
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
@@ -200,8 +252,12 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <HeartIcon size={20} weight="fill" color="#ffffff" />
               </div>
               <div>
-                <p className="font-poppins font-semibold text-white">Health Insights</p>
-                <p className="font-poppins text-white/70 text-sm">Track your progress over time</p>
+                <p className="font-poppins font-semibold text-white">
+                  Health Insights
+                </p>
+                <p className="font-poppins text-white/70 text-sm">
+                  Track your progress over time
+                </p>
               </div>
             </div>
           </div>
@@ -220,7 +276,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
               <FirstAidKitIcon size={24} weight="fill" color="#ffffff" />
             </div>
-            <h1 className="font-poppins font-bold text-xl text-text-primary">MedTracker</h1>
+            <h1 className="font-poppins font-bold text-xl text-text-primary">
+              MedTracker
+            </h1>
           </div>
 
           {/* Form header */}
@@ -259,7 +317,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   />
                 </div>
                 {errors.accountType && (
-                  <p className="text-red-500 text-sm font-poppins">{errors.accountType}</p>
+                  <p className="text-red-500 text-sm font-poppins">
+                    {errors.accountType}
+                  </p>
                 )}
               </div>
             )}
@@ -291,7 +351,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   />
                 </div>
                 {errors.name && (
-                  <p className="text-red-500 text-sm font-poppins">{errors.name}</p>
+                  <p className="text-red-500 text-sm font-poppins">
+                    {errors.name}
+                  </p>
                 )}
               </div>
             )}
@@ -322,7 +384,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 />
               </div>
               {errors.email && (
-                <p className="text-red-500 text-sm font-poppins">{errors.email}</p>
+                <p className="text-red-500 text-sm font-poppins">
+                  {errors.email}
+                </p>
               )}
             </div>
 
@@ -363,7 +427,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-red-500 text-sm font-poppins">{errors.password}</p>
+                <p className="text-red-500 text-sm font-poppins">
+                  {errors.password}
+                </p>
               )}
             </div>
 
@@ -394,7 +460,9 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   />
                 </div>
                 {errors.confirmPassword && (
-                  <p className="text-red-500 text-sm font-poppins">{errors.confirmPassword}</p>
+                  <p className="text-red-500 text-sm font-poppins">
+                    {errors.confirmPassword}
+                  </p>
                 )}
               </div>
             )}

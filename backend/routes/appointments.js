@@ -13,12 +13,18 @@ router.get(
   apptCtrl.getAppointments
 );
 
+// Current patient's appointments
+router.get("/appointments", verifyToken, apptCtrl.getAppointments);
+
 router.post(
   "/patients/:patientId/appointments",
   verifyToken,
   canModifyPatientData,
   apptCtrl.createAppointment
 );
+
+// Create appointment for current patient
+router.post("/appointments", verifyToken, apptCtrl.createAppointment);
 
 router.get(
   "/patients/:patientId/appointments/:id",

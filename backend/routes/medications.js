@@ -13,12 +13,18 @@ router.get(
   medsCtrl.getMedications
 );
 
+// Current patient's medications
+router.get("/medications", verifyToken, medsCtrl.getMedications);
+
 router.post(
   "/patients/:patientId/medications",
   verifyToken,
   canModifyPatientData,
   medsCtrl.createMedication
 );
+
+// Create medication for current patient
+router.post("/medications", verifyToken, medsCtrl.createMedication);
 
 router.put(
   "/patients/:patientId/medications/:id",

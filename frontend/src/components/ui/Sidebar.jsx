@@ -17,8 +17,8 @@ import { MenuButtons } from "./buttons";
 import { colors } from "../../utils/colors";
 
 function Sidebar({
-  userName = "Sarah Johnson",
-  userEmail = "sarahjohnson@gmail.com",
+  userName,
+  userEmail,
   mode = "Personal",
   selectedMenu,
   onMenuClick,
@@ -26,8 +26,22 @@ function Sidebar({
   isOpen = false,
   onClose,
 }) {
+  // Get user data from localStorage if not provided
+  const [userData] = React.useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const displayName = userName || userData?.name || "User";
+  const displayEmail = userEmail || userData?.email || "";
+  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+
   // Get first letter of name for avatar
-  const userInitial = userName.charAt(0).toUpperCase();
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   // Get current route to determine selected menu
   const location = useLocation();
@@ -74,7 +88,7 @@ function Sidebar({
               MedTracker
             </p>
             <p className="font-poppins font-normal leading-6 text-sm text-text-secondary">
-              {mode}
+              {displayMode}
             </p>
           </div>
         </div>
@@ -88,10 +102,10 @@ function Sidebar({
           </div>
           <div className="flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary w-[9.9375rem]">
             <p className="font-poppins font-semibold text-sm w-full">
-              {userName}
+              {displayName}
             </p>
             <p className="font-poppins font-normal text-xs w-full">
-              {userEmail}
+              {displayEmail}
             </p>
           </div>
         </div>
@@ -109,7 +123,7 @@ function Sidebar({
             <MenuButtons
               type="Dashboard"
               isSelected={currentMenu === "Dashboard"}
-              mode={mode}
+              mode={displayMode}
               onClick={(e) => {
                 // Let Link handle navigation, just close sidebar if needed
                 onClose?.();
@@ -130,7 +144,7 @@ function Sidebar({
               <MenuButtons
                 type="Patients"
                 isSelected={currentMenu === "Patients"}
-                mode={mode}
+                mode={displayMode}
                 onClick={(e) => {
                   onClose?.();
                 }}
@@ -151,7 +165,7 @@ function Sidebar({
               <MenuButtons
                 type="Medications"
                 isSelected={currentMenu === "Medications"}
-                mode={mode}
+                mode={displayMode}
                 onClick={(e) => {
                   onClose?.();
                 }}
@@ -170,7 +184,7 @@ function Sidebar({
             <MenuButtons
               type="Appointments"
               isSelected={currentMenu === "Appointments"}
-              mode={mode}
+              mode={displayMode}
               onClick={(e) => {
                 onClose?.();
               }}
@@ -189,7 +203,7 @@ function Sidebar({
             <MenuButtons
               type="Settings"
               isSelected={currentMenu === "Settings"}
-              mode={mode}
+              mode={displayMode}
               onClick={(e) => {
                 onClose?.();
               }}
@@ -213,7 +227,7 @@ function Sidebar({
               size={24}
               weight="regular"
               color={
-                mode === "Personal"
+                displayMode === "Personal"
                   ? colors.icon.primary
                   : colors.secondary.DEFAULT
               }
@@ -228,12 +242,12 @@ function Sidebar({
                 className="font-poppins font-semibold leading-6 text-sm transition-colors"
                 style={{
                   color:
-                    mode === "Personal"
+                    displayMode === "Personal"
                       ? colors.text.primary
                       : colors.secondary.DEFAULT,
                 }}
               >
-                {mode === "Personal" ? "Caregiver Mode" : "Personal Mode"}
+                {displayMode === "Personal" ? "Caregiver Mode" : "Personal Mode"}
               </p>
             </div>
           </div>

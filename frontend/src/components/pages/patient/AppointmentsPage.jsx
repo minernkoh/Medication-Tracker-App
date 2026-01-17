@@ -6,7 +6,7 @@
  * @param {string} mode - "Personal" or "Caregiver"
  * @param {function} onMenuClick - Navigation callback
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   PlusIcon,
   CalendarBlankIcon,
@@ -25,75 +25,48 @@ import {
 } from "@phosphor-icons/react";
 import { colors, getPrimaryColor } from "../../../utils/colors";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
+import { api } from "../../../api";
 
-function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
+function AppointmentsPage({ userName, mode }) {
+  // Get user data from localStorage
+  const [userData] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [sortConfig, setSortConfig] = useState({
     key: "date",
     direction: "asc",
   });
 
-  // Sample appointments data (in real app, this would come from API)
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      title: "Annual Physical Check Up",
-      doctorName: "Dr Williams",
-      location: "Singapore General Hospital",
-      date: "2026-01-15",
-      time: "14:00",
-      notes: "Bring previous test results",
-    },
-    {
-      id: 2,
-      title: "Dental Cleaning",
-      doctorName: "Dr Chen",
-      location: "Smile Dental Clinic",
-      date: "2026-01-22",
-      time: "10:30",
-      notes: "",
-    },
-    {
-      id: 3,
-      title: "Eye Examination",
-      doctorName: "Dr Tan",
-      location: "Vision Care Center",
-      date: "2026-02-05",
-      time: "09:00",
-      notes: "Prescription glasses renewal",
-    },
-    {
-      id: 4,
-      title: "Follow-up Consultation",
-      doctorName: "Dr Williams",
-      location: "Singapore General Hospital",
-      date: "2026-02-18",
-      time: "15:30",
-      notes: "",
-    },
-    {
-      id: 5,
-      title: "Blood Test",
-      doctorName: "Dr Lee",
-      location: "HealthFirst Lab",
-      date: "2026-04-10",
-      time: "08:00",
-      notes: "Fasting required",
-    },
-    {
-      id: 6,
-      title: "Vaccination",
-      doctorName: "Dr Williams",
-      location: "Singapore General Hospital",
-      date: "2026-06-20",
-      time: "11:00",
-      notes: "",
-    },
-  ]);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const primaryColor = getPrimaryColor(mode);
+  const fetchAppointments = async () => {
+    try {
+      const data = await api.appointments.getAll();
+      setAppointments(data.map((a) => ({ ...a, id: a._id || a.id })));
+    } catch (error) {
+      console.error("Failed to fetch appointments:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const primaryColor = getPrimaryColor(displayMode);
 
   // Format date for display
   const formatDate = (dateStr) => {
@@ -220,27 +193,37 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   ).length;
 
   // Handle add appointment
-  const handleAddAppointment = (newAppointment) => {
-    const id = Math.max(...appointments.map((a) => a.id), 0) + 1;
-    setAppointments([...appointments, { ...newAppointment, id }]);
-    setIsModalOpen(false);
+  const handleAddAppointment = async (newAppointment) => {
+    try {
+      await api.appointments.create(newAppointment);
+      setIsModalOpen(false);
+      fetchAppointments();
+    } catch (error) {
+      console.error("Failed to add appointment:", error);
+    }
   };
 
   // Handle edit appointment
-  const handleEditAppointment = (updatedAppointment) => {
-    setAppointments(
-      appointments.map((apt) =>
-        apt.id === updatedAppointment.id ? updatedAppointment : apt
-      )
-    );
-    setEditingAppointment(null);
-    setIsModalOpen(false);
+  const handleEditAppointment = async (updatedAppointment) => {
+    try {
+      await api.appointments.update(updatedAppointment.id, updatedAppointment);
+      setEditingAppointment(null);
+      setIsModalOpen(false);
+      fetchAppointments();
+    } catch (error) {
+      console.error("Failed to update appointment:", error);
+    }
   };
 
   // Handle delete appointment
-  const handleDeleteAppointment = (id) => {
+  const handleDeleteAppointment = async (id) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
-      setAppointments(appointments.filter((apt) => apt.id !== id));
+      try {
+        await api.appointments.delete(id);
+        fetchAppointments();
+      } catch (error) {
+        console.error("Failed to delete appointment:", error);
+      }
     }
   };
 
@@ -293,7 +276,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   };
 
   return (
-    <div className="bg-background-default w-full min-h-screen overflow-x-hidden">
+    <div className="bg-background-default w-full h-full overflow-x-hidden">
       {/* Gradient background decoration */}
       <div className="hidden md:block absolute h-[85rem] left-[4rem] top-[-11rem] w-[88rem] pointer-events-none z-0">
         <div className="absolute inset-[-36%_-35%]">
@@ -399,7 +382,11 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
 
           {/* Appointments table */}
           <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden shadow-sm">
-            {sortedAppointments.length > 0 ? (
+            {loading ? (
+              <div className="p-10 text-center text-text-secondary">
+                Loading appointments...
+              </div>
+            ) : sortedAppointments.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -593,7 +580,7 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
             editingAppointment ? handleEditAppointment : handleAddAppointment
           }
           appointment={editingAppointment}
-          mode={mode}
+          mode={displayMode}
         />
       )}
     </div>

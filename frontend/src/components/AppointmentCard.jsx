@@ -11,20 +11,25 @@ import { colors } from "../utils/colors";
 /**
  * AppointmentCard Component
  * Displays upcoming appointment information
+ * Only renders if title is provided (no default test data)
  *
- * @param {string} title - Appointment title (default: "Annual Physical Check Up")
- * @param {string} date - Appointment date and time (default: "Thu, Jan 15, 2:00 PM")
- * @param {string} doctor - Doctor's name (default: "Dr Willliams")
- * @param {string} location - Appointment location (default: "Singapore General Hospital")
+ * @param {string} title - Appointment title (required)
+ * @param {string} date - Appointment date and time (required)
+ * @param {string} doctor - Doctor's name (required)
+ * @param {string} location - Appointment location (required)
  * @param {function} onClick - Optional click handler (defaults to navigate to /appointments)
  */
 function AppointmentCard({
-  title = "Annual Physical Check Up",
-  date = "Thu, Jan 15, 2:00 PM",
-  doctor = "Dr Willliams",
-  location = "Singapore General Hospital",
+  title,
+  date,
+  doctor,
+  location,
   onClick,
 }) {
+  // Don't render if no appointment data is provided
+  if (!title || !date) {
+    return null;
+  }
   const navigate = useNavigate();
 
   const handleClick = () => {

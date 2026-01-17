@@ -6,7 +6,7 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   PlusIcon,
   PillIcon,
@@ -16,79 +16,48 @@ import {
 } from "@phosphor-icons/react";
 import { colors, getPrimaryColor } from "../../../utils/colors";
 import { MedicineDue, DataTable, MedicationSection } from "../../ui";
+import { api } from "../../../api";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 
-const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
-  const primaryColor = getPrimaryColor(mode);
+const MedicationPage = ({ userName, mode }) => {
+  // Get user data from localStorage
+  const [userData] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  // State to track medications - initially populated with sample data
-  const [medications, setMedications] = useState([
-    // Pending medications (for today)
-    {
-      id: 1,
-      name: "Paracetamol",
-      dosage: "2 pills",
-      timeOfDay: "08:00",
-      quantity: "50 pills",
-      status: "pending",
-      takenTime: null,
-      additionalInfo: "For headache",
-    },
-    {
-      id: 2,
-      name: "Ibuprofen",
-      dosage: "1 pill",
-      timeOfDay: "13:00",
-      quantity: "30 pills",
-      status: "pending",
-      additionalInfo: "After Meal",
-      pillColor: "#ffd5d5",
-    },
-    {
-      id: 3,
-      name: "Vitamin C",
-      dosage: "1 pill",
-      timeOfDay: "20:00",
-      quantity: "45 pills",
-      status: "pending",
-      additionalInfo: "Before Sleep",
-      pillColor: "#d9ffaf",
-    },
+  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+  const primaryColor = getPrimaryColor(displayMode);
+  // State to track medications
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    // Taken medications (example of already taken today)
+  // Fetch medications from backend
+  const fetchMedications = async () => {
+    try {
+      const data = await api.medications.getAll();
+      // Map backend data to frontend format
+      const formatted = data.map((med) => ({
+        ...med,
+        id: med._id || med.id,
+        timeOfDay: med.time || med.timeOfDay, // Ensure time is mapped correctly
+        status: med.taken ? "taken" : "pending",
+      }));
+      setMedications(formatted);
+    } catch (error) {
+      console.error("Failed to fetch medications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    {
-      id: 4,
-      name: "Aspirin",
-      dosage: "1 pill",
-      timeOfDay: "08:00",
-      quantity: "100 pills",
-      status: "taken",
-      takenTime: "9:00 AM",
-      additionalInfo: "",
-    },
-
-    {
-      id: 5,
-      name: "Metformin",
-      dosage: "500mg",
-      status: "supply",
-      quantity: "30 pills",
-      timeOfDay: "08:00",
-      refillDate: "2026-02-15",
-      additionalInfo: "Before Meal",
-    },
-    {
-      id: 6,
-      name: "Blood Pressure Meds",
-      dosage: "1 pill",
-      status: "supply",
-      quantity: "60 pills",
-      timeOfDay: "20:00",
-      refillDate: "2026-03-10",
-      additionalInfo: "Before Sleep",
-    },
-  ]);
+  useEffect(() => {
+    fetchMedications();
+  }, []);
 
   // State for add medication form modal
   const [showAddForm, setShowAddForm] = useState(false);
@@ -143,17 +112,34 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
     const { key, direction } = supplySortConfig;
     const multiplier = direction === "asc" ? 1 : -1;
-    if (key === "name") return multiplier * a.name.localeCompare(b.name);
-    if (key === "dosage") return multiplier * a.dosage.localeCompare(b.dosage);
-    if (key === "quantity")
-      return multiplier * a.quantity.localeCompare(b.quantity);
+    if (key === "name") {
+      const aVal = a.name || "";
+      const bVal = b.name || "";
+      return multiplier * aVal.localeCompare(bVal);
+    }
+    if (key === "dosage") {
+      const aVal = a.dosage || "";
+      const bVal = b.dosage || "";
+      return multiplier * aVal.localeCompare(bVal);
+    }
+    if (key === "quantity") {
+      const aVal = a.quantity || "";
+      const bVal = b.quantity || "";
+      return multiplier * aVal.localeCompare(bVal);
+    }
     return 0;
   });
 
   // Get supply status based on quantity
   const getSupplyStatus = (quantityStr) => {
+    // Handle undefined, null, or non-string values
+    if (!quantityStr || typeof quantityStr !== "string") {
+      return { label: "N/A", className: "bg-gray-100 text-gray-500" };
+    }
+    
     // Extract numeric value from quantity string (e.g., "30 pills" -> 30)
-    const numericValue = parseInt(quantityStr.match(/\d+/)?.[0] || "0");
+    const match = quantityStr.match(/\d+/);
+    const numericValue = match ? parseInt(match[0], 10) : 0;
 
     if (numericValue < 20) {
       return { label: "Low", className: "bg-red-100 text-red-700" };
@@ -248,24 +234,24 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
    * Handle marking a medication as taken
    * When clicked, moves medication from pending to taken with current timestamp
    */
-  const handleMarkAsTaken = (medicationId) => {
-    const currentTime = new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+  const handleMarkAsTaken = async (medicationId) => {
+    try {
+      const currentTime = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId
-          ? {
-              ...med,
-              status: "taken",
-              takenTime: currentTime,
-            }
-          : med
-      )
-    );
+      await api.medications.update(medicationId, {
+        taken: true,
+        takenTime: currentTime,
+      });
+
+      // Refresh list
+      fetchMedications();
+    } catch (error) {
+      console.error("Failed to mark medication as taken:", error);
+    }
   };
 
   /**
@@ -273,14 +259,29 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
    * Moves medication back to pending status instead of permanently deleting
    * When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
    */
-  const handleDeleteMedication = (medicationId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId
-          ? { ...med, status: "pending", takenTime: null }
-          : med
-      )
-    );
+  const handleDeleteMedication = async (medicationId) => {
+    const med = medications.find((m) => m.id === medicationId);
+    if (!med) return;
+
+    try {
+      if (med.status === "taken") {
+        // Undo taken status
+        await api.medications.update(medicationId, {
+          taken: false,
+          takenTime: null,
+        });
+      } else {
+        // Permanently delete from supply/pending
+        if (
+          window.confirm("Are you sure you want to delete this medication?")
+        ) {
+          await api.medications.delete(medicationId);
+        }
+      }
+      fetchMedications();
+    } catch (error) {
+      console.error("Failed to delete/restore medication:", error);
+    }
   };
 
   /**
@@ -288,28 +289,26 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
    * In a full implementation, this would open an edit modal
    */
   const handleEditMedication = (medication) => {
-    console.log("Opening edit modal for medication:", medication?.id);
     setEditingMedication(medication);
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = (updatedMedication) => {
-    console.log("Saving edited medication:", updatedMedication);
-    // Update the medication in state
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === updatedMedication.id ? { ...med, ...updatedMedication } : med
-      )
-    );
-    setShowEditModal(false);
-    setEditingMedication(null);
+  const handleSaveEditedMedication = async (updatedMedication) => {
+    try {
+      await api.medications.update(updatedMedication.id, updatedMedication);
+      setShowEditModal(false);
+      setEditingMedication(null);
+      fetchMedications();
+    } catch (error) {
+      console.error("Failed to update medication:", error);
+    }
   };
 
   /**
    * Handle adding a new medication to supply
    * Validates form and adds medication to current supply
    */
-  const handleAddMedication = (e) => {
+  const handleAddMedication = async (e) => {
     e.preventDefault();
 
     // Basic validation
@@ -353,32 +352,35 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
         : null;
 
     // Create new medication object
-    const newMed = {
-      id: medications.length + 1,
+    const medData = {
       name: newMedication.name,
       dosage: newMedication.dosage,
       type: newMedication.type,
-      frequency: frequencyString,
-      status: "supply",
+      frequency: frequencyString, // Backend might expect 'frequency' string
+      time: "08:00", // Default time if not specified, or add time input to form
       quantity: newMedication.quantity,
       additionalInfo: additionalInfo,
+      taken: false,
     };
 
-    // Add to medications list
-    setMedications((prev) => [...prev, newMed]);
-
-    // Reset form and close modal
-    setNewMedication({
-      name: "",
-      dosage: "",
-      type: "pills",
-      frequencyType: "timesPerDay",
-      frequencyValue: "",
-      frequencyText: "",
-      quantity: "",
-      instructions: [],
-    });
-    setShowAddForm(false);
+    try {
+      await api.medications.create(medData);
+      setNewMedication({
+        name: "",
+        dosage: "",
+        type: "pills",
+        frequencyType: "timesPerDay",
+        frequencyValue: "",
+        frequencyText: "",
+        quantity: "",
+        instructions: [],
+      });
+      setShowAddForm(false);
+      fetchMedications();
+    } catch (error) {
+      console.error("Failed to add medication:", error);
+      alert("Failed to add medication");
+    }
   };
 
   /**
@@ -409,8 +411,17 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
       setShowAddForm(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-10 text-center text-text-secondary">
+        Loading medications...
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-background-default w-full min-h-screen overflow-x-hidden">
+    <div className="bg-background-default w-full h-full overflow-x-hidden">
       {/* Gradient background decoration - matches Dashboard styling */}
       <div className="hidden md:block absolute h-[85.6875rem] left-[4.3125rem] top-[-11rem] w-[88.3125rem] pointer-events-none z-0">
         <div className="absolute inset-[-36.47%_-35.39%]">
@@ -458,7 +469,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
               }}
               onSave={handleSaveEditedMedication}
               medication={editingMedication}
-              mode={mode}
+              mode={displayMode}
             />
           )}
 
@@ -521,7 +532,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"
               EmptyIcon={PillIcon}
-              mode={mode}
+              mode={displayMode}
             />
           </div>
         </div>

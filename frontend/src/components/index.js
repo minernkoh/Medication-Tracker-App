@@ -1,44 +1,21 @@
-/**
- * Components Index
- * Central export for all components
- */
+// Layout & Shared
+export { default as Sidebar } from "./Sidebar";
 
-// UI Components (buttons, cards, layout, etc.)
-export {
-  // Buttons
-  Button,
-  ActionButtons,
-  CalendarDate,
-  MedicineDue,
-  MenuButtons,
-  // Layout
-  Sidebar,
-  // Data display
-  AppointmentCard,
-  DataTable,
-  MedicationSection,
-  PieChart,
-  // Auth
-  OnboardingTutorial,
-  // Utilities
-  ErrorBoundary,
-} from "./ui";
+// Pages - Auth & Settings
+export { default as AuthPage } from "./pages/AuthPage";
+export { default as SettingsPage } from "./pages/SettingsPage";
 
-// Modals
-export { AddAppointmentModal, CaregiverAuthModal } from "./modals";
+// Pages - Patient
+export { default as Dashboard } from "./pages/patient/Dashboard";
+export { default as MedicationPage } from "./pages/patient/MedicationPage";
+export { default as AppointmentsPage } from "./pages/patient/AppointmentsPage";
 
-// Pages
-export {
-  // Patient pages
-  Dashboard,
-  MedicationPage,
-  AppointmentsPage,
-  // Caregiver pages
-  CaregiverDashboard,
-  PatientsPage,
-  PatientDetailPage,
-  CaregiverAppointmentsPage,
-  // Shared pages
-  SettingsPage,
-  AuthPage,
-} from "./pages";
+// Pages - Caregiver
+export { default as CaregiverDashboard } from "./pages/caregiver/CaregiverDashboard";
+export { default as PatientsPage } from "./pages/caregiver/PatientsPage";
+export { default as PatientDetailPage } from "./pages/caregiver/PatientDetailPage";
+export { default as CaregiverAppointmentsPage } from "./pages/caregiver/CaregiverAppointmentsPage";
+
+// Modals & UI
+export { default as CaregiverAuthModal } from "./modals/CaregiverAuthModal";
+export { default as OnboardingTutorial } from "./ui/OnboardingTutorial";

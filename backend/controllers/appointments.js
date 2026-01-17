@@ -69,7 +69,28 @@ const processAppointmentDate = (reqBody) => {
 
 const getAppointments = async (req, res) => {
   try {
-    const appts = await Appointment.find({ patient: req.params.patientId });
+    // If patientId is provided in params, use it (for caregiver viewing patient data)
+    if (req.params.patientId) {
+      const appts = await Appointment.find({ patient: req.params.patientId });
+      return res.json(appts);
+    }
+
+    // If no patientId, check if the user is a caregiver
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // If user is a caregiver, they shouldn't have their own appointments
+    // Return empty array or only appointments for their patients
+    if (user.role === "caregiver") {
+      // Caregivers should use /caregiver/appointments endpoint
+      // Return empty array here to prevent showing wrong appointments
+      return res.json([]);
+    }
+
+    // User is a patient, return their appointments
+    const appts = await Appointment.find({ patient: req.user.id });
     res.json(appts);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -111,7 +132,8 @@ const getAppointmentById = async (req, res) => {
 
 const createAppointment = async (req, res) => {
   try {
-    const patient = await User.findById(req.params.patientId);
+    const patientId = req.params.patientId || req.user.id;
+    const patient = await User.findById(patientId);
     if (patient && patient.caregiver && req.user.id === patient.id) {
       return res.status(403).json({ message: "Patient has read only access" });
     }
@@ -120,7 +142,7 @@ const createAppointment = async (req, res) => {
 
     const appt = await Appointment.create({
       ...req.body,
-      patient: req.params.patientId,
+      patient: patientId,
       createdBy: req.user.id,
     });
     res.status(201).json(appt);
