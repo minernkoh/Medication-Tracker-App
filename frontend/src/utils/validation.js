@@ -242,27 +242,3 @@ export const validationSchemas = {
   },
 };
 
-/**
- * Helper hook for form validation (can be used with useState)
- * @param {object} initialValues - Initial form values
- * @param {object} validationRules - Validation rules for each field
- * @returns {object} { values, errors, handleChange, validate, isValid }
- */
-export const useFormValidation = (initialValues, validationRules) => {
-  // This is a conceptual helper - actual implementation would use React hooks
-  // For now, it's documented for future use
-  return {
-    values: initialValues,
-    errors: {},
-    handleChange: (e) => {
-      const { name, value } = e.target;
-      // Update values and clear errors for that field
-    },
-    validate: () => {
-      // Validate all fields
-    },
-    isValid: () => {
-      // Check if form is valid
-    },
-  };
-};

@@ -29,6 +29,7 @@ import {
   removeAuthData,
   getAuthField,
 } from "./utils/storageUtils";
+import { normalizeUser } from "./utils/normalization";
 
 // Lazy load SettingsPage
 const SettingsPage = React.lazy(() =>
@@ -254,10 +255,6 @@ function App() {
     }
   }, [isAuthenticated, user, mode]);
 
-  const normalizeUser = (userData) => ({
-    ...userData,
-    id: userData?.id || userData?._id,
-  });
 
   // Handle login from auth page
   const handleLogin = async (credentials) => {
@@ -382,10 +379,15 @@ function App() {
   };
 
   // Handle delete account
-  const handleDeleteAccount = () => {
-    // TODO: Call API to delete account
-    // For now, just log out the user
-    handleLogout();
+  const handleDeleteAccount = async () => {
+    try {
+      await api.users.delete(user.id);
+      // Account deleted successfully, log out
+      handleLogout();
+    } catch (error) {
+      // Error handling is done by ErrorContext in SettingsPage
+      throw error;
+    }
   };
 
   // Show onboarding tutorial for new users

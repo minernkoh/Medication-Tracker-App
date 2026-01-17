@@ -29,6 +29,7 @@ mongoose.connection.on("disconnected", () => {
   console.log("MongoDB disconnected");
 });
 
+// Connect to database
 connectDB();
 
 module.exports = mongoose;

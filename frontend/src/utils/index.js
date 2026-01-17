@@ -79,7 +79,6 @@ export {
   validateField,
   validateForm,
   validationSchemas,
-  useFormValidation,
 } from "./validation";
 
 // Date utilities
@@ -110,3 +109,12 @@ export { toTimeInput, to12HourDisplay, timeToMinutes } from "./timeUtils";
 
 // Medication color utilities
 export { getMedicationColor, getMedicationColorHex } from "./medicationColors";
+
+// Normalization utilities
+export {
+  normalizeId,
+  normalizeDateInput,
+  normalizeUser,
+  normalizeMedication,
+  normalizeAppointment,
+} from "./normalization";

@@ -13,22 +13,9 @@ import React, {
 } from "react";
 import { api } from "../api";
 import { useError } from "./ErrorContext";
+import { normalizeMedication } from "../utils/normalization";
 
 const MedicationsContext = createContext(null);
-
-const normalizeMedication = (medication) => {
-  if (!medication) return null;
-  const normalized = {
-    ...medication,
-    id: medication.id || medication._id,
-    status: medication.status || (medication.taken ? "taken" : "pending"),
-    taken: Boolean(medication.taken),
-  };
-  if (!Object.prototype.hasOwnProperty.call(normalized, "lastQuantityDelta")) {
-    normalized.lastQuantityDelta = 0;
-  }
-  return normalized;
-};
 
 export function MedicationsProvider({ children }) {
   const [medications, setMedications] = useState([]);

@@ -178,11 +178,16 @@ function SettingsPage({ user, mode = "Personal", onLogout, onShowOnboarding, onD
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (onDeleteAccount) {
-            onDeleteAccount();
+            try {
+              await onDeleteAccount();
+              setShowDeleteConfirm(false);
+            } catch (error) {
+              // Error is handled by ErrorContext
+              // Keep dialog open so user can try again
+            }
           }
-          setShowDeleteConfirm(false);
         }}
         title="Delete Account"
         message="Are you sure you want to delete your account? This action cannot be undone. All your medications, appointments, and data will be permanently deleted."

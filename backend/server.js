@@ -1,4 +1,6 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+console.log("Loaded PORT from .env:", process.env.PORT);
 require("./config/db");
 
 const express = require("express");

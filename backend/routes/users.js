@@ -12,4 +12,6 @@ router.put(
   usersCtrl.assignCaregiver
 );
 
+router.delete("/users/:id", verifyToken, usersCtrl.deleteUser);
+
 module.exports = router;

@@ -1,5 +1,6 @@
 const Medication = require("../models/Medication");
 const User = require("../models/User");
+const { checkPatientAccess } = require("../utils/auth");
 
 const getMedications = async (req, res) => {
   try {
@@ -19,13 +20,9 @@ const getMedicationById = async (req, res) => {
     const patient = await User.findById(med.patient);
     if (!patient) return res.status(404).json({ message: "Patient not found" });
 
-    const isPatient = req.user.id === patient.id;
-    const isCaregiver =
-      req.user.role === "caregiver" &&
-      patient.caregiver?.toString() === req.user.id;
-
-    if (!isPatient && !isCaregiver) {
-      return res.status(403).json({ message: "Not authorized" });
+    const access = checkPatientAccess(req.user, patient, false);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
     }
 
     res.json(med);
@@ -61,17 +58,9 @@ const updateMedication = async (req, res) => {
     const patient = await User.findById(med.patient);
     if (!patient) return res.status(404).json({ message: "Patient not found" });
 
-    const isPatient = req.user.id === patient.id;
-    const isCaregiver =
-      req.user.role === "caregiver" &&
-      patient.caregiver?.toString() === req.user.id;
-
-    if (isPatient && patient.caregiver) {
-      return res.status(403).json({ message: "Patient has read only access" });
-    }
-
-    if (!isPatient && !isCaregiver) {
-      return res.status(403).json({ message: "Not authorized" });
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
     }
 
     delete req.body.patient;

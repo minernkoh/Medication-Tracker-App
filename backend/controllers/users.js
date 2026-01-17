@@ -1,4 +1,6 @@
 const User = require("../models/User");
+const Medication = require("../models/Medication");
+const Appointment = require("../models/Appointments");
 
 const getCurrentUser = async (req, res) => {
   const user = await User.findById(req.user.id).select("-password");
@@ -54,8 +56,49 @@ const assignCaregiver = async (req, res) => {
   res.json(patient);
 };
 
+const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id || req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Verify user can only delete their own account
+    if (req.user.id !== userId) {
+      return res.status(403).json({ message: "Not authorized to delete this account" });
+    }
+
+    // If user is a caregiver, remove caregiver reference from all patients
+    if (user.role === "caregiver") {
+      await User.updateMany(
+        { caregiver: userId },
+        { $unset: { caregiver: "" } }
+      );
+    }
+
+    // If user is a patient with a caregiver, no need to update caregiver
+    // (caregiver can still see historical data if needed)
+
+    // Delete all medications associated with this user
+    await Medication.deleteMany({ patient: userId });
+
+    // Delete all appointments associated with this user
+    await Appointment.deleteMany({ patient: userId });
+
+    // Delete the user account
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getCurrentUser,
   updateUser,
   assignCaregiver,
+  deleteUser,
 };

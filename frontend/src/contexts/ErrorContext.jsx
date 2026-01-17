@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import Toast from "../components/ui/Toast";
+import { getErrorMessage } from "../utils/apiErrorHandler";
 
 const ErrorContext = createContext(null);
 
@@ -53,46 +54,7 @@ export function ErrorProvider({ children }) {
 
   const handleApiError = useCallback(
     (error) => {
-      let message = "An unexpected error occurred";
-
-      if (error?.response) {
-        // API responded with error status
-        const status = error.response.status;
-        const data = error.response.data;
-
-        switch (status) {
-          case 400:
-            message = data?.message || "Invalid request. Please check your input.";
-            break;
-          case 401:
-            message = "Please log in to continue";
-            break;
-          case 403:
-            message = "You don't have permission to perform this action";
-            break;
-          case 404:
-            message = data?.message || "The requested resource was not found";
-            break;
-          case 409:
-            message = data?.message || "This resource already exists";
-            break;
-          case 422:
-            message = data?.message || "Validation failed. Please check your input.";
-            break;
-          case 500:
-            message = "Server error. Please try again later.";
-            break;
-          default:
-            message = data?.message || `Error (${status}): Something went wrong`;
-        }
-      } else if (error?.request) {
-        // Request was made but no response received
-        message = "Network error. Please check your connection and try again.";
-      } else if (error?.message) {
-        // Error in request setup
-        message = error.message;
-      }
-
+      const message = getErrorMessage(error);
       return showError(message);
     },
     [showError]

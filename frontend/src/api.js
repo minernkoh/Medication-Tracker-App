@@ -212,6 +212,13 @@ export const api = {
       });
       return handleResponse(response);
     },
+    delete: async (userId) => {
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
   },
 
   // Caregiver

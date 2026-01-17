@@ -16,7 +16,7 @@ import {
   ArrowRightIcon,
   CheckIcon,
   HeartIcon,
-  BellIcon,
+  PackageIcon,
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
@@ -153,7 +153,7 @@ function AuthPage({ onLogin, onSignup }) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-y-auto">
       {/* Left side - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background pattern */}
@@ -197,7 +197,7 @@ function AuthPage({ onLogin, onSignup }) {
           <div className="space-y-4">
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <BellIcon
+                <PackageIcon
                   size={20}
                   weight="fill"
                   color={colors.text.onPrimary}
@@ -205,10 +205,10 @@ function AuthPage({ onLogin, onSignup }) {
               </div>
               <div>
                 <p className="font-poppins font-semibold text-white">
-                  Smart Reminders
+                  Supply Management
                 </p>
                 <p className="font-poppins text-white/70 text-sm">
-                  Never miss a dose
+                  Track medication inventory and refills
                 </p>
               </div>
             </div>
@@ -255,8 +255,8 @@ function AuthPage({ onLogin, onSignup }) {
       </div>
 
       {/* Right side - Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 min-h-screen overflow-y-auto">
+        <div className="w-full max-w-md my-auto py-8">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">

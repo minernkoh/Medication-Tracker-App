@@ -44,23 +44,8 @@ import {
   formatTime,
   timeToMinutes,
   textStyles,
+  normalizeAppointment,
 } from "../../../utils";
-
-const normalizeDateInput = (value) => {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toISOString().split("T")[0];
-};
-
-const normalizeAppointment = (appointment) => {
-  if (!appointment) return null;
-  return {
-    ...appointment,
-    id: appointment.id || appointment._id,
-    date: normalizeDateInput(appointment.date),
-  };
-};
 
 function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   const navigate = useNavigate();

@@ -20,6 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { formatDateLocale } from "../../../utils/dateUtils";
+import { normalizeMedication, normalizeAppointment } from "../../../utils";
 import { MedicationSection } from "../../features";
 import { SectionHeader, StatCard, Button } from "../../ui";
 import EditMedicationModal from "../../modals/EditMedicationModal";
@@ -35,13 +36,6 @@ const PATIENT_COLORS = [
   colors.patient.purple,
 ];
 
-const normalizeDateInput = (value) => {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toISOString().split("T")[0];
-};
-
 const getInitials = (name = "") => {
   const trimmed = name.trim();
   if (!trimmed) return "";
@@ -56,25 +50,6 @@ const getPatientColor = (patient) => {
   const base = patient?.id || patient?._id || "";
   const index = `${base}`.length % PATIENT_COLORS.length;
   return PATIENT_COLORS[index];
-};
-
-const normalizeMedication = (medication) => {
-  if (!medication) return null;
-  return {
-    ...medication,
-    id: medication.id || medication._id,
-    status: medication.status || (medication.taken ? "taken" : "pending"),
-    taken: Boolean(medication.taken),
-  };
-};
-
-const normalizeAppointment = (appointment) => {
-  if (!appointment) return null;
-  return {
-    ...appointment,
-    id: appointment.id || appointment._id,
-    date: normalizeDateInput(appointment.date),
-  };
 };
 
 function PatientDetailPage() {
