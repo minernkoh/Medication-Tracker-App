@@ -7,11 +7,7 @@
  */
 
 import React, { useState } from "react";
-import {
-  PlusIcon,
-  PillIcon,
-  CheckCircleIcon,
-} from "@phosphor-icons/react";
+import { PlusIcon, PillIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
 import {
   DataTable,
@@ -22,80 +18,20 @@ import {
 } from "../../ui";
 import { MedicationSection } from "../../features";
 import { AddMedicationModal, EditMedicationModal } from "../../modals";
+import { useMedications } from "../../../contexts/MedicationsContext";
 import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
 
 const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   const primaryColor = getModeHexColor(mode);
-
-  // State to track medications - initially populated with sample data
-  const [medications, setMedications] = useState([
-    // Pending medications (for today)
-    {
-      id: 1,
-      name: "Paracetamol",
-      dosage: "2 pills",
-      timeOfDay: "08:00",
-      quantity: "50 pills",
-      status: "pending",
-      takenTime: null,
-      additionalInfo: "For headache",
-    },
-    {
-      id: 2,
-      name: "Ibuprofen",
-      dosage: "1 pill",
-      timeOfDay: "13:00",
-      quantity: "30 pills",
-      status: "pending",
-      additionalInfo: "After Meal",
-      pillColor: "#ffd5d5",
-    },
-    {
-      id: 3,
-      name: "Vitamin C",
-      dosage: "1 pill",
-      timeOfDay: "20:00",
-      quantity: "45 pills",
-      status: "pending",
-      additionalInfo: "Before Sleep",
-      pillColor: "#d9ffaf",
-    },
-
-    // Taken medications (example of already taken today)
-
-    {
-      id: 4,
-      name: "Aspirin",
-      dosage: "1 pill",
-      timeOfDay: "08:00",
-      quantity: "100 pills",
-      status: "taken",
-      takenTime: "9:00 AM",
-      additionalInfo: "",
-    },
-
-    {
-      id: 5,
-      name: "Metformin",
-      dosage: "500mg",
-      status: "supply",
-      quantity: "30 pills",
-      timeOfDay: "08:00",
-      refillDate: "2026-02-15",
-      additionalInfo: "Before Meal",
-    },
-    {
-      id: 6,
-      name: "Blood Pressure Meds",
-      dosage: "1 pill",
-      status: "supply",
-      quantity: "60 pills",
-      timeOfDay: "20:00",
-      refillDate: "2026-03-10",
-      additionalInfo: "Before Sleep",
-    },
-  ]);
+  const {
+    medications,
+    setMedications,
+    parseQuantity,
+    formatQuantity,
+    handleMarkAsTaken,
+    handleDeleteMedication,
+  } = useMedications();
 
   // State for add medication form modal
   const [showAddForm, setShowAddForm] = useState(false);
@@ -121,20 +57,16 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
   // Filter medications by status for display
   const pendingMeds = medications.filter((med) => med.status === "pending");
   const takenMeds = medications.filter((med) => med.status === "taken");
-  const supplyOnlyMeds = medications.filter((med) => med.status === "supply");
-
   // Sort pending medications by time ascending so they display in order
   const pendingMedsSorted = [...pendingMeds].sort(
     (a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay)
   );
 
-  // Keep current supply aligned with today's pending meds; include any extra supply-only rows without duplicating IDs
-  const supplyMeds = [
-    ...pendingMedsSorted,
-    ...supplyOnlyMeds.filter(
-      (med) => !pendingMedsSorted.some((pending) => pending.id === med.id)
-    ),
-  ];
+  // Keep current supply aligned with all medications regardless of pending/taken status
+  const supplyMeds = medications.filter(
+    (med) =>
+      med.quantity !== undefined && med.quantity !== null && med.quantity !== ""
+  );
 
   // Sort supply medications
   const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
@@ -160,8 +92,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
 
   // Get supply status based on quantity
   const getSupplyStatus = (quantityStr) => {
-    // Extract numeric value from quantity string (e.g., "30 pills" -> 30)
-    const numericValue = parseInt(quantityStr.match(/\d+/)?.[0] || "0");
+    const numericValue = parseQuantity(quantityStr).value;
 
     if (numericValue < 20) {
       return { label: "Low", className: "bg-red-100 text-red-700" };
@@ -268,42 +199,13 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
 
   /**
    * Handle marking a medication as taken
-   * When clicked, moves medication from pending to taken with current timestamp
+   * Handled by context (handleMarkAsTaken)
    */
-  const handleMarkAsTaken = (medicationId) => {
-    const currentTime = new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId
-          ? {
-              ...med,
-              status: "taken",
-              takenTime: currentTime,
-            }
-          : med
-      )
-    );
-  };
 
   /**
    * Handle deleting a medication from taken section
-   * Moves medication back to pending status instead of permanently deleting
-   * When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
+   * Handled by context (handleDeleteMedication)
    */
-  const handleDeleteMedication = (medicationId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId
-          ? { ...med, status: "pending", takenTime: null }
-          : med
-      )
-    );
-  };
 
   /**
    * Handle editing a medication

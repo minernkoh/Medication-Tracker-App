@@ -1,7 +1,6 @@
 /**
  * EditMedicationModal Component - Allows editing medication details
- * Supports both pending/taken medications and supply medications
- * Fields include: name, dosage, quantity, timeOfDay, additionalInfo
+ * Supports editing all medication fields including: name, dosage, quantity, timeOfDay, refillDate, additionalInfo
  */
 import React, { useState, useEffect } from "react";
 import { Modal, FormField, Button } from "../ui";
@@ -19,12 +18,10 @@ function EditMedicationModal({
     dosage: "",
     quantity: "",
     timeOfDay: "",
-    takenTime: "",
+    refillDate: "",
     additionalInfo: "",
+    takenTime: "",
   });
-
-
-  const isTakenMode = medication?.status === "taken" || medication?.taken;
 
   useEffect(() => {
     if (medication) {
@@ -34,10 +31,10 @@ function EditMedicationModal({
         name: medication.name || "",
         dosage: medication.dosage || "",
         quantity: medication.quantity || "",
-        // Store as HH:MM for the time input
         timeOfDay: timeForInput,
-        takenTime: takenForInput,
+        refillDate: medication.refillDate || "",
         additionalInfo: medication.additionalInfo || "",
+        takenTime: takenForInput,
       });
     }
   }, [medication]);
@@ -49,29 +46,36 @@ function EditMedicationModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isTakenMode) {
-      // Only allow editing the "taken at" time for taken medications
-      const formattedTakenTime = to12HourDisplay(
-        formData.takenTime || formData.timeOfDay
-      );
-      const updatedMedication = {
-        ...medication,
-        takenTime: formattedTakenTime,
-      };
-      onSave(updatedMedication);
-      return;
-    }
 
+    // For taken medications, update time if changed
     const updatedMedication = {
       ...medication,
-      ...formData,
+      name: formData.name,
+      dosage: formData.dosage,
+      quantity: formData.quantity,
+      additionalInfo: formData.additionalInfo,
+      refillDate: formData.refillDate,
     };
+
+    // Update timeOfDay if it's a pending/supply medication
+    if (medication.status !== "taken") {
+      updatedMedication.timeOfDay = formData.timeOfDay;
+    }
+
+    // Update takenTime if it's a taken medication
+    if (medication.status === "taken" || medication.taken) {
+      updatedMedication.takenTime = to12HourDisplay(
+        formData.takenTime || formData.timeOfDay
+      );
+    }
+
     onSave(updatedMedication);
   };
 
   if (!isOpen || !medication) return null;
 
   const primaryColor = getModeHexColor(mode);
+  const isTakenMode = medication?.status === "taken" || medication?.taken;
 
   return (
     <Modal
@@ -100,14 +104,61 @@ function EditMedicationModal({
         </>
       }
     >
-      <form
-        id="edit-medication-form"
-        onSubmit={handleSubmit}
-        className="p-5"
-      >
+      <form id="edit-medication-form" onSubmit={handleSubmit} className="p-5">
         <div className="space-y-4">
-          {isTakenMode ? (
-            // Taken medications: only allow editing the "Taken at" time
+          {/* Name */}
+          <FormField
+            label="Medication Name"
+            name="name"
+            type="text"
+            value={formData.name}
+            onChange={handleChange}
+            required
+          />
+
+          {/* Dosage */}
+          <FormField
+            label="Dosage"
+            name="dosage"
+            type="text"
+            value={formData.dosage}
+            onChange={handleChange}
+            placeholder="e.g., 2 pills, 500mg"
+            required
+          />
+
+          {/* Quantity */}
+          <FormField
+            label="Quantity"
+            name="quantity"
+            type="text"
+            value={formData.quantity}
+            onChange={handleChange}
+            placeholder="e.g., 30 pills, 60ml"
+          />
+
+          {/* Time of Day (for pending/supply medications) */}
+          {!isTakenMode && (
+            <FormField
+              label="Time of Day"
+              name="timeOfDay"
+              type="time"
+              value={formData.timeOfDay}
+              onChange={handleChange}
+            />
+          )}
+
+          {/* Refill Date */}
+          <FormField
+            label="Refill Date"
+            name="refillDate"
+            type="date"
+            value={formData.refillDate}
+            onChange={handleChange}
+          />
+
+          {/* Taken Time (for taken medications) */}
+          {isTakenMode && (
             <FormField
               label="Taken at"
               name="takenTime"
@@ -116,54 +167,22 @@ function EditMedicationModal({
               onChange={handleChange}
               required
             />
-          ) : (
-            // Pending/Supply: show full editable fields
-            <>
-              <FormField
-                label="Medication Name"
-                name="name"
-                type="text"
-                value={formData.name}
-                onChange={handleChange}
-                required
-              />
-              <FormField
-                label="Dosage"
-                name="dosage"
-                type="text"
-                value={formData.dosage}
-                onChange={handleChange}
-                required
-              />
-              <FormField
-                label="Quantity"
-                name="quantity"
-                type="text"
-                value={formData.quantity}
-                onChange={handleChange}
-                placeholder="e.g., 30 pills, 60ml"
-              />
-              <FormField
-                label="Time of Day"
-                name="timeOfDay"
-                type="time"
-                value={formData.timeOfDay}
-                onChange={handleChange}
-              />
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Additional Information
-                </label>
-                <textarea
-                  name="additionalInfo"
-                  value={formData.additionalInfo}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-colors"
-                />
-              </div>
-            </>
           )}
+
+          {/* Additional Information / Instructions */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Notes / Instructions
+            </label>
+            <textarea
+              name="additionalInfo"
+              value={formData.additionalInfo}
+              onChange={handleChange}
+              placeholder="e.g., Take after meal, Before sleep"
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-colors"
+            />
+          </div>
         </div>
       </form>
     </Modal>

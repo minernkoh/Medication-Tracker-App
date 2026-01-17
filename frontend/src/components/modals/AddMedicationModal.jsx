@@ -19,6 +19,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     frequencyValue: "",
     frequencyText: "",
     quantity: "",
+    refillDate: "",
     instructions: [],
     timeOfDay: [],
   });
@@ -36,6 +37,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
         frequencyValue: "",
         frequencyText: "",
         quantity: "",
+        refillDate: "",
         instructions: [],
         timeOfDay: [],
       });
@@ -105,10 +107,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     }
 
     // Validate time of day based on frequency
-    if (
-      formData.frequencyType === "timesPerDay" &&
-      formData.frequencyValue
-    ) {
+    if (formData.frequencyType === "timesPerDay" && formData.frequencyValue) {
       const timesPerDay = parseInt(formData.frequencyValue, 10);
       if (formData.timeOfDay.length !== timesPerDay) {
         newErrors.timeOfDay = `Please select exactly ${timesPerDay} time(s) of day based on your frequency`;
@@ -157,6 +156,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
       frequency: frequencyString,
       status: "supply",
       quantity: formData.quantity,
+      refillDate: formData.refillDate || null,
       additionalInfo: additionalInfo,
       timeOfDay: primaryTimeOfDay,
       timesOfDay: formData.timeOfDay,
@@ -199,11 +199,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
         </>
       }
     >
-      <form
-        id="add-medication-form"
-        onSubmit={handleSubmit}
-        className="p-5"
-      >
+      <form id="add-medication-form" onSubmit={handleSubmit} className="p-5">
         <div className="flex flex-col gap-4">
           {/* Medication Name */}
           <div>
@@ -217,9 +213,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               onChange={handleChange}
               placeholder="e.g., Paracetamol"
               className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                errors.name
-                  ? "border-red-500"
-                  : "border-border-default"
+                errors.name ? "border-red-500" : "border-border-default"
               }`}
               required
             />
@@ -242,9 +236,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               onChange={handleChange}
               placeholder="e.g., 500mg or 2"
               className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                errors.dosage
-                  ? "border-red-500"
-                  : "border-border-default"
+                errors.dosage ? "border-red-500" : "border-border-default"
               }`}
               required
             />
@@ -468,9 +460,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               onChange={handleChange}
               placeholder="e.g., 30 pills"
               className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                errors.quantity
-                  ? "border-red-500"
-                  : "border-border-default"
+                errors.quantity ? "border-red-500" : "border-border-default"
               }`}
               required
             />
@@ -479,6 +469,20 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                 {errors.quantity}
               </p>
             )}
+          </div>
+
+          {/* Refill Date */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Refill Date
+            </label>
+            <input
+              type="date"
+              name="refillDate"
+              value={formData.refillDate}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+            />
           </div>
 
           {/* Instructions */}

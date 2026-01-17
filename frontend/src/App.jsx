@@ -3,12 +3,7 @@
  * Handles top-level navigation, authentication, and mode switching
  */
 import React, { useState, useEffect } from "react";
-import {
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-} from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import {
   DashboardPage,
   AppointmentsPage,
@@ -23,6 +18,7 @@ import {
   CaregiverAppointmentsPage,
 } from "./components";
 import { ErrorProvider } from "./contexts/ErrorContext";
+import { MedicationsProvider } from "./contexts/MedicationsContext";
 import NotFoundPage from "./components/pages/NotFoundPage";
 import {
   getAuthData,
@@ -340,18 +336,20 @@ function App() {
   // Show main app
   return (
     <ErrorProvider>
-      <AppLayout
-        user={user}
-        mode={mode}
-        onSwitchMode={handleSwitchMode}
-        onLogout={handleLogout}
-        showCaregiverModal={showCaregiverModal}
-        setShowCaregiverModal={setShowCaregiverModal}
-        onCaregiverLogin={handleCaregiverLogin}
-        onCaregiverSignup={handleCaregiverSignup}
-        onShowOnboarding={handleShowOnboardingFromSettings}
-        onDeleteAccount={handleDeleteAccount}
-      />
+      <MedicationsProvider>
+        <AppLayout
+          user={user}
+          mode={mode}
+          onSwitchMode={handleSwitchMode}
+          onLogout={handleLogout}
+          showCaregiverModal={showCaregiverModal}
+          setShowCaregiverModal={setShowCaregiverModal}
+          onCaregiverLogin={handleCaregiverLogin}
+          onCaregiverSignup={handleCaregiverSignup}
+          onShowOnboarding={handleShowOnboardingFromSettings}
+          onDeleteAccount={handleDeleteAccount}
+        />
+      </MedicationsProvider>
     </ErrorProvider>
   );
 }

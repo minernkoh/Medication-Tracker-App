@@ -28,6 +28,7 @@ import {
 } from "../../ui";
 import { AppointmentCard, MedicationSection } from "../../features";
 import EditMedicationModal from "../../modals/EditMedicationModal";
+import { useMedications } from "../../../contexts/MedicationsContext";
 import { colors } from "../../../../tailwind.config.js";
 import {
   hexToRgba,
@@ -45,7 +46,13 @@ import {
 
 function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const navigate = useNavigate();
-  
+  const {
+    medications,
+    setMedications,
+    handleMarkAsTaken,
+    handleDeleteMedication,
+  } = useMedications();
+
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 13)); // Jan 13, 2026
@@ -57,51 +64,7 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // State: track medication status (taken/not taken) — synced with MedicationPage sample data
-  const [medications, setMedications] = useState([
-    {
-      id: 1,
-      name: "Paracetamol",
-      dosage: "2 pills",
-      timeOfDay: "08:00",
-      quantity: "50 pills",
-      taken: false,
-      takenTime: null,
-      additionalInfo: "For headache",
-    },
-    {
-      id: 2,
-      name: "Ibuprofen",
-      dosage: "1 pill",
-      timeOfDay: "13:00",
-      quantity: "30 pills",
-      additionalInfo: "After Meal",
-      pillColor: "#ffd5d5",
-      taken: false,
-      takenTime: null,
-    },
-    {
-      id: 3,
-      name: "Vitamin C",
-      dosage: "1 pill",
-      timeOfDay: "20:00",
-      quantity: "45 pills",
-      additionalInfo: "Before Sleep",
-      pillColor: "#d9ffaf",
-      taken: false,
-      takenTime: null,
-    },
-    {
-      id: 4,
-      name: "Aspirin",
-      dosage: "1 pill",
-      timeOfDay: "08:00",
-      quantity: "100 pills",
-      taken: true,
-      takenTime: "9:00 AM",
-      additionalInfo: "",
-    },
-  ]);
+  // Remove local medications state - using context instead
 
   // Sample appointments shared with AppointmentsPage to keep Upcoming card consistent
   const appointments = useMemo(
@@ -163,7 +126,6 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     ],
     []
   );
-
 
   const upcomingAppointment = useMemo(() => {
     const now = new Date();
@@ -399,16 +361,8 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     return { taken, notTaken, total, percentage };
   };
 
-  // Handle marking medication as taken
-  const handleMarkAsTaken = (medicationId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId ? { ...med, taken: true } : med
-      )
-    );
-  };
-
-  // Handle editing taken-time only for taken medications
+  // Remove the local handler functions - using context handlers instead
+  // The context handlers (handleMarkAsTaken, handleDeleteMedication) manage quantity sync
   const handleEditMedication = (medication) => {
     setEditingMedication(medication);
     setShowEditModal(true);
@@ -424,17 +378,6 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     );
     setShowEditModal(false);
     setEditingMedication(null);
-  };
-
-  // Handle deleting a medication from taken section
-  // Moves medication back to pending status instead of permanently deleting
-  // When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
-  const handleDeleteMedication = (medicationId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === medicationId ? { ...med, taken: false } : med
-      )
-    );
   };
 
   // Get medications by status - transform to match MedicationSection format
@@ -474,7 +417,9 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           {/* Header */}
           <PageHeader
             title={
-              <p className={`${textStyles.heading["2xl"]} md:${textStyles.heading["3xl"]} leading-none text-text-primary`}>
+              <p
+                className={`${textStyles.heading["2xl"]} md:${textStyles.heading["3xl"]} leading-none text-text-primary`}
+              >
                 Good Morning, {userName}!
               </p>
             }
@@ -494,7 +439,9 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                   <div className="bg-text-primary text-text-onPrimary rounded-lg p-3 shadow-lg text-xs font-poppins">
                     <p className="font-semibold mb-1">Getting Started</p>
                     <p>
-                      Add your medications to track daily doses, manage supply, and stay on schedule. Click "Add Medication" to get started.
+                      Add your medications to track daily doses, manage supply,
+                      and stay on schedule. Click "Add Medication" to get
+                      started.
                     </p>
                     <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-text-primary"></div>
                   </div>
@@ -520,7 +467,9 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                   weight="regular"
                   className="text-primary opacity-0 group-hover:opacity-100 transition-opacity"
                 />
-                <p className={`${textStyles.heading.small} text-text-primary text-center`}>
+                <p
+                  className={`${textStyles.heading.small} text-text-primary text-center`}
+                >
                   {getDisplayMonthYear()}
                 </p>
                 {isDatePickerOpen ? (
@@ -554,7 +503,11 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                       onClick={goToPrevMonth}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                      <CaretLeftIcon size={20} weight="bold" className="text-text-primary" />
+                      <CaretLeftIcon
+                        size={20}
+                        weight="bold"
+                        className="text-text-primary"
+                      />
                     </button>
                     <div className="flex items-center gap-2">
                       {/* Month selector */}
@@ -602,7 +555,11 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                       onClick={goToNextMonth}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                      <CaretRightIcon size={20} weight="bold" className="text-text-primary" />
+                      <CaretRightIcon
+                        size={20}
+                        weight="bold"
+                        className="text-text-primary"
+                      />
                     </button>
                   </div>
 
@@ -643,7 +600,12 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                             !cell.isCurrentMonth
                               ? { color: hexToRgba(colors.text.secondary, 0.4) }
                               : isToday(cell)
-                              ? { borderColor: hexToRgba(colors.primary.DEFAULT, 0.3) }
+                              ? {
+                                  borderColor: hexToRgba(
+                                    colors.primary.DEFAULT,
+                                    0.3
+                                  ),
+                                }
                               : undefined
                           }
                         >
@@ -715,7 +677,9 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
           <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
             {/* Today's Progress card */}
             <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-4 p-5 rounded-2xl">
-              <p className={`${textStyles.heading.small} text-text-primary w-full`}>
+              <p
+                className={`${textStyles.heading.small} text-text-primary w-full`}
+              >
                 {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
               </p>
 
@@ -731,16 +695,14 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                 {/* Stats */}
                 <div className="flex flex-col gap-3 items-start">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-4 h-4 rounded-full bg-success"
-                    />
+                    <div className="w-4 h-4 rounded-full bg-success" />
                     <div className="flex flex-col">
-                      <p className={`${textStyles.heading.medium} text-text-primary`}>
+                      <p
+                        className={`${textStyles.heading.medium} text-text-primary`}
+                      >
                         {stats.taken}
                       </p>
-                      <p className={textStyles.body.small}>
-                        Taken
-                      </p>
+                      <p className={textStyles.body.small}>Taken</p>
                     </div>
                   </div>
 
@@ -750,25 +712,23 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                       style={{ backgroundColor: "rgba(100,100,100,0.1)" }}
                     />
                     <div className="flex flex-col">
-                      <p className={`${textStyles.heading.medium} text-text-primary`}>
+                      <p
+                        className={`${textStyles.heading.medium} text-text-primary`}
+                      >
                         {stats.notTaken}
                       </p>
-                      <p className={textStyles.body.small}>
-                        Pending
-                      </p>
+                      <p className={textStyles.body.small}>Pending</p>
                     </div>
                   </div>
 
-                  <div
-                    className="flex items-center gap-3 pt-2 border-t border-border-subtle"
-                  >
+                  <div className="flex items-center gap-3 pt-2 border-t border-border-subtle">
                     <div className="flex flex-col">
-                      <p className={`${textStyles.heading.medium} text-text-primary`}>
+                      <p
+                        className={`${textStyles.heading.medium} text-text-primary`}
+                      >
                         {stats.total}
                       </p>
-                      <p className={textStyles.body.small}>
-                        Total Medications
-                      </p>
+                      <p className={textStyles.body.small}>Total Medications</p>
                     </div>
                   </div>
                 </div>
@@ -836,7 +796,8 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                         <ArrowRightIcon size={20} weight="bold" />
                       </button>
                       <p className={`${textStyles.caption.small} max-w-md`}>
-                        💡 <strong>Tip:</strong> You can also access the full medication management page from the sidebar menu
+                        💡 <strong>Tip:</strong> You can also access the full
+                        medication management page from the sidebar menu
                       </p>
                     </div>
                   }
