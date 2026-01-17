@@ -19,7 +19,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     frequencyValue: "",
     frequencyText: "",
     quantity: "",
-    refillDate: "",
     instructions: [],
     timeOfDay: [],
   });
@@ -37,7 +36,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
         frequencyValue: "",
         frequencyText: "",
         quantity: "",
-        refillDate: "",
         instructions: [],
         timeOfDay: [],
       });
@@ -69,14 +67,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
   const handleTimeOfDayChange = (time) => {
     setFormData((prev) => {
       const isSelected = prev.timeOfDay.includes(time);
-      const maxSelections =
-        prev.frequencyType === "timesPerDay" && prev.frequencyValue
-          ? parseInt(prev.frequencyValue, 10) || 1
-          : 3;
-      const canSelect = isSelected || prev.timeOfDay.length < maxSelections;
-
-      if (!canSelect && !isSelected) return prev;
-
       const newTimes = isSelected
         ? prev.timeOfDay.filter((t) => t !== time)
         : [...prev.timeOfDay, time];
@@ -106,13 +96,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
       newErrors.frequency = "Please enter frequency information";
     }
 
-    // Validate time of day based on frequency
-    if (formData.frequencyType === "timesPerDay" && formData.frequencyValue) {
-      const timesPerDay = parseInt(formData.frequencyValue, 10);
-      if (formData.timeOfDay.length !== timesPerDay) {
-        newErrors.timeOfDay = `Please select exactly ${timesPerDay} time(s) of day based on your frequency`;
-      }
-    } else if (formData.timeOfDay.length === 0) {
+    // Validate time of day - at least one selection required
+    if (formData.timeOfDay.length === 0) {
       newErrors.timeOfDay = "Please select at least one time of day";
     }
 
@@ -154,9 +139,9 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
       dosage: formData.dosage,
       type: formData.type,
       frequency: frequencyString,
-      status: "supply",
+      status: "pending",
       quantity: formData.quantity,
-      refillDate: formData.refillDate || null,
+      initialQuantity: formData.quantity, // Track initial quantity for percentage calculation
       additionalInfo: additionalInfo,
       timeOfDay: primaryTimeOfDay,
       timesOfDay: formData.timeOfDay,
@@ -166,11 +151,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
   };
 
   if (!isOpen) return null;
-
-  const maxSelections =
-    formData.frequencyType === "timesPerDay" && formData.frequencyValue
-      ? parseInt(formData.frequencyValue, 10) || 1
-      : 3;
 
   return (
     <Modal
@@ -194,7 +174,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             fullWidth
             style={{ backgroundColor: primaryColor }}
           >
-            Add to Supply
+            Add Medication
           </Button>
         </>
       }
@@ -212,11 +192,19 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               value={formData.name}
               onChange={handleChange}
               placeholder="e.g., Medication name"
+              list="common-medications"
               className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
                 errors.name ? "border-red-500" : "border-border-default"
               }`}
               required
             />
+            <datalist id="common-medications">
+              <option value="Aspirin">Aspirin</option>
+              <option value="Ibuprofen">Ibuprofen</option>
+              <option value="Acetaminophen">Acetaminophen (Tylenol)</option>
+              <option value="Metformin">Metformin</option>
+              <option value="Lisinopril">Lisinopril</option>
+            </datalist>
             {errors.name && (
               <p className="font-poppins text-xs text-red-500 mt-1">
                 {errors.name}
@@ -247,7 +235,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             )}
           </div>
 
-          {/* Type - Combobox with datalist */}
+          {/* Type - Text input with suggestions */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
               Type
@@ -257,8 +245,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               name="type"
               value={formData.type}
               onChange={handleChange}
+              placeholder="e.g., pills, tablets, liquid"
               list="medication-types"
-              placeholder="Type or select from dropdown"
               className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
             />
             <datalist id="medication-types">
@@ -267,14 +255,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               <option value="capsules">Capsules</option>
               <option value="liquid">Liquid</option>
               <option value="drops">Drops</option>
-              <option value="spray">Spray</option>
-              <option value="injection">Injection</option>
-              <option value="patch">Patch</option>
-              <option value="cream">Cream</option>
-              <option value="ointment">Ointment</option>
-              <option value="gel">Gel</option>
-              <option value="powder">Powder</option>
-              <option value="inhaler">Inhaler</option>
             </datalist>
           </div>
 
@@ -357,96 +337,50 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             )}
           </div>
 
-          {/* Time of Day - Dynamic based on frequency */}
-          {formData.frequencyType === "timesPerDay" &&
-            formData.frequencyValue && (
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Time of Day * (Select {formData.frequencyValue} time
-                  {formData.frequencyValue !== "1" ? "s" : ""})
-                </label>
-                <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
-                  {["morning", "afternoon", "night"].map((time) => {
-                    const isSelected = formData.timeOfDay.includes(time);
-                    const canSelect =
-                      isSelected || formData.timeOfDay.length < maxSelections;
+          {/* Time of Day - Always visible */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Time of Day *
+            </label>
+            <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
+              {["morning", "afternoon", "night"].map((time) => {
+                const isSelected = formData.timeOfDay.includes(time);
 
-                    return (
-                      <label
-                        key={time}
-                        className={`flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group ${
-                          !canSelect ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleTimeOfDayChange(time)}
-                          disabled={!canSelect}
-                          className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0 disabled:cursor-not-allowed"
-                          style={{
-                            accentColor: primaryColor,
-                          }}
-                        />
-                        <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
-                          {time}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {formData.timeOfDay.length > 0 && (
-                  <p className="font-poppins text-xs text-text-secondary mt-2">
-                    Selected:{" "}
-                    {formData.timeOfDay
-                      .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
-                      .join(", ")}
-                  </p>
-                )}
-                {errors.timeOfDay && (
-                  <p className="font-poppins text-xs text-red-500 mt-1">
-                    {errors.timeOfDay}
-                  </p>
-                )}
-              </div>
-            )}
-          {formData.frequencyType !== "timesPerDay" && (
-            <div>
-              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Time of Day *
-              </label>
-              <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
-                {["morning", "afternoon", "night"].map((time) => {
-                  const isSelected = formData.timeOfDay.includes(time);
-
-                  return (
-                    <label
-                      key={time}
-                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleTimeOfDayChange(time)}
-                        className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
-                        style={{
-                          accentColor: primaryColor,
-                        }}
-                      />
-                      <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
-                        {time}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {errors.timeOfDay && (
-                <p className="font-poppins text-xs text-red-500 mt-1">
-                  {errors.timeOfDay}
-                </p>
-              )}
+                return (
+                  <label
+                    key={time}
+                    className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleTimeOfDayChange(time)}
+                      className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
+                      style={{
+                        accentColor: primaryColor,
+                      }}
+                    />
+                    <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
+                      {time}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
-          )}
+            {formData.timeOfDay.length > 0 && (
+              <p className="font-poppins text-xs text-text-secondary mt-2">
+                Selected:{" "}
+                {formData.timeOfDay
+                  .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+                  .join(", ")}
+              </p>
+            )}
+            {errors.timeOfDay && (
+              <p className="font-poppins text-xs text-red-500 mt-1">
+                {errors.timeOfDay}
+              </p>
+            )}
+          </div>
 
           {/* Quantity */}
           <div>
@@ -469,20 +403,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                 {errors.quantity}
               </p>
             )}
-          </div>
-
-          {/* Refill Date */}
-          <div>
-            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Refill Date
-            </label>
-            <input
-              type="date"
-              name="refillDate"
-              value={formData.refillDate}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-            />
           </div>
 
           {/* Instructions */}

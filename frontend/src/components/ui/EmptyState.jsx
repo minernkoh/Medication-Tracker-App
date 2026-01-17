@@ -14,19 +14,19 @@ import React from "react";
 
 const sizeConfig = {
   sm: {
-    iconSize: 48,
+    iconSize: 32,
     titleSize: "text-lg",
     descriptionSize: "text-sm",
     padding: "p-6",
   },
   md: {
-    iconSize: 64,
+    iconSize: 40,
     titleSize: "text-xl",
     descriptionSize: "text-base",
     padding: "p-8",
   },
   lg: {
-    iconSize: 80,
+    iconSize: 48,
     titleSize: "text-2xl",
     descriptionSize: "text-lg",
     padding: "p-10",

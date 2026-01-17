@@ -20,11 +20,12 @@ const medicationSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["pending", "taken", "supply"],
-      default: "supply",
+      default: "pending",
     },
     taken: { type: Boolean, default: false },
     takenTime: { type: String }, // Time when medication was taken (e.g., "9:30 AM")
     quantity: { type: String }, // Medication quantity (e.g., "30 pills")
+    initialQuantity: { type: String }, // Initial quantity when medication was first added (for percentage calculation)
     refillDate: { type: Date },
     additionalInfo: String,
     pillColor: String,

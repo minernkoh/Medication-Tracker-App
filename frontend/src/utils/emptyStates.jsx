@@ -19,7 +19,7 @@ import { Button } from "../components/ui";
  */
 export function getMedicationsEmptyState(onAddClick) {
   return {
-    icon: <PillIcon size={64} weight="regular" color={colors.icon.secondary} />,
+    icon: <PillIcon weight="regular" color={colors.icon.secondary} />,
     title: "No medications yet",
     description:
       "Get started by adding your first medication. Track dosages, schedules, and never miss a dose.",
@@ -42,7 +42,6 @@ export function getAppointmentsEmptyState(onAddClick) {
   return {
     icon: (
       <CalendarCheckIcon
-        size={64}
         weight="regular"
         color={colors.icon.secondary}
       />
@@ -68,7 +67,7 @@ export function getAppointmentsEmptyState(onAddClick) {
 export function getPatientsEmptyState(onAddClick) {
   return {
     icon: (
-      <UsersIcon size={64} weight="regular" color={colors.icon.secondary} />
+      <UsersIcon weight="regular" color={colors.icon.secondary} />
     ),
     title: "No patients yet",
     description:
@@ -92,7 +91,6 @@ export function getSearchEmptyState(query) {
   return {
     icon: (
       <MagnifyingGlassIcon
-        size={64}
         weight="regular"
         color={colors.icon.secondary}
       />
@@ -110,7 +108,7 @@ export function getSearchEmptyState(query) {
 export function getSupplyEmptyState(onAddClick) {
   return {
     icon: (
-      <PackageIcon size={64} weight="regular" color={colors.icon.secondary} />
+      <PackageIcon weight="regular" color={colors.icon.secondary} />
     ),
     title: "No medications in supply",
     description:
@@ -133,7 +131,7 @@ export function getSupplyEmptyState(onAddClick) {
 export function getGenericEmptyState(title = "No data available", description) {
   return {
     icon: (
-      <FileXIcon size={64} weight="regular" color={colors.icon.secondary} />
+      <FileXIcon weight="regular" color={colors.icon.secondary} />
     ),
     title,
     description: description || "There's nothing here yet. Check back later.",

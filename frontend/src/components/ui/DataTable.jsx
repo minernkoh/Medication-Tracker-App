@@ -145,7 +145,12 @@ function DataTable({
         </div>
       ) : (
         <EmptyState
-          icon={<EmptyIcon size={64} weight="regular" />}
+          icon={
+            <EmptyIcon
+              weight="regular"
+              className="text-icon-secondary"
+            />
+          }
           title={emptyMessage}
           description={emptySubMessage}
           size="md"

@@ -29,7 +29,7 @@ import {
   formatTime,
   textStyles,
 } from "../../../utils";
-import { PageHeader, GradientBackground, Button } from "../../ui";
+import { PageHeader, GradientBackground, Button, EmptyState } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import { colors } from "../../../../tailwind.config.js";
@@ -531,35 +531,27 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                 </table>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                  style={{ backgroundColor: `${primaryColor}15` }}
-                >
+              <EmptyState
+                icon={
                   <CalendarBlankIcon
-                    size={32}
-                    weight="light"
-                    color={primaryColor}
+                    weight="regular"
+                    className="text-icon-secondary"
                   />
-                </div>
-                <p className={`${textStyles.body.medium} text-text-primary`}>
-                  No appointments in {selectedYear}
-                </p>
-                <p
-                  className={`${textStyles.body.small} text-text-secondary mt-1 max-w-xs`}
-                >
-                  Schedule your medical appointments to keep track of your
-                  healthcare
-                </p>
-                <button
-                  onClick={openAddModal}
-                  className={`mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90`}
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <PlusIcon size={18} weight="bold" />
-                  <span>Schedule Appointment</span>
-                </button>
-              </div>
+                }
+                title={`No appointments in ${selectedYear}`}
+                description="Schedule your medical appointments to keep track of your healthcare"
+                size="md"
+                action={
+                  <button
+                    onClick={openAddModal}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm`}
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <PlusIcon size={18} weight="bold" />
+                    <span>Schedule Appointment</span>
+                  </button>
+                }
+              />
             )}
           </div>
         </div>

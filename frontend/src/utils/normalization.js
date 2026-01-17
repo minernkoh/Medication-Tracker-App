@@ -51,6 +51,8 @@ export const normalizeMedication = (medication) => {
     id: normalizeId(medication),
     status: medication.status || (medication.taken ? "taken" : "pending"),
     taken: Boolean(medication.taken),
+    // Preserve initialQuantity if it exists, otherwise set it to current quantity if medication has been taken
+    initialQuantity: medication.initialQuantity || (medication.taken ? medication.quantity : undefined),
   };
   // Preserve lastQuantityDelta if it exists
   if (!Object.prototype.hasOwnProperty.call(normalized, "lastQuantityDelta")) {

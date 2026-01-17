@@ -15,7 +15,6 @@ import {
   PlusIcon,
   PillIcon,
   ArrowRightIcon,
-  InfoIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -54,6 +53,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     markMedicationAsTaken,
     deleteMedication,
     updateMedication,
+    resetMedicationStatus,
   } = useMedications();
   const { showError } = useError();
   const [appointments, setAppointments] = useState([]);
@@ -321,9 +321,14 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
 
   // Calculate medication stats for today
   const getMedicationStats = () => {
-    const taken = medications.filter((med) => med.taken).length;
-    const notTaken = medications.filter((med) => !med.taken).length;
-    const total = medications.length;
+    const taken = medications.filter((med) => med.status === "taken").length;
+    // Include medications with status "pending" OR "supply" that have a scheduled time
+    const notTaken = medications.filter((med) => {
+      const isPending = med.status === "pending";
+      const isSupplyWithSchedule = med.status === "supply" && (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
+      return isPending || isSupplyWithSchedule;
+    }).length;
+    const total = taken + notTaken;
     const percentage = total > 0 ? Math.round((taken / total) * 100) : 0;
 
     return { taken, notTaken, total, percentage };
@@ -349,11 +354,16 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   };
 
   // Get medications by status - transform to match MedicationSection format
+  // Include medications with status "pending" OR "supply" that have a scheduled time
   const pendingMedications = medications
-    .filter((med) => !med.taken)
+    .filter((med) => {
+      const isPending = med.status === "pending";
+      const isSupplyWithSchedule = med.status === "supply" && (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
+      return isPending || isSupplyWithSchedule;
+    })
     .sort((a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay));
 
-  const takenMedications = medications.filter((med) => med.taken);
+  const takenMedications = medications.filter((med) => med.status === "taken");
 
   const stats = getMedicationStats();
   const hasMedications = medications.length > 0;
@@ -385,7 +395,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
       <GradientBackground />
 
       {/* Main content area - positioned at top, starts after sidebar */}
-      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-6">
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-10">
         <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
           {/* Header */}
           <PageHeader
@@ -396,32 +406,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                 Good Morning, {userName}!
               </p>
             }
-          >
-            {!hasMedications && (
-              <div
-                className="relative group"
-                title="Add your medications to track daily doses, manage supply, and stay on schedule. Click 'Add Medication' to get started."
-              >
-                <InfoIcon
-                  size={20}
-                  weight="regular"
-                  className="cursor-help text-icon-secondary"
-                />
-                {/* Tooltip on hover */}
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-64">
-                  <div className="bg-text-primary text-text-onPrimary rounded-lg p-3 shadow-lg text-xs font-poppins">
-                    <p className="font-semibold mb-1">Getting Started</p>
-                    <p>
-                      Add your medications to track daily doses, manage supply,
-                      and stay on schedule. Click "Add Medication" to get
-                      started.
-                    </p>
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-text-primary"></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </PageHeader>
+          />
 
           {/* Calendar section */}
           <div className="bg-background-default border border-border-default flex flex-col gap-2 items-center p-4 rounded-2xl shrink-0 w-full relative overflow-visible">
@@ -604,7 +589,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
             </div>
 
             {/* Calendar dates - .map() creates a CalendarDateButton for each date */}
-            <div className="flex gap-1 md:gap-2 h-[3.75rem] items-center shrink-0 w-full overflow-x-auto pb-2">
+            <div className="flex gap-1 md:gap-2 min-h-[4.5rem] items-center shrink-0 w-full overflow-x-auto overflow-y-visible pb-4">
               <button
                 onClick={goToPreviousWeek}
                 className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all duration-150"
@@ -649,59 +634,69 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           {/* Stats and appointment cards */}
           <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
             {/* Today's Progress card */}
-            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-4 p-5 rounded-2xl">
-              <p
-                className={`${textStyles.heading.small} text-text-primary w-full`}
-              >
-                {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
-              </p>
+            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl">
+              <div className="flex items-center justify-between w-full">
+                <p
+                  className={`${textStyles.heading.small} text-text-primary`}
+                >
+                  {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
+                </p>
+                {stats.total > 0 && (
+                  <span className={`${textStyles.label.small} text-text-secondary bg-background-hover px-3 py-1 rounded-full`}>
+                    {stats.percentage}% complete
+                  </span>
+                )}
+              </div>
 
               {/* Pie chart and stats */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center gap-6 w-full">
                 {/* Pie Chart */}
-                <PieChart
-                  taken={stats.taken}
-                  notTaken={stats.notTaken}
-                  size={140}
-                />
+                <div className="flex-shrink-0">
+                  <PieChart
+                    taken={stats.taken}
+                    notTaken={stats.notTaken}
+                    size={140}
+                  />
+                </div>
 
                 {/* Stats */}
-                <div className="flex flex-col gap-3 items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-full bg-success" />
-                    <div className="flex flex-col">
+                <div className="flex flex-col gap-4 items-start flex-1 sm:max-w-[200px]">
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="w-4 h-4 rounded-full bg-success flex-shrink-0" />
+                    <div className="flex flex-col flex-1 min-w-0">
                       <p
-                        className={`${textStyles.heading.medium} text-text-primary`}
+                        className={`${textStyles.heading.medium} text-text-primary leading-none`}
                       >
                         {stats.taken}
                       </p>
-                      <p className={textStyles.body.small}>Taken</p>
+                      <p className={`${textStyles.body.small} text-text-secondary mt-0.5`}>Taken</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full">
                     <div
-                      className="w-4 h-4 rounded-full"
+                      className="w-4 h-4 rounded-full flex-shrink-0"
                       style={{ backgroundColor: "rgba(100,100,100,0.1)" }}
                     />
-                    <div className="flex flex-col">
+                    <div className="flex flex-col flex-1 min-w-0">
                       <p
-                        className={`${textStyles.heading.medium} text-text-primary`}
+                        className={`${textStyles.heading.medium} text-text-primary leading-none`}
                       >
                         {stats.notTaken}
                       </p>
-                      <p className={textStyles.body.small}>Pending</p>
+                      <p className={`${textStyles.body.small} text-text-secondary mt-0.5`}>Pending</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 pt-2 border-t border-border-subtle">
-                    <div className="flex flex-col">
+                  <div className="flex items-center gap-3 w-full pt-3 border-t border-border-subtle">
+                    <div className="w-4 h-4 flex-shrink-0" />
+                    <div className="flex flex-col flex-1 min-w-0">
                       <p
-                        className={`${textStyles.heading.medium} text-text-primary`}
+                        className={`${textStyles.heading.medium} text-text-primary leading-none`}
                       >
                         {stats.total}
                       </p>
-                      <p className={textStyles.body.small}>Total Medications</p>
+                      <p className={`${textStyles.body.small} text-text-secondary mt-0.5`}>Total Medications</p>
                     </div>
                   </div>
                 </div>
@@ -716,7 +711,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           {hasMedications ? (
             <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
               {/* Pending medications column */}
-              <div className="flex-1 min-h-[18.75rem]">
+              <div className="flex-1 h-[24rem] max-h-[24rem] flex flex-col min-h-0">
                 <MedicationSection
                   variant="pending"
                   medications={pendingMedications}
@@ -730,12 +725,12 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
               </div>
 
               {/* Taken medications column */}
-              <div className="flex-1 min-h-[18.75rem]">
+              <div className="flex-1 h-[24rem] max-h-[24rem] flex flex-col min-h-0">
                 <MedicationSection
                   variant="taken"
                   medications={takenMedications}
                   onEdit={handleEditMedication}
-                  onDelete={deleteMedication}
+                  onDelete={resetMedicationStatus}
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}
@@ -746,11 +741,10 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           ) : (
             /* Empty State - Prominent CTA when no medications */
             <div className="w-full">
-              <div className="bg-background-default border-2 border-dashed border-border-default rounded-2xl p-8 md:p-12">
+              <div className="bg-background-default border border-border-default rounded-2xl">
                 <EmptyState
                   icon={
                     <PillIcon
-                      size={80}
                       weight="regular"
                       className="text-icon-secondary"
                     />
@@ -762,13 +756,13 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                     <div className="flex flex-col items-center gap-4">
                       <button
                         onClick={handleAddMedication}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-lg hover:shadow-xl bg-primary`}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm bg-primary`}
                       >
                         <PlusIcon size={20} weight="bold" />
                         <span>Add Your First Medication</span>
                         <ArrowRightIcon size={20} weight="bold" />
                       </button>
-                      <p className={`${textStyles.caption.small} max-w-md`}>
+                      <p className={`${textStyles.caption.small} max-w-md text-text-secondary`}>
                         💡 <strong>Tip:</strong> You can also access the full
                         medication management page from the sidebar menu
                       </p>

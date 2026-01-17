@@ -98,13 +98,16 @@ function PatientDetailPage() {
   const patient = patientData;
 
   // Separate medications by status
-  const pendingMeds = patient?.medications?.filter((m) => !m.taken) || [];
-  const takenMeds = patient?.medications?.filter((m) => m.taken) || [];
+  const pendingMeds = patient?.medications?.filter((m) => m.status === "pending") || [];
+  const takenMeds = patient?.medications?.filter((m) => m.status === "taken") || [];
 
-  // Calculate stats
+  // Calculate stats - only count medications with pending or taken status
+  const activeMedications = patient?.medications?.filter(
+    (m) => m.status === "pending" || m.status === "taken"
+  ) || [];
   const adherenceRate =
-    patient?.medications?.length > 0
-      ? Math.round((takenMeds.length / patient.medications.length) * 100)
+    activeMedications.length > 0
+      ? Math.round((takenMeds.length / activeMedications.length) * 100)
       : 0;
   const adherenceHistory = Array.isArray(patient?.adherenceHistory)
     ? patient.adherenceHistory
@@ -326,7 +329,7 @@ function PatientDetailPage() {
             icon={<PillIcon size={20} weight="fill" />}
             iconColor={modeHexColor}
             label="Today"
-            value={`${takenMeds.length}/${patient.medications.length}`}
+            value={`${takenMeds.length}/${activeMedications.length}`}
             description="Medications"
           />
           <StatCard

@@ -165,7 +165,11 @@ function SettingsPage({ user, mode = "Personal", onLogout, onShowOnboarding, onD
       <ConfirmDialog
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
-        onConfirm={onLogout}
+        onConfirm={() => {
+          if (onLogout) {
+            onLogout();
+          }
+        }}
         title="Sign Out"
         message="Are you sure you want to sign out? You'll need to sign in again to access your account."
         confirmText="Sign Out"

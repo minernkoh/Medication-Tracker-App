@@ -33,19 +33,45 @@ const getMedicationById = async (req, res) => {
 
 const createMedication = async (req, res) => {
   try {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 1) {
+      console.error("MongoDB not connected. Connection state:", mongoose.connection.readyState);
+      return res.status(503).json({ message: "Database not connected" });
+    }
+
     const patientId = req.params.patientId || req.user.id;
     const patient = await User.findById(patientId);
+    if (!patient) {
+      console.error("Patient not found:", patientId);
+      return res.status(404).json({ message: "Patient not found" });
+    }
+    
     if (patient && patient.caregiver && req.user.id === patient.id) {
       return res.status(403).json({ message: "Patient has read only access" });
     }
+
+    console.log("Creating medication with data:", {
+      ...req.body,
+      patient: patientId,
+      createdBy: req.user.id,
+    });
 
     const med = await Medication.create({
       ...req.body,
       patient: patientId,
       createdBy: req.user.id,
     });
+    
+    console.log("Medication created successfully:", med._id);
     res.status(201).json(med);
   } catch (err) {
+    console.error("Error creating medication:", err);
+    console.error("Error details:", {
+      message: err.message,
+      name: err.name,
+      errors: err.errors,
+      stack: err.stack,
+    });
     res.status(400).json({ message: err.message });
   }
 };

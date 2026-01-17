@@ -59,11 +59,32 @@ function ConfirmDialog({
   };
 
   const config = variantConfig[variant];
-  const IconComponent = icon || config.icon;
+  const DefaultIconComponent = config.icon;
 
   const handleConfirm = () => {
-    onConfirm?.();
+    // Call onConfirm first - if it causes navigation/unmount, 
+    // onClose might not be needed, but we'll try to call it anyway
+    if (onConfirm) {
+      onConfirm();
+    }
+    // Only close if component is still mounted (non-navigation scenario)
+    // If onConfirm caused navigation, this won't execute anyway
     onClose?.();
+  };
+
+  // Render icon - handle both JSX (ReactNode) and component function
+  const renderIcon = () => {
+    if (icon) {
+      // If icon is provided as JSX (React element), render it directly
+      if (React.isValidElement(icon)) {
+        return icon;
+      }
+      // If icon is provided as a component function, render it
+      const IconComponent = icon;
+      return <IconComponent size={32} weight="fill" color={config.iconColor} />;
+    }
+    // Use default icon component
+    return <DefaultIconComponent size={32} weight="fill" color={config.iconColor} />;
   };
 
   return (
@@ -75,7 +96,7 @@ function ConfirmDialog({
             className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
             style={{ backgroundColor: config.iconBg }}
           >
-            <IconComponent size={32} weight="fill" color={config.iconColor} />
+            {renderIcon()}
           </div>
 
           {/* Title */}

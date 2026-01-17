@@ -371,11 +371,22 @@ function App() {
 
   // Handle logout
   const handleLogout = () => {
+    // Clear localStorage first
+    api.auth.logout();
+    removeAuthData();
+    
+    // Reset state - use functional updates to ensure they process
     setIsAuthenticated(false);
     setUser({ name: "", email: "" });
     setMode("Personal");
-    removeAuthData();
-    api.auth.logout();
+    setShowOnboarding(false);
+    setPendingUser(null);
+    
+    // Force navigation to root to ensure clean state
+    // Use setTimeout to ensure state updates process first
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 0);
   };
 
   // Handle delete account

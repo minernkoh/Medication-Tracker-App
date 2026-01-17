@@ -248,9 +248,11 @@ function MedicationSection({
 
   return (
     <div
-      className={`bg-background-default border border-border-default rounded-2xl h-full ${
+      className={`bg-background-default border border-border-default rounded-2xl flex flex-col ${
         compact ? "p-4 md:p-5" : "p-6"
-      } ${onCardClick ? "cursor-pointer hover:border-primary transition-all" : ""}`}
+      } ${onCardClick ? "cursor-pointer hover:border-primary transition-all" : ""} ${
+        compact ? "h-full min-h-0" : ""
+      }`}
       onClick={onCardClick ? handleCardClick : undefined}
     >
       {/* Section Header */}
@@ -285,9 +287,10 @@ function MedicationSection({
 
       {/* Medications Content */}
       {medications.length > 0 ? (
-        isPending && showTimeGroups && groupedMeds ? (
-          // Pending: Grouped by time (Morning/Afternoon/Night)
-          <div className="space-y-6">
+        <div className={`flex-1 overflow-y-auto ${compact ? "min-h-0" : ""}`}>
+          {isPending && showTimeGroups && groupedMeds ? (
+            // Pending: Grouped by time (Morning/Afternoon/Night)
+            <div className="space-y-6">
             {Object.entries(groupedMeds).map(([time, meds]) => {
               const IconComponent = timeIcons[time] || timeIcons.Other;
               return (
@@ -346,36 +349,36 @@ function MedicationSection({
               </div>
             ))}
           </div>
-        ) : (
-          // Fallback: Simple list sorted by takenTime, or Pending without time groups
-          <div className="space-y-3">
-            {(sortedTakenMeds || medications).map((med) => (
-              <PendingMedicine
-                key={med.id}
-                type={isPending ? "Due" : "Taken"}
-                medicationName={med.name}
-                dosage={med.dosage}
-                additionalInfo={
-                  isPending
-                    ? buildPendingInfo(med)
-                    : med.takenTime
-                    ? `Taken at ${med.takenTime}`
-                    : med.additionalInfo
-                }
-                pillColor={med.pillColor}
-                onCheck={isPending ? () => onMarkAsTaken?.(med.id) : undefined}
-                onEdit={!isPending ? () => onEdit?.(med) : undefined}
-                onDelete={!isPending ? () => onDelete?.(med.id) : undefined}
-              />
-            ))}
-          </div>
-        )
+          ) : (
+            // Fallback: Simple list sorted by takenTime, or Pending without time groups
+            <div className="space-y-3">
+              {(sortedTakenMeds || medications).map((med) => (
+                <PendingMedicine
+                  key={med.id}
+                  type={isPending ? "Due" : "Taken"}
+                  medicationName={med.name}
+                  dosage={med.dosage}
+                  additionalInfo={
+                    isPending
+                      ? buildPendingInfo(med)
+                      : med.takenTime
+                      ? `Taken at ${med.takenTime}`
+                      : med.additionalInfo
+                  }
+                  pillColor={med.pillColor}
+                  onCheck={isPending ? () => onMarkAsTaken?.(med.id) : undefined}
+                  onEdit={!isPending ? () => onEdit?.(med) : undefined}
+                  onDelete={!isPending ? () => onDelete?.(med.id) : undefined}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         // Empty state
         <EmptyState
           icon={
             <IconComponent
-              size={48}
               weight={config.iconWeight}
               className="text-icon-secondary"
             />
@@ -384,10 +387,12 @@ function MedicationSection({
           description={
             variant === "pending" && onAddMedication
               ? "Add medications to start tracking your daily doses"
+              : variant === "taken"
+              ? "Medications you've taken will appear here"
               : undefined
           }
           size="sm"
-          className="py-8"
+          className={compact ? "py-4" : ""}
           action={
             variant === "pending" && onAddMedication ? (
               <button

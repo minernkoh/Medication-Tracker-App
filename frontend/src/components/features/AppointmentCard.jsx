@@ -7,6 +7,7 @@ import {
   CaretRightIcon,
 } from "@phosphor-icons/react";
 import Card from "../ui/Card";
+import EmptyState from "../ui/EmptyState";
 import { colors } from "../../../tailwind.config.js";
 
 /**
@@ -36,12 +37,15 @@ function AppointmentCard({
     }
   };
 
+  const hasAppointment = title && date && title !== "No upcoming appointments";
+  const isEmpty = !hasAppointment;
+
   return (
     <Card
       onClick={handleClick}
       className="flex flex-[1_0_0] flex-col gap-2 items-start group text-left w-full"
       aria-label={
-        title && date
+        hasAppointment
           ? `View appointment: ${title} on ${date}`
           : "View appointments"
       }
@@ -57,45 +61,68 @@ function AppointmentCard({
         />
       </div>
       <div className="flex flex-col gap-2 items-start shrink-0 w-full">
-        <p className="font-poppins font-bold leading-none text-xl text-text-primary w-full">
-          {title}
-        </p>
-        <div className="flex gap-2 items-center shrink-0 w-full">
-          <div className="flex-shrink-0 w-4 h-4">
-            <CalendarBlankIcon
-              size={16}
-              weight="regular"
-              color={colors.icon.secondary}
-            />
-          </div>
-          <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
-            {date}
-          </p>
-        </div>
-        <div className="flex gap-2 items-center shrink-0 w-full">
-          <div className="flex-shrink-0 w-4 h-4">
-            <StethoscopeIcon
-              size={16}
-              weight="regular"
-              color={colors.icon.secondary}
-            />
-          </div>
-          <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
-            {doctor}
-          </p>
-        </div>
-        <div className="flex gap-2 items-center shrink-0 w-full">
-          <div className="flex-shrink-0 w-4 h-4">
-            <MapPinIcon
-              size={16}
-              weight="regular"
-              color={colors.icon.secondary}
-            />
-          </div>
-          <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
-            {location}
-          </p>
-        </div>
+        {isEmpty ? (
+          <EmptyState
+            icon={
+              <CalendarBlankIcon
+                weight="regular"
+                className="text-icon-secondary"
+              />
+            }
+            title="No upcoming appointments"
+            description="Schedule one to stay on track"
+            size="sm"
+            className="py-4 px-0 w-full"
+          />
+        ) : (
+          <>
+            <p className="font-poppins font-bold leading-none text-xl text-text-primary w-full">
+              {title}
+            </p>
+            {date && (
+              <div className="flex gap-2 items-center shrink-0 w-full">
+                <div className="flex-shrink-0 w-4 h-4">
+                  <CalendarBlankIcon
+                    size={16}
+                    weight="regular"
+                    color={colors.icon.secondary}
+                  />
+                </div>
+                <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
+                  {date}
+                </p>
+              </div>
+            )}
+            {doctor && (
+              <div className="flex gap-2 items-center shrink-0 w-full">
+                <div className="flex-shrink-0 w-4 h-4">
+                  <StethoscopeIcon
+                    size={16}
+                    weight="regular"
+                    color={colors.icon.secondary}
+                  />
+                </div>
+                <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
+                  {doctor}
+                </p>
+              </div>
+            )}
+            {location && (
+              <div className="flex gap-2 items-center shrink-0 w-full">
+                <div className="flex-shrink-0 w-4 h-4">
+                  <MapPinIcon
+                    size={16}
+                    weight="regular"
+                    color={colors.icon.secondary}
+                  />
+                </div>
+                <p className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
+                  {location}
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </Card>
   );

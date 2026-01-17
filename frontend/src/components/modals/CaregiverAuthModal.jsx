@@ -17,6 +17,7 @@ import {
   HeartIcon,
   ShieldCheckIcon,
   ArrowsClockwiseIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import { Modal, FormField, Button } from "../ui";
 import { colors } from "../../../tailwind.config.js";
@@ -115,9 +116,18 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
   };
 
   const customHeader = (
-    <div className="bg-gradient-to-br from-secondary via-pink-400 to-rose-400 p-8 pb-16 relative -m-5 mb-0 rounded-t-2xl">
+    <div className="bg-gradient-to-br from-secondary via-pink-400 to-rose-400 p-8 pb-16 relative rounded-t-2xl overflow-hidden w-full">
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 z-20"
+        aria-label="Close modal"
+      >
+        <XIcon size={20} weight="regular" color="white" />
+      </button>
+
       {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10 overflow-hidden rounded-t-2xl">
+      <div className="absolute inset-0 opacity-10 overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full blur-2xl" />
         <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white rounded-full blur-2xl" />
       </div>
@@ -148,51 +158,6 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
       className="overflow-hidden"
       showCloseButton={false}
     >
-
-        {/* Features (shown only for signup) */}
-        {!isLogin && (
-          <div className="px-6 -mt-8 relative z-10">
-            <div className="bg-white rounded-2xl shadow-lg p-4 flex gap-4">
-              <div className="flex-1 text-center p-3">
-                <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <HeartIcon
-                    size={20}
-                    weight="fill"
-                    color={colors.secondary.DEFAULT}
-                  />
-                </div>
-                <p className="font-poppins text-xs text-text-primary font-semibold">
-                  Care
-                </p>
-              </div>
-              <div className="flex-1 text-center p-3">
-                <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <ShieldCheckIcon
-                    size={20}
-                    weight="fill"
-                    color={colors.secondary.DEFAULT}
-                  />
-                </div>
-                <p className="font-poppins text-xs text-text-primary font-semibold">
-                  Protect
-                </p>
-              </div>
-              <div className="flex-1 text-center p-3">
-                <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <ArrowsClockwiseIcon
-                    size={20}
-                    weight="fill"
-                    color={colors.secondary.DEFAULT}
-                  />
-                </div>
-                <p className="font-poppins text-xs text-text-primary font-semibold">
-                  Manage
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
       {/* Features (shown only for signup) */}
       {!isLogin && (
         <div className="px-6 -mt-8 relative z-10">

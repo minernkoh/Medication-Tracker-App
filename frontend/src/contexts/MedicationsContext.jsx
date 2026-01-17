@@ -60,7 +60,12 @@ export function MedicationsProvider({ children }) {
   const createMedication = useCallback(
     async (medicationData) => {
       try {
-        const created = await api.medications.create(medicationData);
+        // Ensure initialQuantity is set if not provided
+        const dataWithInitialQuantity = {
+          ...medicationData,
+          initialQuantity: medicationData.initialQuantity || medicationData.quantity,
+        };
+        const created = await api.medications.create(dataWithInitialQuantity);
         const normalized = normalizeMedication(created);
         setMedications((prev) => [...prev, normalized].filter(Boolean));
         return normalized;
@@ -115,6 +120,7 @@ export function MedicationsProvider({ children }) {
       });
 
       let updatedQuantity;
+      let updatedInitialQuantity;
       let lastQuantityDelta = 0;
 
       setMedications((prev) =>
@@ -132,6 +138,11 @@ export function MedicationsProvider({ children }) {
               quantityValue > 0 ? Math.max(quantityValue - decrementAmount, 0) : 0;
             updatedQuantity = formatQuantity(updatedQuantityValue, quantityUnit);
             lastQuantityDelta = shouldDecrement ? -dosageAmount : 0;
+            
+            // Set initialQuantity on first time marking as taken if not already set
+            if (!med.initialQuantity && shouldDecrement) {
+              updatedInitialQuantity = med.quantity;
+            }
           }
           return {
             ...med,
@@ -139,24 +150,62 @@ export function MedicationsProvider({ children }) {
             taken: true,
             takenTime: currentTime,
             quantity: updatedQuantity ?? med.quantity,
+            initialQuantity: updatedInitialQuantity ?? med.initialQuantity,
             lastQuantityDelta,
           };
         })
       );
 
+      const updateData = {
+        status: "taken",
+        taken: true,
+        takenTime: currentTime,
+        ...(updatedQuantity !== undefined ? { quantity: updatedQuantity } : {}),
+        ...(updatedInitialQuantity !== undefined ? { initialQuantity: updatedInitialQuantity } : {}),
+      };
+
       api.medications
-        .update(medicationId, {
-          status: "taken",
-          taken: true,
-          takenTime: currentTime,
-          ...(updatedQuantity !== undefined ? { quantity: updatedQuantity } : {}),
-        })
+        .update(medicationId, updateData)
         .catch((error) => {
           showError(error.message || "Unable to update medication status");
           loadMedications();
         });
     },
     [parseQuantity, formatQuantity, parseDosage, showError, loadMedications]
+  );
+
+  // Reset medication status to "supply" - removes from pending/taken cards without deleting
+  // This preserves the medication in the current supply while removing it from today's view
+  const resetMedicationStatus = useCallback(
+    async (id) => {
+      try {
+        // Optimistically update local state
+        setMedications((prev) =>
+          prev.map((med) =>
+            med.id === id
+              ? {
+                  ...med,
+                  status: "supply",
+                  taken: false,
+                  takenTime: null,
+                }
+              : med
+          )
+        );
+
+        // Update on server
+        await api.medications.update(id, {
+          status: "supply",
+          taken: false,
+          takenTime: null,
+        });
+      } catch (error) {
+        showError(error.message || "Unable to reset medication status");
+        // Reload on error to sync with server
+        loadMedications();
+      }
+    },
+    [showError, loadMedications]
   );
 
   const value = {
@@ -170,6 +219,7 @@ export function MedicationsProvider({ children }) {
     updateMedication,
     deleteMedication,
     markMedicationAsTaken,
+    resetMedicationStatus,
   };
 
   return (

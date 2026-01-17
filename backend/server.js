@@ -11,6 +11,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  if (req.method === "POST" && (req.path.includes("/medications") || req.path.includes("/appointments"))) {
+    console.log(`${req.method} ${req.path}`, {
+      body: req.body,
+      user: req.user || "No user",
+    });
+  }
+  next();
+});
+
 // Mount routes at root; Vite dev proxy strips the /api prefix
 // so frontend /api/* calls become backend /* here.
 app.use("/auth", require("./routes/auth"));

@@ -32,6 +32,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     updateMedication,
     deleteMedication,
     markMedicationAsTaken,
+    resetMedicationStatus,
   } = useMedications();
 
   // State for add medication form modal
@@ -56,7 +57,12 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   };
 
   // Filter medications by status for display
-  const pendingMeds = medications.filter((med) => med.status === "pending");
+  // Include medications with status "pending" OR "supply" that have a scheduled time
+  const pendingMeds = medications.filter((med) => {
+    const isPending = med.status === "pending";
+    const isSupplyWithSchedule = med.status === "supply" && (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
+    return isPending || isSupplyWithSchedule;
+  });
   const takenMeds = medications.filter((med) => med.status === "taken");
   // Sort pending medications by time ascending so they display in order
   const pendingMedsSorted = [...pendingMeds].sort(
@@ -83,25 +89,47 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
       return multiplier * (dateA - dateB);
     }
     if (key === "supplyStatus") {
-      const statusOrder = { Low: 0, Medium: 1, High: 2 };
-      const statusA = getSupplyStatus(a.quantity).label;
-      const statusB = getSupplyStatus(b.quantity).label;
-      return multiplier * (statusOrder[statusA] - statusOrder[statusB]);
+      const statusA = getSupplyStatus(a);
+      const statusB = getSupplyStatus(b);
+      // Medications without status (not taken yet) go to the end
+      if (!statusA && !statusB) return 0;
+      if (!statusA) return 1;
+      if (!statusB) return -1;
+      // Sort by percentage value
+      const percentA = parseInt(statusA.label.replace("%", ""), 10);
+      const percentB = parseInt(statusB.label.replace("%", ""), 10);
+      return multiplier * (percentA - percentB);
     }
     return 0;
   });
 
-  // Get supply status based on quantity
-  const getSupplyStatus = (quantityStr) => {
-    const numericValue = parseQuantity(quantityStr).value;
-
-    if (numericValue < 20) {
-      return { label: "Low", className: "bg-red-100 text-red-700" };
-    } else if (numericValue <= 50) {
-      return { label: "Medium", className: "bg-amber-100 text-amber-700" };
-    } else {
-      return { label: "High", className: "bg-green-100 text-green-700" };
+  // Get supply status as percentage (only calculated when medication has been taken)
+  const getSupplyStatus = (medication) => {
+    // Only calculate percentage if medication has been taken and has initialQuantity
+    if (!medication.taken || !medication.initialQuantity) {
+      return null; // No status shown if medication hasn't been taken yet
     }
+
+    const currentValue = parseQuantity(medication.quantity).value;
+    const initialValue = parseQuantity(medication.initialQuantity).value;
+
+    if (initialValue === 0) {
+      return null; // Avoid division by zero
+    }
+
+    const percentage = Math.round((currentValue / initialValue) * 100);
+
+    // Determine color based on percentage
+    let className;
+    if (percentage < 30) {
+      className = "bg-red-100 text-red-700";
+    } else if (percentage <= 60) {
+      className = "bg-amber-100 text-amber-700";
+    } else {
+      className = "bg-green-100 text-green-700";
+    }
+
+    return { label: `${percentage}%`, className };
   };
 
   // Helper: format date for display
@@ -167,7 +195,14 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
       key: "supplyStatus",
       label: "Supply Status",
       render: (value, row) => {
-        const status = getSupplyStatus(row.quantity);
+        const status = getSupplyStatus(row);
+        if (!status) {
+          return (
+            <span className="font-poppins text-sm text-text-secondary">
+              Not calculated
+            </span>
+          );
+        }
         return (
           <span
             className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${status.className}`}
@@ -295,7 +330,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
                 variant="taken"
                 medications={takenMeds}
                 onEdit={handleEditMedication}
-                onDelete={deleteMedication}
+                onDelete={resetMedicationStatus}
                 showTimeGroups={true}
                 compact={false}
               />
