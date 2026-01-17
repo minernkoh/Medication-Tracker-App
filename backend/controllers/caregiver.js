@@ -85,41 +85,71 @@ const getPatients = async (req, res) => {
 
 const addPatient = async (req, res) => {
   try {
-    // Create a managed user account
-    // Since email/password are required by schema, we generate placeholders
-    // In a real app, this might trigger an email invitation
-    const timestamp = Date.now();
-    const generatedEmail = `patient_${timestamp}_${Math.floor(
-      Math.random() * 1000
-    )}@medtracker.local`;
-    const generatedPassword = "managed_account_placeholder";
+    const { email } = req.body;
 
-    const newPatient = await User.create({
-      name: req.body.name,
-      email: generatedEmail,
-      password: generatedPassword,
-      role: "patient",
-      caregiver: req.user.id,
-      // Profile fields
-      nickname: req.body.nickname,
-      phone: req.body.phone,
-      relationship: req.body.relationship,
-      color: req.body.color,
-      initials: req.body.initials,
-    });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
-    const patientObj = newPatient.toObject();
+    // Find existing patient by email
+    const patient = await User.findOne({ email: email.trim().toLowerCase() });
+
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found. The patient must have an existing account." });
+    }
+
+    // Verify the user is a patient
+    if (patient.role !== "patient") {
+      return res.status(400).json({ message: "The email provided does not belong to a patient account." });
+    }
+
+    // Check if patient already has a caregiver
+    if (patient.caregiver && patient.caregiver.toString() !== req.user.id) {
+      return res.status(400).json({ message: "This patient is already linked to another caregiver." });
+    }
+
+    // Link patient to caregiver (or update if already linked)
+    patient.caregiver = req.user.id;
+    await patient.save();
+
+    const patientObj = patient.toObject();
     delete patientObj.password;
     patientObj.id = patientObj._id;
 
-    // Return with empty stats structure
-    res.status(201).json({
+    // Get stats for this patient
+    const meds = await Medication.find({ patient: patient._id });
+    const totalMeds = meds.length;
+    const takenMeds = meds.filter((m) => m.status === "taken" || m.taken).length;
+    const adherenceRate = totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
+    const alerts = meds.filter((m) => {
+      const qty = parseInt(m.quantity) || 0;
+      return qty < 10;
+    }).length;
+
+    const allAppointments = await Appointment.find({ patient: patient._id })
+      .sort({ date: 1, time: 1 });
+
+    let nextAppointment = null;
+    const now = new Date();
+    for (const appt of allAppointments) {
+      const apptDate = new Date(`${appt.date}T${appt.time || "00:00"}`);
+      if (apptDate >= now) {
+        nextAppointment = {
+          date: appt.date,
+          time: appt.time,
+        };
+        break;
+      }
+    }
+
+    // Return with stats structure
+    res.status(200).json({
       ...patientObj,
-      medicationsTotal: 0,
-      medicationsTaken: 0,
-      adherenceRate: 0,
-      alerts: 0,
-      nextAppointment: null,
+      medicationsTotal: totalMeds,
+      medicationsTaken: takenMeds,
+      adherenceRate,
+      alerts,
+      nextAppointment,
     });
   } catch (err) {
     res.status(400).json({ message: err.message });

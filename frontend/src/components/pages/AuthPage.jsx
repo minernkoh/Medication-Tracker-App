@@ -110,7 +110,7 @@ function AuthPage({ onLogin, onSignup }) {
     <button
       type="button"
       onClick={() => setAccountType(type)}
-      className={`flex-1 p-5 rounded-2xl border-2 transition-all duration-200 text-left group hover:shadow-lg ${
+      className={`flex-1 p-5 rounded-2xl border-2 transition-all duration-200 text-left group hover:shadow-lg min-h-[140px] flex flex-col ${
         selected
           ? type === "patient"
             ? "border-primary bg-primary/5 shadow-md"
@@ -136,24 +136,26 @@ function AuthPage({ onLogin, onSignup }) {
       <h3 className="font-poppins font-bold text-lg text-text-primary mb-1">
         {title}
       </h3>
-      <p className="font-poppins text-sm text-text-secondary leading-relaxed">
+      <p className="font-poppins text-sm text-text-secondary leading-relaxed flex-1">
         {description}
       </p>
-      {selected && (
-        <div
-          className={`mt-3 inline-flex items-center gap-1.5 text-sm font-semibold ${
-            type === "patient" ? "text-primary" : "text-secondary"
-          }`}
-        >
-          <CheckIcon size={16} weight="bold" />
-          Selected
-        </div>
-      )}
+      <div
+        className={`mt-3 inline-flex items-center gap-1.5 text-sm font-semibold h-5 ${
+          selected
+            ? type === "patient"
+              ? "text-primary"
+              : "text-secondary"
+            : "text-transparent"
+        }`}
+      >
+        <CheckIcon size={16} weight="bold" />
+        Selected
+      </div>
     </button>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-y-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex" style={{ overflowY: 'auto', height: '100vh' }}>
       {/* Left side - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background pattern */}
@@ -255,8 +257,8 @@ function AuthPage({ onLogin, onSignup }) {
       </div>
 
       {/* Right side - Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 min-h-screen overflow-y-auto">
-        <div className="w-full max-w-md my-auto py-8">
+      <div className="flex-1 flex items-start justify-center p-6 lg:p-12 overflow-y-auto py-12">
+        <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">

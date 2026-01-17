@@ -16,7 +16,7 @@ import {
   ClockIcon,
   PencilSimpleIcon,
   TrashIcon,
-  PhoneIcon,
+  EnvelopeIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
@@ -65,10 +65,7 @@ function PatientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPatient, setNewPatient] = useState({
-    name: "",
-    nickname: "",
-    phone: "",
-    relationship: "",
+    email: "",
   });
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
@@ -107,22 +104,15 @@ function PatientsPage() {
   // Handle add patient
   const handleAddPatient = async (e) => {
     e.preventDefault();
-    if (!newPatient.name.trim()) return;
+    if (!newPatient.email.trim()) return;
 
-    const color = PATIENT_COLORS[Math.floor(Math.random() * PATIENT_COLORS.length)];
-    const nickname = newPatient.nickname || newPatient.name.split(" ")[0];
     try {
       const created = await api.caregiver.addPatient({
-        name: newPatient.name,
-        nickname,
-        phone: newPatient.phone,
-        relationship: newPatient.relationship,
-        color,
-        initials: getInitials(nickname || newPatient.name),
+        email: newPatient.email.trim(),
       });
       const normalized = normalizePatient(created, patients.length);
       setPatients((prev) => [...prev, normalized].filter(Boolean));
-      setNewPatient({ name: "", nickname: "", phone: "", relationship: "" });
+      setNewPatient({ email: "" });
       setShowAddModal(false);
     } catch (error) {
       showError(error.message || "Unable to add patient");
@@ -488,7 +478,7 @@ function PatientsPage() {
                 Add New Patient
               </h2>
               <p className="font-poppins text-sm text-text-secondary mt-1">
-                Add someone you're caring for. You'll be able to manage their medications and appointments.
+                Add a patient by their email address. They must have an existing account.
               </p>
             </div>
 
@@ -496,72 +486,24 @@ function PatientsPage() {
             <form onSubmit={handleAddPatient} className="p-6 space-y-4">
               <div className="space-y-2">
                 <label className="font-poppins font-semibold text-sm text-text-primary">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  value={newPatient.name}
-                  onChange={(e) =>
-                    setNewPatient({ ...newPatient, name: e.target.value })
-                  }
-                  placeholder="e.g., Linda Johnson"
-                  className="w-full px-4 py-3 rounded-xl border border-border-default bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="font-poppins font-semibold text-sm text-text-primary">
-                  Nickname
-                </label>
-                <input
-                  type="text"
-                  value={newPatient.nickname}
-                  onChange={(e) =>
-                    setNewPatient({ ...newPatient, nickname: e.target.value })
-                  }
-                  placeholder="e.g., Mom"
-                  className="w-full px-4 py-3 rounded-xl border border-border-default bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="font-poppins font-semibold text-sm text-text-primary">
-                  Relationship
-                </label>
-                <input
-                  type="text"
-                  value={newPatient.relationship}
-                  onChange={(e) =>
-                    setNewPatient({
-                      ...newPatient,
-                      relationship: e.target.value,
-                    })
-                  }
-                  placeholder="e.g., Mother, Father, Spouse"
-                  className="w-full px-4 py-3 rounded-xl border border-border-default bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="font-poppins font-semibold text-sm text-text-primary">
-                  Phone Number
+                  Email Address *
                 </label>
                 <div className="relative">
-                  <PhoneIcon
+                  <EnvelopeIcon
                     size={20}
                     weight="regular"
                     color={colors.text.secondary}
                     className="absolute left-4 top-1/2 -translate-y-1/2"
                   />
                   <input
-                    type="tel"
-                    value={newPatient.phone}
+                    type="email"
+                    value={newPatient.email}
                     onChange={(e) =>
-                      setNewPatient({ ...newPatient, phone: e.target.value })
+                      setNewPatient({ ...newPatient, email: e.target.value })
                     }
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="patient@example.com"
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-border-default bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                    required
                   />
                 </div>
               </div>
