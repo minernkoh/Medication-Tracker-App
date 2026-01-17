@@ -83,13 +83,14 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
       if (isLogin) {
         onLogin?.({
           email: formData.email,
-          mode: "Caregiver",
+          password: formData.password,
         });
       } else {
         onSignup?.({
           name: formData.name,
           email: formData.email,
-          mode: "Caregiver",
+          password: formData.password,
+          role: "caregiver",
         });
       }
     }

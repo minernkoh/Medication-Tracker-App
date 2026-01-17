@@ -33,13 +33,20 @@ function AddAppointmentModal({
   const [errors, setErrors] = useState({});
 
   // Populate form when editing
+  const normalizeDateInput = (value) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toISOString().split("T")[0];
+  };
+
   useEffect(() => {
     if (appointment) {
       setFormData({
         title: appointment.title || "",
         doctorName: appointment.doctorName || "",
         location: appointment.location || "",
-        date: appointment.date || "",
+        date: normalizeDateInput(appointment.date),
         time: appointment.time || "",
         notes: appointment.notes || "",
       });
@@ -142,7 +149,7 @@ function AddAppointmentModal({
             type="text"
             value={formData.title}
             onChange={handleChange}
-            placeholder="e.g., Annual Physical Check Up"
+            placeholder="e.g., Appointment title"
             error={errors.title}
             required
           />
@@ -172,7 +179,7 @@ function AddAppointmentModal({
             type="text"
             value={formData.location}
             onChange={handleChange}
-            placeholder="e.g., Singapore General Hospital"
+            placeholder="e.g., Clinic location"
             error={errors.location}
             required
           />

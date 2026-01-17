@@ -43,9 +43,15 @@ function MedicationSection({
   const getTimeGroup = (timeOfDay) => {
     if (!timeOfDay) return "Other";
 
-    // If it's already a word format (Morning/Afternoon/Night), return it
-    if (typeof timeOfDay === "string" && /^[A-Z]/.test(timeOfDay)) {
-      return timeOfDay;
+    // Normalize word formats (morning/afternoon/night)
+    if (typeof timeOfDay === "string") {
+      const normalized = timeOfDay.trim().toLowerCase();
+      if (["morning", "afternoon", "night"].includes(normalized)) {
+        return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+      }
+      if (/^[A-Z]/.test(timeOfDay)) {
+        return timeOfDay;
+      }
     }
 
     // Convert 24-hour format (HH:MM) to time groups

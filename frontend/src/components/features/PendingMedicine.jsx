@@ -19,8 +19,8 @@ import { getMedicationColor } from "../../utils/medicationColors";
 
 function PendingMedicine({
   type = "Due",
-  medicationName = "Paracetamol",
-  dosage = "2 pills",
+  medicationName = "",
+  dosage = "",
   frequency,
   additionalInfo,
   pillColor,

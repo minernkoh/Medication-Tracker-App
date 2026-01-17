@@ -3,7 +3,7 @@
  * Handles top-level navigation, authentication, and mode switching
  */
 import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import {
   DashboardPage,
   AppointmentsPage,
@@ -20,6 +20,7 @@ import {
 import { ErrorProvider } from "./contexts/ErrorContext";
 import { MedicationsProvider } from "./contexts/MedicationsContext";
 import NotFoundPage from "./components/pages/NotFoundPage";
+import { api } from "./api";
 import {
   getAuthData,
   setAuthData,
@@ -45,7 +46,7 @@ function AppLayout({
   onShowOnboarding,
   onDeleteAccount,
 }) {
-  const location = useLocation();
+  const firstName = user?.name ? user.name.split(" ")[0] : "";
 
   return (
     <div className="h-screen bg-white flex overflow-hidden overflow-x-hidden">
@@ -68,9 +69,9 @@ function AppLayout({
             path="/dashboard"
             element={
               mode === "Caregiver" ? (
-                <CaregiverDashboard userName={user.name.split(" ")[0]} />
+                <CaregiverDashboard userName={firstName} />
               ) : (
-                <DashboardPage userName={user.name.split(" ")[0]} mode={mode} />
+                <DashboardPage userName={firstName} mode={mode} />
               )
             }
           />
@@ -103,7 +104,7 @@ function AppLayout({
             element={
               mode === "Personal" ? (
                 <MedicationPage
-                  userName={user.name.split(" ")[0]}
+                  userName={firstName}
                   mode={mode}
                   userId={user.id}
                 />
@@ -121,7 +122,7 @@ function AppLayout({
                 <CaregiverAppointmentsPage />
               ) : (
                 <AppointmentsPage
-                  userName={user.name.split(" ")[0]}
+                  userName={firstName}
                   mode={mode}
                 />
               )
@@ -169,7 +170,9 @@ function AppLayout({
 function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return getAuthField("isAuthenticated", false);
+    const storedUser = getAuthField("user");
+    const token = localStorage.getItem("token");
+    return Boolean(token && storedUser);
   });
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -177,17 +180,21 @@ function App() {
 
   // User state
   const [user, setUser] = useState(() => {
-    return (
-      getAuthField("user") || {
-        name: "Sarah Johnson",
-        email: "sarahjohnson@gmail.com",
-      }
-    );
+    const storedUser = getAuthField("user");
+    if (storedUser) return storedUser;
+    try {
+      const rawUser = localStorage.getItem("user");
+      return rawUser ? JSON.parse(rawUser) : { name: "", email: "" };
+    } catch {
+      return { name: "", email: "" };
+    }
   });
 
   // Mode state (Personal or Caregiver)
   const [mode, setMode] = useState(() => {
-    return getAuthField("mode", "Personal");
+    const storedMode = getAuthField("mode");
+    if (storedMode) return storedMode;
+    return user?.role === "caregiver" ? "Caregiver" : "Personal";
   });
 
   // Caregiver modal state
@@ -207,20 +214,53 @@ function App() {
     }
   }, [isAuthenticated, user, mode]);
 
+  const normalizeUser = (userData) => ({
+    ...userData,
+    id: userData?.id || userData?._id,
+  });
+
   // Handle login from auth page
-  const handleLogin = (userData) => {
-    setUser({
-      name: userData.name || "Sarah Johnson",
-      email: userData.email,
-    });
-    setMode(userData.mode || "Personal");
-    setIsAuthenticated(true);
+  const handleLogin = async (credentials) => {
+    try {
+      const data = await api.auth.signin(credentials);
+      const normalizedUser = normalizeUser(data.user || {});
+      const userMode =
+        normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
+      setUser(normalizedUser);
+      setMode(userMode);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
   };
 
-  // Handle showing onboarding for new users
-  const handleShowOnboarding = (userData) => {
-    setPendingUser(userData);
-    setShowOnboarding(true);
+  const handleSignup = async (signupData) => {
+    try {
+      await api.auth.signup({
+        name: signupData.name,
+        email: signupData.email,
+        password: signupData.password,
+        role: signupData.role === "caregiver" ? "caregiver" : "patient",
+      });
+      const loginData = await api.auth.signin({
+        email: signupData.email,
+        password: signupData.password,
+      });
+      const normalizedUser = normalizeUser(loginData.user || {});
+      const userMode =
+        normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
+      setUser(normalizedUser);
+      setMode(userMode);
+      setIsAuthenticated(true);
+      setPendingUser({
+        name: normalizedUser.name,
+        email: normalizedUser.email,
+        mode: userMode,
+      });
+      setShowOnboarding(true);
+    } catch (error) {
+      console.error("Signup failed:", error);
+    }
   };
 
   // Handle onboarding completion
@@ -284,24 +324,25 @@ function App() {
   };
 
   // Handle caregiver login
-  const handleCaregiverLogin = (userData) => {
+  const handleCaregiverLogin = async (credentials) => {
+    await handleLogin(credentials);
     setMode("Caregiver");
     setShowCaregiverModal(false);
   };
 
   // Handle caregiver signup (show onboarding)
-  const handleCaregiverSignup = (userData) => {
+  const handleCaregiverSignup = async (userData) => {
     setShowCaregiverModal(false);
-    setPendingUser({ ...userData, mode: "Caregiver" });
-    setShowOnboarding(true);
+    await handleSignup({ ...userData, role: "caregiver" });
   };
 
   // Handle logout
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setUser({ name: "Sarah Johnson", email: "sarahjohnson@gmail.com" });
+    setUser({ name: "", email: "" });
     setMode("Personal");
     removeAuthData();
+    api.auth.logout();
   };
 
   // Handle delete account
@@ -325,10 +366,7 @@ function App() {
   if (!isAuthenticated) {
     return (
       <ErrorProvider>
-        <AuthPage
-          onLogin={handleLogin}
-          onShowOnboarding={handleShowOnboarding}
-        />
+        <AuthPage onLogin={handleLogin} onSignup={handleSignup} />
       </ErrorProvider>
     );
   }

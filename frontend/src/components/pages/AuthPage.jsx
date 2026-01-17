@@ -21,7 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
 
-function AuthPage({ onLogin, onShowOnboarding }) {
+function AuthPage({ onLogin, onSignup }) {
   const [isLogin, setIsLogin] = useState(true);
   const [accountType, setAccountType] = useState(null); // "patient" or "caregiver"
   const [showPassword, setShowPassword] = useState(false);
@@ -78,19 +78,17 @@ function AuthPage({ onLogin, onShowOnboarding }) {
     if (validateForm()) {
       // For demo purposes, just trigger login
       const isFirstTime = !isLogin;
-      const mode = accountType === "caregiver" ? "Caregiver" : "Personal";
-
       if (isFirstTime) {
-        onShowOnboarding?.({
+        onSignup?.({
           name: formData.name,
           email: formData.email,
-          mode,
+          password: formData.password,
+          role: accountType,
         });
       } else {
         onLogin?.({
-          name: formData.name || "Sarah Johnson",
           email: formData.email,
-          mode: "Personal", // Default to personal for login
+          password: formData.password,
         });
       }
     }
@@ -247,7 +245,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
         </div>
 
         <p className="relative z-10 font-poppins text-white/50 text-sm">
-          © 2026 MedTracker. All rights reserved.
+          © {new Date().getFullYear()} MedTracker. All rights reserved.
         </p>
       </div>
 

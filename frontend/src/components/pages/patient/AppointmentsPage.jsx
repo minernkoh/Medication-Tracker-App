@@ -6,7 +6,7 @@
  * @param {string} mode - "Personal" or "Caregiver"
  * @param {function} onMenuClick - Navigation callback
  */
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   PlusIcon,
   CalendarBlankIcon,
@@ -33,11 +33,29 @@ import { PageHeader, GradientBackground, Button } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import { colors } from "../../../../tailwind.config.js";
+import { api } from "../../../api";
+import { useError } from "../../../contexts/ErrorContext";
 
-function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
+const normalizeDateInput = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString().split("T")[0];
+};
+
+const normalizeAppointment = (appointment) => {
+  if (!appointment) return null;
+  return {
+    ...appointment,
+    id: appointment.id || appointment._id,
+    date: normalizeDateInput(appointment.date),
+  };
+};
+
+function AppointmentsPage({ userName = "", mode = "Personal" }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [sortConfig, setSortConfig] = useState({
     key: "date",
     direction: "asc",
@@ -48,63 +66,23 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
     appointmentTitle: "",
   });
 
-  // Sample appointments data (in real app, this would come from API)
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      title: "Annual Physical Check Up",
-      doctorName: "Dr Williams",
-      location: "Singapore General Hospital",
-      date: "2026-01-15",
-      time: "14:00",
-      notes: "Bring previous test results",
-    },
-    {
-      id: 2,
-      title: "Dental Cleaning",
-      doctorName: "Dr Chen",
-      location: "Smile Dental Clinic",
-      date: "2026-01-22",
-      time: "10:30",
-      notes: "",
-    },
-    {
-      id: 3,
-      title: "Eye Examination",
-      doctorName: "Dr Tan",
-      location: "Vision Care Center",
-      date: "2026-02-05",
-      time: "09:00",
-      notes: "Prescription glasses renewal",
-    },
-    {
-      id: 4,
-      title: "Follow-up Consultation",
-      doctorName: "Dr Williams",
-      location: "Singapore General Hospital",
-      date: "2026-02-18",
-      time: "15:30",
-      notes: "",
-    },
-    {
-      id: 5,
-      title: "Blood Test",
-      doctorName: "Dr Lee",
-      location: "HealthFirst Lab",
-      date: "2026-04-10",
-      time: "08:00",
-      notes: "Fasting required",
-    },
-    {
-      id: 6,
-      title: "Vaccination",
-      doctorName: "Dr Williams",
-      location: "Singapore General Hospital",
-      date: "2026-06-20",
-      time: "11:00",
-      notes: "",
-    },
-  ]);
+  const [appointments, setAppointments] = useState([]);
+  const { showError } = useError();
+
+  const loadAppointments = useCallback(async () => {
+    try {
+      const data = await api.appointments.getAll();
+      setAppointments(
+        (Array.isArray(data) ? data : []).map(normalizeAppointment).filter(Boolean)
+      );
+    } catch (error) {
+      showError(error.message || "Unable to load appointments");
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
 
   const primaryColor = getModeHexColor(mode);
 
@@ -201,21 +179,33 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   ).length;
 
   // Handle add appointment
-  const handleAddAppointment = (newAppointment) => {
-    const id = Math.max(...appointments.map((a) => a.id), 0) + 1;
-    setAppointments([...appointments, { ...newAppointment, id }]);
-    setIsModalOpen(false);
+  const handleAddAppointment = async (newAppointment) => {
+    try {
+      const created = await api.appointments.create(newAppointment);
+      const normalized = normalizeAppointment(created);
+      setAppointments((prev) => [...prev, normalized].filter(Boolean));
+      setIsModalOpen(false);
+    } catch (error) {
+      showError(error.message || "Unable to add appointment");
+    }
   };
 
   // Handle edit appointment
-  const handleEditAppointment = (updatedAppointment) => {
-    setAppointments(
-      appointments.map((apt) =>
-        apt.id === updatedAppointment.id ? updatedAppointment : apt
-      )
-    );
-    setEditingAppointment(null);
-    setIsModalOpen(false);
+  const handleEditAppointment = async (updatedAppointment) => {
+    try {
+      const updated = await api.appointments.update(
+        updatedAppointment.id,
+        updatedAppointment
+      );
+      const normalized = normalizeAppointment(updated);
+      setAppointments((prev) =>
+        prev.map((apt) => (apt.id === updatedAppointment.id ? normalized : apt))
+      );
+      setEditingAppointment(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      showError(error.message || "Unable to update appointment");
+    }
   };
 
   // Handle delete appointment
@@ -229,11 +219,16 @@ function AppointmentsPage({ userName = "Sarah", mode = "Personal" }) {
   };
 
   // Confirm delete
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirm.appointmentId) {
-      setAppointments(
-        appointments.filter((apt) => apt.id !== deleteConfirm.appointmentId)
-      );
+      try {
+        await api.appointments.delete(deleteConfirm.appointmentId);
+        setAppointments((prev) =>
+          prev.filter((apt) => apt.id !== deleteConfirm.appointmentId)
+        );
+      } catch (error) {
+        showError(error.message || "Unable to delete appointment");
+      }
     }
     setDeleteConfirm({
       isOpen: false,

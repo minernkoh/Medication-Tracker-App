@@ -13,17 +13,17 @@ import { colors } from "../../../tailwind.config.js";
  * AppointmentCard Component
  * Displays upcoming appointment information - accessible and keyboard navigable
  *
- * @param {string} title - Appointment title (default: "Annual Physical Check Up")
- * @param {string} date - Appointment date and time (default: "Thu, Jan 15, 2:00 PM")
- * @param {string} doctor - Doctor's name (default: "Dr Willliams")
- * @param {string} location - Appointment location (default: "Singapore General Hospital")
+ * @param {string} title - Appointment title
+ * @param {string} date - Appointment date and time
+ * @param {string} doctor - Doctor's name
+ * @param {string} location - Appointment location
  * @param {function} onClick - Optional click handler (defaults to navigate to /appointments)
  */
 function AppointmentCard({
-  title = "Annual Physical Check Up",
-  date = "Thu, Jan 15, 2:00 PM",
-  doctor = "Dr Willliams",
-  location = "Singapore General Hospital",
+  title = "",
+  date = "",
+  doctor = "",
+  location = "",
   onClick,
 }) {
   const navigate = useNavigate();
@@ -40,7 +40,11 @@ function AppointmentCard({
     <Card
       onClick={handleClick}
       className="flex flex-[1_0_0] flex-col gap-2 items-start group text-left w-full"
-      aria-label={`View appointment: ${title} on ${date}`}
+      aria-label={
+        title && date
+          ? `View appointment: ${title} on ${date}`
+          : "View appointments"
+      }
     >
       <div className="flex justify-between items-center w-full">
         <p className="font-poppins font-bold leading-6 text-base text-text-primary">
