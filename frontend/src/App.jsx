@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { ListIcon } from "@phosphor-icons/react";
 import {
   DashboardPage,
   AppointmentsPage,
@@ -21,6 +22,7 @@ import { ErrorProvider } from "./contexts/ErrorContext";
 import { MedicationsProvider } from "./contexts/MedicationsContext";
 import NotFoundPage from "./components/pages/NotFoundPage";
 import { api } from "./api";
+import { getModeHexColor } from "./utils/modeUtils";
 import {
   getAuthData,
   setAuthData,
@@ -47,9 +49,45 @@ function AppLayout({
   onDeleteAccount,
 }) {
   const firstName = user?.name ? user.name.split(" ")[0] : "";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const modeColor = getModeHexColor(mode);
 
   return (
-    <div className="h-screen bg-white flex overflow-hidden overflow-x-hidden">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden overflow-x-hidden">
+      {/* Mobile header */}
+      <header className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Open navigation menu"
+          aria-expanded={isSidebarOpen}
+        >
+          <ListIcon size={22} weight="bold" />
+        </button>
+        <div className="flex flex-col items-center">
+          <span className="text-sm font-semibold text-text-primary">
+            MedTracker
+          </span>
+          <span className="text-xs font-medium" style={{ color: modeColor }}>
+            {mode}
+          </span>
+        </div>
+        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-text-primary">
+          {firstName ? firstName.charAt(0).toUpperCase() : "U"}
+        </div>
+      </header>
+
+      {/* Mobile overlay */}
+      {isSidebarOpen && (
+        <button
+          type="button"
+          className="md:hidden fixed inset-0 bg-black/40 z-30"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-label="Close navigation menu"
+        />
+      )}
+
       {/* Sidebar - fixed position, sticky to viewport */}
       <Sidebar
         userName={user.name}
@@ -57,10 +95,12 @@ function AppLayout({
         mode={mode}
         onSwitchMode={onSwitchMode}
         onLogout={onLogout}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main content area - scrollable, moves to accommodate sidebar on desktop */}
-      <main className="flex-1 ml-0 md:ml-[256px] overflow-y-auto overflow-x-hidden min-h-0">
+      <main className="flex-1 w-full ml-0 md:ml-[256px] overflow-y-auto overflow-x-hidden min-h-0">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
