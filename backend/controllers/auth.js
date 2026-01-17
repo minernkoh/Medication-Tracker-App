@@ -17,20 +17,36 @@ const signup = async (req, res) => {
 
 const signin = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
-    if (!user || !(await user.comparePassword(req.body.password))) {
+    if (!req.body || !req.body.email || !req.body.password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error(
+        "Error: JWT_SECRET is not defined in environment variables.",
+      );
+      return res.status(500).json({ message: "Server configuration error" });
     }
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET
+      process.env.JWT_SECRET,
     );
 
     const userObj = user.toObject();
     delete userObj.password;
     res.json({ token, user: userObj });
   } catch (error) {
+    console.error("Signin error:", error);
     res.status(500).json({ message: error.message });
   }
 };

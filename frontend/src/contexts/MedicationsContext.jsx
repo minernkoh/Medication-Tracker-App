@@ -26,7 +26,9 @@ export function MedicationsProvider({ children }) {
     setIsLoading(true);
     try {
       const meds = await api.medications.getAll();
-      setMedications((Array.isArray(meds) ? meds : []).map(normalizeMedication));
+      setMedications(
+        (Array.isArray(meds) ? meds : []).map(normalizeMedication),
+      );
     } catch (error) {
       showError(error.message || "Unable to load medications");
     } finally {
@@ -40,7 +42,8 @@ export function MedicationsProvider({ children }) {
 
   // Helper: Parse numeric quantity and unit from a quantity string like "30 pills"
   const parseQuantity = useCallback((quantityStr = "") => {
-    const match = quantityStr.match(/^\s*(\d+)\s*(.*)\s*$/);
+    const str = String(quantityStr || "");
+    const match = str.match(/^\s*(\d+)\s*(.*)\s*$/);
     const value = match ? parseInt(match[1], 10) || 0 : 0;
     const unit = match && match[2] ? match[2].trim() : "";
     return { value, unit };
@@ -53,7 +56,8 @@ export function MedicationsProvider({ children }) {
 
   // Helper: Parse dosage to extract numeric value (e.g., "2 pills" -> 2, "500mg" -> 500)
   const parseDosage = useCallback((dosageStr = "") => {
-    const match = dosageStr.match(/^(\d+)/);
+    const str = String(dosageStr || "");
+    const match = str.match(/^(\d+)/);
     return match ? parseInt(match[1], 10) : 1;
   }, []);
 
@@ -63,7 +67,8 @@ export function MedicationsProvider({ children }) {
         // Ensure initialQuantity is set if not provided
         const dataWithInitialQuantity = {
           ...medicationData,
-          initialQuantity: medicationData.initialQuantity || medicationData.quantity,
+          initialQuantity:
+            medicationData.initialQuantity ?? medicationData.quantity,
         };
         const created = await api.medications.create(dataWithInitialQuantity);
         const normalized = normalizeMedication(created);
@@ -74,7 +79,7 @@ export function MedicationsProvider({ children }) {
         throw error;
       }
     },
-    [showError]
+    [showError],
   );
 
   const updateMedication = useCallback(
@@ -84,9 +89,12 @@ export function MedicationsProvider({ children }) {
         setMedications((prev) =>
           prev.map((med) =>
             med.id === id
-              ? { ...normalizeMedication(updated), lastQuantityDelta: med.lastQuantityDelta || 0 }
-              : med
-          )
+              ? {
+                  ...normalizeMedication(updated),
+                  lastQuantityDelta: med.lastQuantityDelta || 0,
+                }
+              : med,
+          ),
         );
         return updated;
       } catch (error) {
@@ -94,7 +102,7 @@ export function MedicationsProvider({ children }) {
         throw error;
       }
     },
-    [showError]
+    [showError],
   );
 
   const deleteMedication = useCallback(
@@ -107,7 +115,7 @@ export function MedicationsProvider({ children }) {
         throw error;
       }
     },
-    [showError]
+    [showError],
   );
 
   // Handle marking a medication as taken
@@ -127,18 +135,26 @@ export function MedicationsProvider({ children }) {
         prev.map((med) => {
           if (med.id !== medicationId) return med;
           const hasQuantity =
-            med.quantity !== undefined && med.quantity !== null && med.quantity !== "";
+            med.quantity !== undefined &&
+            med.quantity !== null &&
+            med.quantity !== "";
           if (hasQuantity) {
-            const { value: quantityValue, unit: quantityUnit } =
-              parseQuantity(med.quantity);
+            const { value: quantityValue, unit: quantityUnit } = parseQuantity(
+              med.quantity,
+            );
             const dosageAmount = parseDosage(med.dosage);
             const shouldDecrement = med.status !== "taken" && !med.taken;
             const decrementAmount = shouldDecrement ? dosageAmount : 0;
             const updatedQuantityValue =
-              quantityValue > 0 ? Math.max(quantityValue - decrementAmount, 0) : 0;
-            updatedQuantity = formatQuantity(updatedQuantityValue, quantityUnit);
+              quantityValue > 0
+                ? Math.max(quantityValue - decrementAmount, 0)
+                : 0;
+            updatedQuantity = formatQuantity(
+              updatedQuantityValue,
+              quantityUnit,
+            );
             lastQuantityDelta = shouldDecrement ? -dosageAmount : 0;
-            
+
             // Set initialQuantity on first time marking as taken if not already set
             if (!med.initialQuantity && shouldDecrement) {
               updatedInitialQuantity = med.quantity;
@@ -153,7 +169,7 @@ export function MedicationsProvider({ children }) {
             initialQuantity: updatedInitialQuantity ?? med.initialQuantity,
             lastQuantityDelta,
           };
-        })
+        }),
       );
 
       const updateData = {
@@ -161,17 +177,17 @@ export function MedicationsProvider({ children }) {
         taken: true,
         takenTime: currentTime,
         ...(updatedQuantity !== undefined ? { quantity: updatedQuantity } : {}),
-        ...(updatedInitialQuantity !== undefined ? { initialQuantity: updatedInitialQuantity } : {}),
+        ...(updatedInitialQuantity !== undefined
+          ? { initialQuantity: updatedInitialQuantity }
+          : {}),
       };
 
-      api.medications
-        .update(medicationId, updateData)
-        .catch((error) => {
-          showError(error.message || "Unable to update medication status");
-          loadMedications();
-        });
+      api.medications.update(medicationId, updateData).catch((error) => {
+        showError(error.message || "Unable to update medication status");
+        loadMedications();
+      });
     },
-    [parseQuantity, formatQuantity, parseDosage, showError, loadMedications]
+    [parseQuantity, formatQuantity, parseDosage, showError, loadMedications],
   );
 
   // Reset medication status to "supply" - removes from pending/taken cards without deleting
@@ -189,8 +205,8 @@ export function MedicationsProvider({ children }) {
                   taken: false,
                   takenTime: null,
                 }
-              : med
-          )
+              : med,
+          ),
         );
 
         // Update on server
@@ -205,7 +221,7 @@ export function MedicationsProvider({ children }) {
         loadMedications();
       }
     },
-    [showError, loadMedications]
+    [showError, loadMedications],
   );
 
   const value = {
