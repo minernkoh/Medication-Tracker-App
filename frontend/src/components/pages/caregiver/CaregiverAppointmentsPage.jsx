@@ -2,7 +2,7 @@
  * CaregiverAppointmentsPage Component - View all appointments across all patients
  * Shows a consolidated view of all patient appointments
  */
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarCheckIcon,
@@ -19,101 +19,72 @@ import {
 import { getModeHexColor, formatDateLocale } from "../../../utils";
 import { GradientBackground, PageHeader } from "../../ui";
 import { colors } from "../../../../tailwind.config.js";
+import { api } from "../../../api";
+import { useError } from "../../../contexts/ErrorContext";
 
-// Patient color mapping using design tokens
-const PATIENT_COLOR_MAP = {
-  1: colors.patient.pink,
-  2: colors.patient.blue,
-  3: colors.patient.green,
+const PATIENT_COLORS = [
+  colors.patient.pink,
+  colors.patient.blue,
+  colors.patient.green,
+  colors.patient.amber,
+  colors.patient.purple,
+];
+
+const normalizeDateInput = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString().split("T")[0];
 };
 
-// Mock appointments data across all patients
-const mockAppointments = [
-  {
-    id: 1,
-    patientId: 1,
-    patientName: "Mom (Linda)",
-    patientInitials: "L",
-    patientColor: PATIENT_COLOR_MAP[1],
-    title: "Cardiology Checkup",
-    doctor: "Dr. Williams",
-    location: "Singapore Heart Center",
-    date: "2026-01-18",
-    time: "10:00 AM",
-    status: "upcoming",
-    notes: "Bring previous ECG results",
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patientName: "Dad (Robert)",
-    patientInitials: "R",
-    patientColor: PATIENT_COLOR_MAP[2],
-    title: "Physical Therapy",
-    doctor: "PT Center",
-    location: "Rehab Clinic",
-    date: "2026-01-20",
-    time: "3:00 PM",
-    status: "upcoming",
-    notes: "Wear comfortable clothes",
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patientName: "Grandma (Eleanor)",
-    patientInitials: "E",
-    patientColor: PATIENT_COLOR_MAP[3],
-    title: "Eye Exam",
-    doctor: "Dr. Martinez",
-    location: "Vision Center",
-    date: "2026-01-22",
-    time: "9:00 AM",
-    status: "upcoming",
-    notes: "Annual checkup",
-  },
-  {
-    id: 4,
-    patientId: 1,
-    patientName: "Mom (Linda)",
-    patientInitials: "L",
-    patientColor: PATIENT_COLOR_MAP[1],
-    title: "Blood Work",
-    doctor: "Quest Diagnostics",
-    location: "Lab Center",
-    date: "2026-01-25",
-    time: "9:00 AM",
-    status: "upcoming",
-    notes: "Fasting required",
-  },
-  {
-    id: 5,
-    patientId: 3,
-    patientName: "Grandma (Eleanor)",
-    patientInitials: "E",
-    patientColor: PATIENT_COLOR_MAP[3],
-    title: "Diabetes Checkup",
-    doctor: "Dr. Lee",
-    location: "Endocrine Clinic",
-    date: "2026-02-05",
-    time: "11:00 AM",
-    status: "upcoming",
-    notes: "Bring glucose log",
-  },
-  {
-    id: 6,
-    patientId: 2,
-    patientName: "Dad (Robert)",
-    patientInitials: "R",
-    patientColor: PATIENT_COLOR_MAP[2],
-    title: "General Checkup",
-    doctor: "Dr. Johnson",
-    location: "Family Clinic",
-    date: "2026-01-10",
-    time: "2:00 PM",
-    status: "completed",
-    notes: "",
-  },
-];
+const getInitials = (name = "") => {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split(" ");
+  return parts.length === 1
+    ? parts[0].charAt(0).toUpperCase()
+    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
+const getPatientColor = (patient, index) => {
+  if (patient?.color) return patient.color;
+  return PATIENT_COLORS[index % PATIENT_COLORS.length];
+};
+
+const getStatus = (dateStr, timeStr) => {
+  if (!dateStr) return "upcoming";
+  const dateTime = timeStr
+    ? new Date(`${dateStr}T${timeStr}`)
+    : new Date(dateStr);
+  if (Number.isNaN(dateTime.getTime())) return "upcoming";
+  return dateTime < new Date() ? "completed" : "upcoming";
+};
+
+const normalizeAppointment = (appointment, index) => {
+  if (!appointment) return null;
+  const patient =
+    appointment.patient && typeof appointment.patient === "object"
+      ? appointment.patient
+      : { name: "Patient", _id: appointment.patient };
+  const patientName = patient.nickname
+    ? `${patient.nickname} (${patient.name})`
+    : patient.name;
+  const normalizedDate = normalizeDateInput(appointment.date);
+  return {
+    id: appointment.id || appointment._id,
+    patientId: patient.id || patient._id,
+    patientName,
+    patientInitials: patient.initials || getInitials(patientName),
+    patientColor: getPatientColor(patient, index),
+    title: appointment.title,
+    doctor: appointment.doctorName,
+    location: appointment.location,
+    date: normalizedDate,
+    time: appointment.time,
+    status: appointment.status || getStatus(normalizedDate, appointment.time),
+    notes: appointment.notes,
+  };
+};
 
 function CaregiverAppointmentsPage() {
   const navigate = useNavigate();
@@ -121,12 +92,34 @@ function CaregiverAppointmentsPage() {
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "asc" });
   const [filterPatient, setFilterPatient] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [appointments, setAppointments] = useState([]);
+  const { showError } = useError();
+
+  const loadAppointments = useCallback(async () => {
+    try {
+      const data = await api.caregiver.getAppointments();
+      setAppointments(
+        (Array.isArray(data) ? data : [])
+          .map((apt, index) => normalizeAppointment(apt, index))
+          .filter(Boolean)
+      );
+    } catch (error) {
+      showError(error.message || "Unable to load caregiver appointments");
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
 
   // Get unique patients for filter
-  const patients = [...new Set(mockAppointments.map((apt) => apt.patientName))];
+  const patients = useMemo(
+    () => [...new Set(appointments.map((apt) => apt.patientName).filter(Boolean))],
+    [appointments]
+  );
 
   // Filter appointments
-  const filteredAppointments = mockAppointments.filter((apt) => {
+  const filteredAppointments = appointments.filter((apt) => {
     const matchesPatient = filterPatient === "all" || apt.patientName === filterPatient;
     const matchesStatus = filterStatus === "all" || apt.status === filterStatus;
     return matchesPatient && matchesStatus;
@@ -352,13 +345,13 @@ function CaregiverAppointmentsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
             <p className="font-poppins font-bold text-2xl text-text-primary">
-              {mockAppointments.filter((a) => a.status === "upcoming").length}
+              {appointments.filter((a) => a.status === "upcoming").length}
             </p>
             <p className="font-poppins text-sm text-text-secondary">Upcoming</p>
           </div>
           <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
             <p className="font-poppins font-bold text-2xl text-text-primary">
-              {mockAppointments.filter((a) => a.status === "completed").length}
+              {appointments.filter((a) => a.status === "completed").length}
             </p>
             <p className="font-poppins text-sm text-text-secondary">Completed</p>
           </div>
@@ -370,7 +363,7 @@ function CaregiverAppointmentsPage() {
           </div>
           <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
             <p className="font-poppins font-bold text-2xl text-text-primary">
-              {mockAppointments.filter(
+              {appointments.filter(
                 (a) =>
                   a.status === "upcoming" &&
                   new Date(a.date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)

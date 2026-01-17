@@ -22,15 +22,16 @@ import { useMedications } from "../../../contexts/MedicationsContext";
 import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
 
-const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
+const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const primaryColor = getModeHexColor(mode);
   const {
     medications,
-    setMedications,
     parseQuantity,
     formatQuantity,
-    handleMarkAsTaken,
-    handleDeleteMedication,
+    createMedication,
+    updateMedication,
+    deleteMedication,
+    markMedicationAsTaken,
   } = useMedications();
 
   // State for add medication form modal
@@ -212,56 +213,31 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
    * In a full implementation, this would open an edit modal
    */
   const handleEditMedication = (medication) => {
-    console.log("Opening edit modal for medication:", medication?.id);
     setEditingMedication(medication);
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = (updatedMedication) => {
-    console.log("Saving edited medication:", updatedMedication);
-    // Update the medication in state
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === updatedMedication.id ? { ...med, ...updatedMedication } : med
-      )
-    );
-    setShowEditModal(false);
-    setEditingMedication(null);
+  const handleSaveEditedMedication = async (updatedMedication) => {
+    try {
+      await updateMedication(updatedMedication.id, updatedMedication);
+      setShowEditModal(false);
+      setEditingMedication(null);
+    } catch {
+      // Errors are surfaced via global error handler
+    }
   };
 
   /**
    * Handle adding a new medication to supply
    * Receives medication data from AddMedicationModal
    */
-  const handleAddMedication = (medicationData) => {
-    // Get existing medication colors to ensure differentiation
-    const existingColors = medications
-      .map((med) => {
-        if (med.name) {
-          const color = getMedicationColor(med.name);
-          return color.bg;
-        }
-        return null;
-      })
-      .filter((color) => color !== null);
-
-    // Generate color for new medication, ensuring it's different from existing ones
-    const newMedicationColor = getMedicationColor(
-      medicationData.name,
-      existingColors
-    );
-
-    // Create new medication object with ID
-    const newMed = {
-      id: medications.length + 1,
-      ...medicationData,
-      // Store the generated color (optional, for consistency)
-      pillColor: newMedicationColor.bg,
-    };
-
-    // Add to medications list
-    setMedications((prev) => [...prev, newMed]);
-    setShowAddForm(false);
+  const handleAddMedication = async (medicationData) => {
+    try {
+      await createMedication(medicationData);
+      setShowAddForm(false);
+    } catch {
+      // Errors are surfaced via global error handler
+    }
   };
   return (
     <div className="bg-background-default w-full overflow-x-hidden">
@@ -307,7 +283,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
               <MedicationSection
                 variant="pending"
                 medications={pendingMedsSorted}
-                onMarkAsTaken={handleMarkAsTaken}
+                onMarkAsTaken={markMedicationAsTaken}
                 showTimeGroups={true}
                 compact={false}
               />
@@ -319,7 +295,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
                 variant="taken"
                 medications={takenMeds}
                 onEdit={handleEditMedication}
-                onDelete={handleDeleteMedication}
+                onDelete={deleteMedication}
                 showTimeGroups={true}
                 compact={false}
               />
@@ -351,7 +327,7 @@ const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
               sortConfig={supplySortConfig}
               onSort={setSupplySortConfig}
               onEdit={(row) => handleEditMedication(row)}
-              onDelete={(row) => handleDeleteMedication(row.id)}
+              onDelete={(row) => deleteMedication(row.id)}
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"
               EmptyIcon={PillIcon}

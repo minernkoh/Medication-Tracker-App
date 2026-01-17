@@ -2,7 +2,7 @@
  * PatientsPage Component - List of all patients for caregiver
  * Allows adding, editing, and viewing patient details
  */
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   UsersIcon,
@@ -22,6 +22,8 @@ import {
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { colors } from "../../../../tailwind.config.js";
 import ConfirmDialog from "../../ui/ConfirmDialog";
+import { api } from "../../../api";
+import { useError } from "../../../contexts/ErrorContext";
 
 // Patient color palette using design tokens
 const PATIENT_COLORS = [
@@ -32,89 +34,34 @@ const PATIENT_COLORS = [
   colors.patient.purple,
 ];
 
-// Mock patient data
-const initialPatients = [
-  {
-    id: 1,
-    name: "Linda Johnson",
-    nickname: "Mom",
-    initials: "L",
-    color: colors.patient.pink,
-    phone: "+1 (555) 123-4567",
-    relationship: "Mother",
-    medicationsTaken: 3,
-    medicationsTotal: 4,
-    medications: [
-      "Blood Pressure Med",
-      "Vitamin D",
-      "Calcium",
-      "Heart Medicine",
-    ],
-    nextAppointment: {
-      title: "Cardiology Checkup",
-      date: "Jan 18, 2026",
-      time: "10:00 AM",
-    },
-    alerts: 1,
-    adherenceRate: 92,
-  },
-  {
-    id: 2,
-    name: "Robert Johnson",
-    nickname: "Dad",
-    initials: "R",
-    color: colors.patient.blue,
-    phone: "+1 (555) 234-5678",
-    relationship: "Father",
-    medicationsTaken: 5,
-    medicationsTotal: 5,
-    medications: [
-      "Pain Medication",
-      "Blood Thinner",
-      "Statin",
-      "Vitamin B12",
-      "Probiotic",
-    ],
-    nextAppointment: {
-      title: "Physical Therapy",
-      date: "Jan 20, 2026",
-      time: "3:00 PM",
-    },
-    alerts: 0,
-    adherenceRate: 98,
-  },
-  {
-    id: 3,
-    name: "Eleanor Smith",
-    nickname: "Grandma",
-    initials: "E",
-    color: colors.patient.green,
-    phone: "+1 (555) 345-6789",
-    relationship: "Grandmother",
-    medicationsTaken: 2,
-    medicationsTotal: 6,
-    medications: [
-      "Diabetes Medication",
-      "Eye Drops",
-      "Vitamin D",
-      "Calcium",
-      "Blood Pressure Med",
-      "Aspirin",
-    ],
-    nextAppointment: {
-      title: "Eye Exam",
-      date: "Jan 22, 2026",
-      time: "9:00 AM",
-    },
-    alerts: 2,
-    adherenceRate: 78,
-  },
-];
+const getInitials = (name = "") => {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split(" ");
+  return parts.length === 1
+    ? parts[0].charAt(0).toUpperCase()
+    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
+const getPatientColor = (patient, index) => {
+  if (patient?.color) return patient.color;
+  return PATIENT_COLORS[index % PATIENT_COLORS.length];
+};
+
+const normalizePatient = (patient, index) => {
+  if (!patient) return null;
+  return {
+    ...patient,
+    id: patient.id || patient._id,
+    initials: patient.initials || getInitials(patient.nickname || patient.name),
+    color: getPatientColor(patient, index),
+  };
+};
 
 function PatientsPage() {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
-  const [patients, setPatients] = useState(initialPatients);
+  const [patients, setPatients] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPatient, setNewPatient] = useState({
@@ -128,38 +75,58 @@ function PatientsPage() {
     patientId: null,
     patientName: "",
   });
+  const { showError } = useError();
+
+  const loadPatients = useCallback(async () => {
+    try {
+      const data = await api.caregiver.getPatients();
+      setPatients(
+        (Array.isArray(data) ? data : []).map((patient, index) =>
+          normalizePatient(patient, index)
+        )
+      );
+    } catch (error) {
+      showError(error.message || "Unable to load patients");
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    loadPatients();
+  }, [loadPatients]);
 
   // Filter patients based on search
-  const filteredPatients = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.nickname.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPatients = patients.filter((p) => {
+    const name = p.name || "";
+    const nickname = p.nickname || "";
+    return (
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      nickname.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   // Handle add patient
-  const handleAddPatient = (e) => {
+  const handleAddPatient = async (e) => {
     e.preventDefault();
     if (!newPatient.name.trim()) return;
 
-    const patient = {
-      id: Date.now(),
-      name: newPatient.name,
-      nickname: newPatient.nickname || newPatient.name.split(" ")[0],
-      initials: newPatient.name.charAt(0).toUpperCase(),
-      color: PATIENT_COLORS[Math.floor(Math.random() * PATIENT_COLORS.length)],
-      phone: newPatient.phone,
-      relationship: newPatient.relationship,
-      medicationsTaken: 0,
-      medicationsTotal: 0,
-      medications: [],
-      nextAppointment: null,
-      alerts: 0,
-      adherenceRate: 0,
-    };
-
-    setPatients([...patients, patient]);
-    setNewPatient({ name: "", nickname: "", phone: "", relationship: "" });
-    setShowAddModal(false);
+    const color = PATIENT_COLORS[Math.floor(Math.random() * PATIENT_COLORS.length)];
+    const nickname = newPatient.nickname || newPatient.name.split(" ")[0];
+    try {
+      const created = await api.caregiver.addPatient({
+        name: newPatient.name,
+        nickname,
+        phone: newPatient.phone,
+        relationship: newPatient.relationship,
+        color,
+        initials: getInitials(nickname || newPatient.name),
+      });
+      const normalized = normalizePatient(created, patients.length);
+      setPatients((prev) => [...prev, normalized].filter(Boolean));
+      setNewPatient({ name: "", nickname: "", phone: "", relationship: "" });
+      setShowAddModal(false);
+    } catch (error) {
+      showError(error.message || "Unable to add patient");
+    }
   };
 
   // Handle delete patient
@@ -173,9 +140,16 @@ function PatientsPage() {
   };
 
   // Confirm delete
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirm.patientId) {
-      setPatients(patients.filter((p) => p.id !== deleteConfirm.patientId));
+      try {
+        await api.caregiver.deletePatient(deleteConfirm.patientId);
+        setPatients((prev) =>
+          prev.filter((p) => p.id !== deleteConfirm.patientId)
+        );
+      } catch (error) {
+        showError(error.message || "Unable to remove patient");
+      }
     }
     setDeleteConfirm({ isOpen: false, patientId: null, patientName: "" });
   };
@@ -201,7 +175,8 @@ function PatientsPage() {
             </div>
             <div>
               <p className="font-poppins font-semibold text-text-primary">
-                {patient.nickname} ({patient.name.split(" ")[0]})
+                {patient.nickname || patient.name} (
+                {(patient.name || "").split(" ")[0]})
               </p>
               <p className="font-poppins text-xs text-text-secondary">
                 {patient.relationship}
@@ -446,7 +421,7 @@ function PatientsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="font-poppins font-semibold text-text-primary">
-                    {patient.nickname}
+                    {patient.nickname || patient.name}
                   </p>
                   <p className="font-poppins text-xs text-text-secondary">
                     {patient.relationship}

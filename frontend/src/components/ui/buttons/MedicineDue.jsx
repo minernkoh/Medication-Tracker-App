@@ -22,8 +22,8 @@ import ActionButtons from "./ActionButtons";
 function MedicineDue({
   type = "Due",
   state: controlledState,
-  medicationName = "Paracetamol",
-  dosage = "2 pills",
+  medicationName = "",
+  dosage = "",
   frequency,
   additionalInfo, // e.g., "Before Meal", "After Meal", "Causes Drowsiness"
   pillColor, // Custom pill icon color (hex)

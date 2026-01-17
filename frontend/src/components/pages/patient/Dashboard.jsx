@@ -1,7 +1,7 @@
 /**
  * DashboardPage Component - Main page showing calendar, medications, and appointments
  *
- * @param {string} userName - User's name (default: "Sarah")
+ * @param {string} userName - User's name
  * @param {string} mode - "Personal" or "Caregiver" (default: "Personal")
  */
 
@@ -29,7 +29,9 @@ import {
 import { AppointmentCard, MedicationSection } from "../../features";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 import { useMedications } from "../../../contexts/MedicationsContext";
+import { useError } from "../../../contexts/ErrorContext";
 import { colors } from "../../../../tailwind.config.js";
+import { api } from "../../../api";
 import {
   hexToRgba,
   MONTHS,
@@ -44,20 +46,38 @@ import {
   textStyles,
 } from "../../../utils";
 
-function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
+const normalizeDateInput = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString().split("T")[0];
+};
+
+const normalizeAppointment = (appointment) => {
+  if (!appointment) return null;
+  return {
+    ...appointment,
+    id: appointment.id || appointment._id,
+    date: normalizeDateInput(appointment.date),
+  };
+};
+
+function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   const navigate = useNavigate();
   const {
     medications,
-    setMedications,
-    handleMarkAsTaken,
-    handleDeleteMedication,
+    markMedicationAsTaken,
+    deleteMedication,
+    updateMedication,
   } = useMedications();
+  const { showError } = useError();
+  const [appointments, setAppointments] = useState([]);
 
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 13)); // Jan 13, 2026
+  const [selectedDate, setSelectedDate] = useState(today);
   const [currentWeekStart, setCurrentWeekStart] = useState(
-    getStartOfWeek(new Date(2026, 0, 13))
+    getStartOfWeek(today)
   );
 
   // Modal state for editing taken-time entries
@@ -66,74 +86,37 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
 
   // Remove local medications state - using context instead
 
-  // Sample appointments shared with AppointmentsPage to keep Upcoming card consistent
-  const appointments = useMemo(
-    () => [
-      {
-        id: 1,
-        title: "Annual Physical Check Up",
-        doctorName: "Dr Williams",
-        location: "Singapore General Hospital",
-        date: "2026-01-15",
-        time: "14:00",
-        notes: "Bring previous test results",
-      },
-      {
-        id: 2,
-        title: "Dental Cleaning",
-        doctorName: "Dr Chen",
-        location: "Smile Dental Clinic",
-        date: "2026-01-22",
-        time: "10:30",
-        notes: "",
-      },
-      {
-        id: 3,
-        title: "Eye Examination",
-        doctorName: "Dr Tan",
-        location: "Vision Care Center",
-        date: "2026-02-05",
-        time: "09:00",
-        notes: "Prescription glasses renewal",
-      },
-      {
-        id: 4,
-        title: "Follow-up Consultation",
-        doctorName: "Dr Williams",
-        location: "Singapore General Hospital",
-        date: "2026-02-18",
-        time: "15:30",
-        notes: "",
-      },
-      {
-        id: 5,
-        title: "Blood Test",
-        doctorName: "Dr Lee",
-        location: "HealthFirst Lab",
-        date: "2026-04-10",
-        time: "08:00",
-        notes: "Fasting required",
-      },
-      {
-        id: 6,
-        title: "Vaccination",
-        doctorName: "Dr Williams",
-        location: "Singapore General Hospital",
-        date: "2026-06-20",
-        time: "11:00",
-        notes: "",
-      },
-    ],
-    []
-  );
+  useEffect(() => {
+    let isMounted = true;
+    const loadAppointments = async () => {
+      try {
+        const data = await api.appointments.getAll();
+        if (!isMounted) return;
+        setAppointments(
+          (Array.isArray(data) ? data : []).map(normalizeAppointment).filter(Boolean)
+        );
+      } catch (error) {
+        if (isMounted) {
+          showError(error.message || "Unable to load appointments");
+        }
+      }
+    };
+    loadAppointments();
+    return () => {
+      isMounted = false;
+    };
+  }, [showError]);
 
   const upcomingAppointment = useMemo(() => {
     const now = new Date();
     const parsed = appointments
       .map((apt) => ({
         ...apt,
-        dateTime: new Date(`${apt.date}T${apt.time}`),
+        dateTime: apt.time
+          ? new Date(`${apt.date}T${apt.time}`)
+          : new Date(apt.date),
       }))
+      .filter((apt) => !Number.isNaN(apt.dateTime.getTime()))
       .sort((a, b) => a.dateTime - b.dateTime);
 
     const next = parsed.find((apt) => apt.dateTime >= now);
@@ -147,8 +130,8 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     }
   };
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState(0); // January
-  const [pickerYear, setPickerYear] = useState(2026);
+  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
+  const [pickerYear, setPickerYear] = useState(today.getFullYear());
 
   const datePickerRef = useRef(null);
 
@@ -368,16 +351,16 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = (updatedMedication) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.id === updatedMedication.id
-          ? { ...med, takenTime: updatedMedication.takenTime }
-          : med
-      )
-    );
-    setShowEditModal(false);
-    setEditingMedication(null);
+  const handleSaveEditedMedication = async (updatedMedication) => {
+    try {
+      await updateMedication(updatedMedication.id, {
+        takenTime: updatedMedication.takenTime,
+      });
+      setShowEditModal(false);
+      setEditingMedication(null);
+    } catch {
+      // Errors are surfaced via global error handler
+    }
   };
 
   // Get medications by status - transform to match MedicationSection format
@@ -399,7 +382,12 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
         doctor: upcomingAppointment.doctorName,
         location: upcomingAppointment.location,
       }
-    : {};
+    : {
+        title: "No upcoming appointments",
+        date: "Schedule one to stay on track",
+        doctor: "",
+        location: "",
+      };
 
   // Handle navigation to MedicationPage
   const handleAddMedication = () => {
@@ -747,7 +735,7 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                 <MedicationSection
                   variant="pending"
                   medications={pendingMedications}
-                  onMarkAsTaken={handleMarkAsTaken}
+                  onMarkAsTaken={markMedicationAsTaken}
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}
@@ -762,7 +750,7 @@ function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
                   variant="taken"
                   medications={takenMedications}
                   onEdit={handleEditMedication}
-                  onDelete={handleDeleteMedication}
+                  onDelete={deleteMedication}
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}

@@ -20,8 +20,9 @@ import {
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
+import { useError } from "../../contexts/ErrorContext";
 
-function AuthPage({ onLogin, onShowOnboarding }) {
+function AuthPage({ onLogin, onSignup }) {
   const [isLogin, setIsLogin] = useState(true);
   const [accountType, setAccountType] = useState(null); // "patient" or "caregiver"
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +33,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
     confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
+  const { showError } = useError();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -73,25 +75,26 @@ function AuthPage({ onLogin, onShowOnboarding }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      // For demo purposes, just trigger login
       const isFirstTime = !isLogin;
-      const mode = accountType === "caregiver" ? "Caregiver" : "Personal";
-
-      if (isFirstTime) {
-        onShowOnboarding?.({
-          name: formData.name,
-          email: formData.email,
-          mode,
-        });
-      } else {
-        onLogin?.({
-          name: formData.name || "Sarah Johnson",
-          email: formData.email,
-          mode: "Personal", // Default to personal for login
-        });
+      try {
+        if (isFirstTime) {
+          await onSignup?.({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: accountType,
+          });
+        } else {
+          await onLogin?.({
+            email: formData.email,
+            password: formData.password,
+          });
+        }
+      } catch (error) {
+        showError(error?.message || "Authentication failed");
       }
     }
   };
@@ -247,7 +250,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
         </div>
 
         <p className="relative z-10 font-poppins text-white/50 text-sm">
-          © 2026 MedTracker. All rights reserved.
+          © {new Date().getFullYear()} MedTracker. All rights reserved.
         </p>
       </div>
 

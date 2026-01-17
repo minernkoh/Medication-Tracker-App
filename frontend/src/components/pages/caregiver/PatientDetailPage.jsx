@@ -2,7 +2,7 @@
  * PatientDetailPage Component - Detailed view of a single patient
  * Shows medications, appointments, and progress for a specific patient
  */
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
@@ -19,303 +19,130 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
+import { formatDateLocale } from "../../../utils/dateUtils";
 import { MedicationSection } from "../../features";
 import { SectionHeader, StatCard, Button } from "../../ui";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 import { colors } from "../../../../tailwind.config.js";
+import { api } from "../../../api";
+import { useError } from "../../../contexts/ErrorContext";
 
-// Mock patient data (in real app, would fetch based on ID)
-const mockPatientData = {
-  1: {
-    id: 1,
-    name: "Linda Johnson",
-    nickname: "Mom",
-    initials: "L",
-    color: colors.patient.pink,
-    phone: "+1 (555) 123-4567",
-    relationship: "Mother",
-    age: 68,
-    bloodType: "A+",
-    emergencyContact: "+1 (555) 987-6543",
-    notes:
-      "Allergic to penicillin. Prefers morning medications with breakfast.",
-    medications: [
-      {
-        id: 1,
-        name: "Blood Pressure Med",
-        dosage: "10mg",
-        quantity: "30 pills",
-        timeOfDay: "08:00",
-        taken: true,
-        takenTime: "8:00 AM",
-        additionalInfo: "",
-      },
-      {
-        id: 2,
-        name: "Vitamin D",
-        dosage: "1000 IU",
-        quantity: "60 pills",
-        timeOfDay: "08:00",
-        taken: true,
-        takenTime: "8:00 AM",
-        additionalInfo: "",
-      },
-      {
-        id: 3,
-        name: "Calcium",
-        dosage: "500mg",
-        quantity: "90 pills",
-        timeOfDay: "13:00",
-        taken: true,
-        takenTime: "1:00 PM",
-        additionalInfo: "After Meal",
-      },
-      {
-        id: 4,
-        name: "Heart Medicine",
-        dosage: "5mg",
-        quantity: "45 pills",
-        timeOfDay: "20:00",
-        taken: false,
-        additionalInfo: "Before Sleep",
-      },
-    ],
-    appointments: [
-      {
-        id: 1,
-        title: "Cardiology Checkup",
-        doctor: "Dr. Williams",
-        location: "Heart Center",
-        date: "Jan 18, 2026",
-        time: "10:00 AM",
-        status: "upcoming",
-      },
-      {
-        id: 2,
-        title: "Blood Work",
-        doctor: "Quest Diagnostics",
-        location: "Lab Center",
-        date: "Jan 25, 2026",
-        time: "9:00 AM",
-        status: "upcoming",
-      },
-    ],
-    adherenceHistory: [85, 90, 88, 92, 95, 91, 92],
-    alerts: [
-      { id: 1, message: "Heart Medicine due at 8:00 PM", type: "reminder" },
-    ],
-  },
-  2: {
-    id: 2,
-    name: "Robert Johnson",
-    nickname: "Dad",
-    initials: "R",
-    color: colors.patient.blue,
-    phone: "+1 (555) 234-5678",
-    relationship: "Father",
-    age: 71,
-    bloodType: "O+",
-    emergencyContact: "+1 (555) 876-5432",
-    notes:
-      "Has difficulty swallowing large pills. Prefers liquid medications when available.",
-    medications: [
-      {
-        id: 1,
-        name: "Pain Medication",
-        dosage: "200mg",
-        quantity: "40 pills",
-        timeOfDay: "07:30",
-        taken: true,
-        takenTime: "7:30 AM",
-        additionalInfo: "",
-      },
-      {
-        id: 2,
-        name: "Blood Thinner",
-        dosage: "5mg",
-        quantity: "30 pills",
-        timeOfDay: "07:30",
-        taken: true,
-        takenTime: "7:30 AM",
-        additionalInfo: "",
-      },
-      {
-        id: 3,
-        name: "Statin",
-        dosage: "20mg",
-        quantity: "30 pills",
-        timeOfDay: "21:00",
-        taken: true,
-        takenTime: "9:00 PM",
-        additionalInfo: "Before Sleep",
-      },
-      {
-        id: 4,
-        name: "Vitamin B12",
-        dosage: "1000mcg",
-        quantity: "30 pills",
-        timeOfDay: "07:30",
-        taken: true,
-        takenTime: "7:30 AM",
-        additionalInfo: "With Food",
-      },
-      {
-        id: 5,
-        name: "Probiotic",
-        dosage: "1 capsule",
-        quantity: "60 pills",
-        timeOfDay: "07:30",
-        taken: true,
-        takenTime: "7:30 AM",
-        additionalInfo: "With Food",
-      },
-    ],
-    appointments: [
-      {
-        id: 1,
-        title: "Physical Therapy",
-        doctor: "PT Center",
-        location: "Rehab Clinic",
-        date: "Jan 20, 2026",
-        time: "3:00 PM",
-        status: "upcoming",
-      },
-    ],
-    adherenceHistory: [95, 98, 100, 97, 98, 100, 98],
-    alerts: [],
-  },
-  3: {
-    id: 3,
-    name: "Eleanor Smith",
-    nickname: "Grandma",
-    initials: "E",
-    color: colors.patient.green,
-    phone: "+1 (555) 345-6789",
-    relationship: "Grandmother",
-    age: 82,
-    bloodType: "B-",
-    emergencyContact: "+1 (555) 765-4321",
-    notes:
-      "Needs reminders for afternoon medications. Vision impairment - large print labels.",
-    medications: [
-      {
-        id: 1,
-        name: "Diabetes Medication",
-        dosage: "500mg",
-        quantity: "30 pills",
-        timeOfDay: "08:30",
-        taken: true,
-        takenTime: "8:30 AM",
-        additionalInfo: "Before Meal",
-      },
-      {
-        id: 2,
-        name: "Eye Drops",
-        dosage: "2 drops",
-        quantity: "1 bottle",
-        timeOfDay: "08:30",
-        taken: true,
-        takenTime: "8:30 AM",
-        additionalInfo: "Left and Right Eye",
-      },
-      {
-        id: 3,
-        name: "Vitamin D",
-        dosage: "2000 IU",
-        quantity: "60 pills",
-        timeOfDay: "13:00",
-        taken: false,
-        additionalInfo: "",
-      },
-      {
-        id: 4,
-        name: "Calcium",
-        dosage: "600mg",
-        quantity: "60 pills",
-        timeOfDay: "13:00",
-        taken: false,
-        additionalInfo: "With Food",
-      },
-      {
-        id: 5,
-        name: "Blood Pressure Med",
-        dosage: "25mg",
-        quantity: "30 pills",
-        timeOfDay: "20:00",
-        taken: false,
-        additionalInfo: "Before Sleep",
-      },
-      {
-        id: 6,
-        name: "Aspirin",
-        dosage: "81mg",
-        quantity: "100 pills",
-        timeOfDay: "20:00",
-        taken: false,
-        additionalInfo: "Before Sleep",
-      },
-    ],
-    appointments: [
-      {
-        id: 1,
-        title: "Eye Exam",
-        doctor: "Dr. Martinez",
-        location: "Vision Center",
-        date: "Jan 22, 2026",
-        time: "9:00 AM",
-        status: "upcoming",
-      },
-      {
-        id: 2,
-        title: "Diabetes Checkup",
-        doctor: "Dr. Lee",
-        location: "Endocrine Clinic",
-        date: "Feb 5, 2026",
-        time: "11:00 AM",
-        status: "upcoming",
-      },
-    ],
-    adherenceHistory: [70, 75, 72, 78, 80, 76, 78],
-    alerts: [
-      { id: 1, message: "Afternoon medications missed", type: "warning" },
-      { id: 2, message: "Low medication adherence this week", type: "alert" },
-    ],
-  },
+const PATIENT_COLORS = [
+  colors.patient.pink,
+  colors.patient.blue,
+  colors.patient.green,
+  colors.patient.amber,
+  colors.patient.purple,
+];
+
+const normalizeDateInput = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString().split("T")[0];
+};
+
+const getInitials = (name = "") => {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split(" ");
+  return parts.length === 1
+    ? parts[0].charAt(0).toUpperCase()
+    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
+const getPatientColor = (patient) => {
+  if (patient?.color) return patient.color;
+  const base = patient?.id || patient?._id || "";
+  const index = `${base}`.length % PATIENT_COLORS.length;
+  return PATIENT_COLORS[index];
+};
+
+const normalizeMedication = (medication) => {
+  if (!medication) return null;
+  return {
+    ...medication,
+    id: medication.id || medication._id,
+    status: medication.status || (medication.taken ? "taken" : "pending"),
+    taken: Boolean(medication.taken),
+  };
+};
+
+const normalizeAppointment = (appointment) => {
+  if (!appointment) return null;
+  return {
+    ...appointment,
+    id: appointment.id || appointment._id,
+    date: normalizeDateInput(appointment.date),
+  };
 };
 
 function PatientDetailPage() {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
+  const { showError } = useError();
 
-  // Convert static mock data to stateful data so medications can be updated
-  // This allows caregivers to edit, delete, and mark medications as taken
-  const [patientData, setPatientData] = useState(
-    mockPatientData[patientId] || mockPatientData[1]
-  );
+  const [patientData, setPatientData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Add state for edit modal control
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Get patient data (now from state instead of directly from mock)
+  const loadPatient = useCallback(async () => {
+    if (!patientId) return;
+    setIsLoading(true);
+    try {
+      const data = await api.caregiver.getPatient(patientId);
+      const normalized = {
+        ...data,
+        id: data.id || data._id,
+        initials: data.initials || getInitials(data.nickname || data.name || ""),
+        color: getPatientColor(data),
+        medications: (data.medications || [])
+          .map(normalizeMedication)
+          .filter(Boolean),
+        appointments: (data.appointments || [])
+          .map(normalizeAppointment)
+          .filter(Boolean),
+        alerts: data.alerts || [],
+      };
+      setPatientData(normalized);
+    } catch (error) {
+      showError(error.message || "Unable to load patient details");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [patientId, showError]);
+
+  useEffect(() => {
+    loadPatient();
+  }, [loadPatient]);
+
   const patient = patientData;
 
   // Separate medications by status
-  const pendingMeds = patient.medications.filter((m) => !m.taken);
-  const takenMeds = patient.medications.filter((m) => m.taken);
+  const pendingMeds = patient?.medications?.filter((m) => !m.taken) || [];
+  const takenMeds = patient?.medications?.filter((m) => m.taken) || [];
 
   // Calculate stats
-  const adherenceRate = Math.round(
-    (takenMeds.length / patient.medications.length) * 100
-  );
-  const avgAdherence = Math.round(
-    patient.adherenceHistory.reduce((a, b) => a + b, 0) /
-      patient.adherenceHistory.length
-  );
+  const adherenceRate =
+    patient?.medications?.length > 0
+      ? Math.round((takenMeds.length / patient.medications.length) * 100)
+      : 0;
+  const adherenceHistory = Array.isArray(patient?.adherenceHistory)
+    ? patient.adherenceHistory
+    : [];
+  const avgAdherence =
+    adherenceHistory.length > 0
+      ? Math.round(
+          adherenceHistory.reduce((a, b) => a + b, 0) / adherenceHistory.length
+        )
+      : patient?.adherenceRate || 0;
 
   // Handler to mark medication as taken
-  const handleMarkAsTaken = (medId) => {
+  const handleMarkAsTaken = async (medId) => {
     const currentTime = new Date().toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -325,40 +152,91 @@ function PatientDetailPage() {
     setPatientData((prevData) => ({
       ...prevData,
       medications: prevData.medications.map((med) =>
-        med.id === medId ? { ...med, taken: true, takenTime: currentTime } : med
+        med.id === medId
+          ? { ...med, taken: true, status: "taken", takenTime: currentTime }
+          : med
       ),
     }));
+
+    try {
+      await api.medications.updateForPatient(patientId, medId, {
+        taken: true,
+        status: "taken",
+        takenTime: currentTime,
+      });
+    } catch (error) {
+      showError(error.message || "Unable to update medication status");
+      loadPatient();
+    }
   };
 
   // Handler to edit a medication
   const handleEditMedication = (medication) => {
-    console.log("Opening edit modal for medication:", medication);
     setEditingMedication(medication);
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = (updatedMedication) => {
-    console.log("Saving edited medication:", updatedMedication);
-    setPatientData((prevData) => ({
-      ...prevData,
-      medications: prevData.medications.map((med) =>
-        med.id === updatedMedication.id ? { ...med, ...updatedMedication } : med
-      ),
-    }));
-    setShowEditModal(false);
-    setEditingMedication(null);
+  const handleSaveEditedMedication = async (updatedMedication) => {
+    try {
+      const updated = await api.medications.updateForPatient(
+        patientId,
+        updatedMedication.id,
+        updatedMedication
+      );
+      const normalized = normalizeMedication(updated);
+      setPatientData((prevData) => ({
+        ...prevData,
+        medications: prevData.medications.map((med) =>
+          med.id === updatedMedication.id ? normalized : med
+        ),
+      }));
+      setShowEditModal(false);
+      setEditingMedication(null);
+    } catch (error) {
+      showError(error.message || "Unable to update medication");
+    }
   };
 
   // When user clicks delete on "taken today" section, move medication back to pending
   // This restores the medication to its pending state instead of permanently deleting it
-  const handleDeleteMedication = (medId) => {
-    setPatientData((prevData) => ({
-      ...prevData,
-      medications: prevData.medications.map((med) =>
-        med.id === medId ? { ...med, taken: false, takenTime: null } : med
-      ),
-    }));
+  const handleDeleteMedication = async (medId) => {
+    try {
+      await api.medications.deleteForPatient(patientId, medId);
+      setPatientData((prevData) => ({
+        ...prevData,
+        medications: prevData.medications.filter((med) => med.id !== medId),
+      }));
+    } catch (error) {
+      showError(error.message || "Unable to delete medication");
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="bg-background-default w-full p-6 md:p-10">
+        <div className="max-w-6xl mx-auto">
+          <p className="font-poppins text-text-secondary">Loading patient...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <div className="bg-background-default w-full p-6 md:p-10">
+        <div className="max-w-6xl mx-auto">
+          <p className="font-poppins text-text-secondary">Patient not found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const headerDetails = [
+    patient.relationship,
+    patient.age ? `${patient.age} years old` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
 
   return (
     <div className="bg-background-default w-full p-6 md:p-10">
@@ -390,17 +268,24 @@ function PatientDetailPage() {
                 <p className="font-poppins text-text-secondary">
                   {patient.name}
                 </p>
-                <p className="font-poppins text-sm text-text-secondary mt-1">
-                  {patient.relationship} • {patient.age} years old
-                </p>
+                {headerDetails && (
+                  <p className="font-poppins text-sm text-text-secondary mt-1">
+                    {headerDetails}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Quick actions */}
             <div className="flex gap-3 md:ml-auto">
               <a
-                href={`tel:${patient.phone}`}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border-default hover:bg-background-hover font-poppins font-medium text-sm transition-colors"
+                href={patient.phone ? `tel:${patient.phone}` : undefined}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border-default font-poppins font-medium text-sm transition-colors ${
+                  patient.phone
+                    ? "hover:bg-background-hover"
+                    : "opacity-50 cursor-not-allowed"
+                }`}
+                aria-disabled={!patient.phone}
               >
                 <PhoneIcon
                   size={18}
@@ -420,7 +305,7 @@ function PatientDetailPage() {
           </div>
 
           {/* Alerts */}
-          {patient.alerts.length > 0 && (
+          {patient.alerts?.length > 0 && (
             <div className="mt-6 pt-6 border-t border-border-default">
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-3">
                 Alerts & Reminders
@@ -448,7 +333,7 @@ function PatientDetailPage() {
           )}
 
           {/* Patient notes */}
-          {patient.notes && (
+        {patient.notes && (
             <div className="mt-6 pt-6 border-t border-border-default">
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-2">
                 Notes
@@ -480,14 +365,14 @@ function PatientDetailPage() {
             icon={<CalendarCheckIcon size={20} weight="fill" />}
             iconColor={colors.primary.DEFAULT}
             label="Upcoming"
-            value={patient.appointments.length}
+            value={patient.appointments?.length || 0}
             description="Appointments"
           />
           <StatCard
             icon={<HeartIcon size={20} weight="fill" />}
             iconColor={colors.danger.DEFAULT}
             label="Blood Type"
-            value={patient.bloodType}
+            value={patient.bloodType || "—"}
             description="Type"
           />
         </div>
@@ -548,7 +433,7 @@ function PatientDetailPage() {
             }
           />
 
-          {patient.appointments.length > 0 ? (
+          {patient.appointments?.length > 0 ? (
             <div className="space-y-3">
               {patient.appointments.map((apt) => (
                 <div
@@ -577,7 +462,7 @@ function PatientDetailPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-poppins font-semibold text-text-primary">
-                      {apt.date}
+                      {formatDateLocale(apt.date)}
                     </p>
                     <p className="font-poppins text-sm text-text-secondary">
                       {apt.time}
@@ -598,30 +483,36 @@ function PatientDetailPage() {
           <h2 className="font-poppins font-bold text-xl text-text-primary mb-4">
             Weekly Adherence
           </h2>
-          <div className="flex items-end justify-between h-32 gap-2">
-            {patient.adherenceHistory.map((value, index) => (
-              <div
-                key={index}
-                className="flex-1 flex flex-col items-center gap-2"
-              >
+          {adherenceHistory.length > 0 ? (
+            <div className="flex items-end justify-between h-32 gap-2">
+              {adherenceHistory.map((value, index) => (
                 <div
-                  className="w-full rounded-t-lg transition-all"
-                  style={{
-                    height: `${value}%`,
-                    backgroundColor:
-                      value >= 90
-                        ? colors.success.DEFAULT
-                        : value >= 70
-                        ? colors.warning.DEFAULT
-                        : colors.danger.DEFAULT,
-                  }}
-                />
-                <span className="font-poppins text-xs text-text-secondary">
-                  {["M", "T", "W", "T", "F", "S", "S"][index]}
-                </span>
-              </div>
-            ))}
-          </div>
+                  key={index}
+                  className="flex-1 flex flex-col items-center gap-2"
+                >
+                  <div
+                    className="w-full rounded-t-lg transition-all"
+                    style={{
+                      height: `${value}%`,
+                      backgroundColor:
+                        value >= 90
+                          ? colors.success.DEFAULT
+                          : value >= 70
+                          ? colors.warning.DEFAULT
+                          : colors.danger.DEFAULT,
+                    }}
+                  />
+                  <span className="font-poppins text-xs text-text-secondary">
+                    {["M", "T", "W", "T", "F", "S", "S"][index]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-poppins text-sm text-text-secondary">
+              No adherence data available yet.
+            </p>
+          )}
         </div>
       </div>
     </div>

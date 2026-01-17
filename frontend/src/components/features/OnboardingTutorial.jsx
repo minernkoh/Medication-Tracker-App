@@ -61,14 +61,10 @@ function OnboardingTutorial({ onComplete, user }) {
         <div className="relative w-full h-64 flex items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-100/50 rounded-3xl" />
           <div className="relative flex flex-col gap-3 w-full max-w-xs px-4">
-            {/* Mock medication cards */}
-            {[
-              { name: "Paracetamol", dosage: "2 pills", time: "Morning", taken: true },
-              { name: "Vitamin D", dosage: "1 capsule", time: "Morning", taken: true },
-              { name: "Aspirin", dosage: "1 pill", time: "Evening", taken: false },
-            ].map((med, i) => (
+            {/* Medication illustration cards */}
+            {Array.from({ length: 3 }).map((_, i) => (
               <div
-                key={med.name}
+                key={`medication-placeholder-${i}`}
                 className="bg-white rounded-xl p-4 shadow-lg flex items-center gap-3"
                 style={{
                   animationDelay: `${i * 150}ms`,
@@ -78,24 +74,24 @@ function OnboardingTutorial({ onComplete, user }) {
               >
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    med.taken ? "bg-emerald-100" : "bg-amber-100"
+                    i % 2 === 0 ? "bg-emerald-100" : "bg-amber-100"
                   }`}
                 >
                   <PillIcon
                     size={20}
                     weight="fill"
-                    color={med.taken ? colors.success.DEFAULT : colors.warning.DEFAULT}
+                    color={i % 2 === 0 ? colors.success.DEFAULT : colors.warning.DEFAULT}
                   />
                 </div>
                 <div className="flex-1">
                   <p className="font-poppins font-semibold text-sm text-text-primary">
-                    {med.name}
+                    Medication
                   </p>
                   <p className="font-poppins text-xs text-text-secondary">
-                    {med.dosage} • {med.time}
+                    Dosage • Time
                   </p>
                 </div>
-                {med.taken ? (
+                {i % 2 === 0 ? (
                   <CheckCircleIcon size={24} weight="fill" color={colors.success.DEFAULT} />
                 ) : (
                   <div className="w-6 h-6 rounded-full border-2 border-amber-400" />
@@ -128,24 +124,37 @@ function OnboardingTutorial({ onComplete, user }) {
                 <span className="font-poppins font-bold text-text-primary">Current Supply</span>
                 <PackageIcon size={24} weight="fill" color={colors.warning.DEFAULT} />
               </div>
-              {[
-                { name: "Paracetamol", supply: 45, max: 60, color: colors.success.DEFAULT },
-                { name: "Vitamin D", supply: 12, max: 30, color: colors.warning.DEFAULT },
-                { name: "Aspirin", supply: 5, max: 30, color: colors.danger.DEFAULT },
-              ].map((med, i) => (
-                <div key={med.name} className="mb-3 last:mb-0">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={`supply-placeholder-${i}`} className="mb-3 last:mb-0">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-poppins text-sm text-text-primary">{med.name}</span>
-                    <span className="font-poppins text-xs font-semibold" style={{ color: med.color }}>
-                      {med.supply} left
+                    <span className="font-poppins text-sm text-text-primary">
+                      Supply item
+                    </span>
+                    <span
+                      className="font-poppins text-xs font-semibold"
+                      style={{
+                        color:
+                          i === 0
+                            ? colors.success.DEFAULT
+                            : i === 1
+                            ? colors.warning.DEFAULT
+                            : colors.danger.DEFAULT,
+                      }}
+                    >
+                      Remaining
                     </span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${(med.supply / med.max) * 100}%`,
-                        backgroundColor: med.color,
+                        width: `${60 - i * 15}%`,
+                        backgroundColor:
+                          i === 0
+                            ? colors.success.DEFAULT
+                            : i === 1
+                            ? colors.warning.DEFAULT
+                            : colors.danger.DEFAULT,
                       }}
                     />
                   </div>
@@ -154,7 +163,7 @@ function OnboardingTutorial({ onComplete, user }) {
               <div className="mt-4 pt-3 border-t border-border-default flex items-center gap-2">
                 <WarningCircleIcon size={16} weight="fill" color={colors.danger.DEFAULT} />
                 <span className="font-poppins text-xs text-danger font-medium">
-                  1 medication needs refill soon
+                  Refill reminders appear here
                 </span>
               </div>
             </div>
@@ -173,36 +182,33 @@ function OnboardingTutorial({ onComplete, user }) {
         <div className="relative w-full h-64 flex items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100/50 rounded-3xl" />
           <div className="relative">
-            {/* Mock appointment card */}
+            {/* Appointment illustration card */}
             <div className="bg-white rounded-2xl shadow-xl p-5 w-80">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-poppins font-bold text-text-primary">Upcoming</span>
                 <CalendarCheckIcon size={24} weight="fill" color={colors.primary.DEFAULT} />
               </div>
-              {[
-                { title: "Annual Check-up", doctor: "Dr. Williams", date: "Jan 18", time: "2:00 PM" },
-                { title: "Blood Test", doctor: "City Lab", date: "Jan 25", time: "9:00 AM" },
-              ].map((apt, i) => (
+              {Array.from({ length: 2 }).map((_, i) => (
                 <div
-                  key={apt.title}
+                  key={`appointment-placeholder-${i}`}
                   className={`flex items-center gap-4 py-3 ${
                     i > 0 ? "border-t border-border-default" : ""
                   }`}
                 >
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex flex-col items-center justify-center">
                     <span className="font-poppins text-xs text-primary font-semibold">
-                      {apt.date.split(" ")[0]}
+                      Date
                     </span>
                     <span className="font-poppins text-lg text-primary font-bold leading-tight">
-                      {apt.date.split(" ")[1]}
+                      --
                     </span>
                   </div>
                   <div className="flex-1">
                     <p className="font-poppins font-semibold text-sm text-text-primary">
-                      {apt.title}
+                      Appointment
                     </p>
                     <p className="font-poppins text-xs text-text-secondary">
-                      {apt.doctor} • {apt.time}
+                      Provider • Time
                     </p>
                   </div>
                 </div>
@@ -223,25 +229,22 @@ function OnboardingTutorial({ onComplete, user }) {
         <div className="relative w-full h-64 flex items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-purple-100/50 rounded-3xl" />
           <div className="relative">
-            {/* Mock progress chart */}
+            {/* Progress illustration chart */}
             <div className="bg-white rounded-2xl shadow-xl p-5 w-72">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-poppins font-bold text-text-primary">This Week</span>
                 <span className="font-poppins text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-full">
-                  92% adherence
+                  Adherence summary
                 </span>
               </div>
               <div className="flex items-end justify-between h-24 gap-2">
-                {[85, 100, 100, 85, 90, 100, 80].map((h, i) => (
+                {Array.from({ length: 7 }).map((_, i) => (
                   <div
-                    key={i}
+                    key={`progress-placeholder-${i}`}
                     className="flex-1 rounded-t-lg transition-all"
                     style={{
-                      height: `${h}%`,
-                      background:
-                        h === 100
-                          ? `linear-gradient(to top, ${colors.success.DEFAULT}, ${colors.success.hover})`
-                          : `linear-gradient(to top, ${colors.primary.DEFAULT}, ${colors.primary.hover})`,
+                      height: `${60 + i * 5}%`,
+                      background: `linear-gradient(to top, ${colors.primary.DEFAULT}, ${colors.primary.hover})`,
                       animationDelay: `${i * 100}ms`,
                     }}
                   />
@@ -291,30 +294,36 @@ function OnboardingTutorial({ onComplete, user }) {
                       <HeartIcon size={24} weight="fill" color={colors.secondary.DEFAULT} />
                     </div>
                     <div className="flex gap-3">
-                      {[
-                        { name: "Mom", meds: 4, adherence: 95, color: colors.secondary.DEFAULT },
-                        { name: "Dad", meds: 3, adherence: 88, color: colors.primary.DEFAULT },
-                      ].map((patient) => (
+                      {Array.from({ length: 2 }).map((_, i) => (
                         <div
-                          key={patient.name}
+                          key={`patient-placeholder-${i}`}
                           className="flex-1 bg-gray-50 rounded-xl p-4 text-center"
                         >
                           <div
                             className="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-poppins font-bold text-lg"
-                            style={{ backgroundColor: patient.color }}
+                            style={{
+                              backgroundColor:
+                                i === 0
+                                  ? colors.secondary.DEFAULT
+                                  : colors.primary.DEFAULT,
+                            }}
                           >
-                            {patient.name[0]}
+                            P
                           </div>
                           <p className="font-poppins font-semibold text-sm text-text-primary">
-                            {patient.name}
+                            Patient
                           </p>
                           <p className="font-poppins text-xs text-text-secondary mt-1">
-                            {patient.meds} medications
+                            Medications
                           </p>
                           <div className="mt-2 flex items-center justify-center gap-1">
-                            <CheckCircleIcon size={14} weight="fill" color={colors.success.DEFAULT} />
+                            <CheckCircleIcon
+                              size={14}
+                              weight="fill"
+                              color={colors.success.DEFAULT}
+                            />
                             <span className="font-poppins text-xs text-emerald-600 font-semibold">
-                              {patient.adherence}%
+                              Adherence
                             </span>
                           </div>
                         </div>

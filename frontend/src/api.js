@@ -87,6 +87,47 @@ export const api = {
       });
       return handleResponse(response);
     },
+    getForPatient: async (patientId) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/medications`,
+        {
+          headers: getHeaders(),
+        }
+      );
+      return handleResponse(response);
+    },
+    createForPatient: async (patientId, data) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/medications`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify(data),
+        }
+      );
+      return handleResponse(response);
+    },
+    updateForPatient: async (patientId, id, data) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/medications/${id}`,
+        {
+          method: "PUT",
+          headers: getHeaders(),
+          body: JSON.stringify(data),
+        }
+      );
+      return handleResponse(response);
+    },
+    deleteForPatient: async (patientId, id) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/medications/${id}`,
+        {
+          method: "DELETE",
+          headers: getHeaders(),
+        }
+      );
+      return handleResponse(response);
+    },
   },
 
   // Appointments
@@ -118,6 +159,47 @@ export const api = {
         method: "DELETE",
         headers: getHeaders(),
       });
+      return handleResponse(response);
+    },
+    getForPatient: async (patientId) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/appointments`,
+        {
+          headers: getHeaders(),
+        }
+      );
+      return handleResponse(response);
+    },
+    createForPatient: async (patientId, data) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/appointments`,
+        {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify(data),
+        }
+      );
+      return handleResponse(response);
+    },
+    updateForPatient: async (patientId, id, data) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/appointments/${id}`,
+        {
+          method: "PUT",
+          headers: getHeaders(),
+          body: JSON.stringify(data),
+        }
+      );
+      return handleResponse(response);
+    },
+    deleteForPatient: async (patientId, id) => {
+      const response = await fetch(
+        `${API_URL}/patients/${patientId}/appointments/${id}`,
+        {
+          method: "DELETE",
+          headers: getHeaders(),
+        }
+      );
       return handleResponse(response);
     },
   },

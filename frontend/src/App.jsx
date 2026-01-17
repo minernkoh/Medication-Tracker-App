@@ -3,7 +3,8 @@
  * Handles top-level navigation, authentication, and mode switching
  */
 import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { ListIcon } from "@phosphor-icons/react";
 import {
   DashboardPage,
   AppointmentsPage,
@@ -20,6 +21,8 @@ import {
 import { ErrorProvider } from "./contexts/ErrorContext";
 import { MedicationsProvider } from "./contexts/MedicationsContext";
 import NotFoundPage from "./components/pages/NotFoundPage";
+import { api } from "./api";
+import { getModeHexColor } from "./utils/modeUtils";
 import {
   getAuthData,
   setAuthData,
@@ -45,10 +48,46 @@ function AppLayout({
   onShowOnboarding,
   onDeleteAccount,
 }) {
-  const location = useLocation();
+  const firstName = user?.name ? user.name.split(" ")[0] : "";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const modeColor = getModeHexColor(mode);
 
   return (
-    <div className="h-screen bg-white flex overflow-hidden overflow-x-hidden">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden overflow-x-hidden">
+      {/* Mobile header */}
+      <header className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Open navigation menu"
+          aria-expanded={isSidebarOpen}
+        >
+          <ListIcon size={22} weight="bold" />
+        </button>
+        <div className="flex flex-col items-center">
+          <span className="text-sm font-semibold text-text-primary">
+            MedTracker
+          </span>
+          <span className="text-xs font-medium" style={{ color: modeColor }}>
+            {mode}
+          </span>
+        </div>
+        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-text-primary">
+          {firstName ? firstName.charAt(0).toUpperCase() : "U"}
+        </div>
+      </header>
+
+      {/* Mobile overlay */}
+      {isSidebarOpen && (
+        <button
+          type="button"
+          className="md:hidden fixed inset-0 bg-black/40 z-30"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-label="Close navigation menu"
+        />
+      )}
+
       {/* Sidebar - fixed position, sticky to viewport */}
       <Sidebar
         userName={user.name}
@@ -56,10 +95,12 @@ function AppLayout({
         mode={mode}
         onSwitchMode={onSwitchMode}
         onLogout={onLogout}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main content area - scrollable, moves to accommodate sidebar on desktop */}
-      <main className="flex-1 ml-0 md:ml-[256px] overflow-y-auto overflow-x-hidden min-h-0">
+      <main className="flex-1 w-full ml-0 md:ml-[256px] overflow-y-auto overflow-x-hidden min-h-0">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
@@ -68,9 +109,9 @@ function AppLayout({
             path="/dashboard"
             element={
               mode === "Caregiver" ? (
-                <CaregiverDashboard userName={user.name.split(" ")[0]} />
+                <CaregiverDashboard userName={firstName} />
               ) : (
-                <DashboardPage userName={user.name.split(" ")[0]} mode={mode} />
+                <DashboardPage userName={firstName} mode={mode} />
               )
             }
           />
@@ -103,7 +144,7 @@ function AppLayout({
             element={
               mode === "Personal" ? (
                 <MedicationPage
-                  userName={user.name.split(" ")[0]}
+                  userName={firstName}
                   mode={mode}
                   userId={user.id}
                 />
@@ -121,7 +162,7 @@ function AppLayout({
                 <CaregiverAppointmentsPage />
               ) : (
                 <AppointmentsPage
-                  userName={user.name.split(" ")[0]}
+                  userName={firstName}
                   mode={mode}
                 />
               )
@@ -169,7 +210,9 @@ function AppLayout({
 function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return getAuthField("isAuthenticated", false);
+    const storedUser = getAuthField("user");
+    const token = localStorage.getItem("token");
+    return Boolean(token && storedUser);
   });
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -177,17 +220,21 @@ function App() {
 
   // User state
   const [user, setUser] = useState(() => {
-    return (
-      getAuthField("user") || {
-        name: "Sarah Johnson",
-        email: "sarahjohnson@gmail.com",
-      }
-    );
+    const storedUser = getAuthField("user");
+    if (storedUser) return storedUser;
+    try {
+      const rawUser = localStorage.getItem("user");
+      return rawUser ? JSON.parse(rawUser) : { name: "", email: "" };
+    } catch {
+      return { name: "", email: "" };
+    }
   });
 
   // Mode state (Personal or Caregiver)
   const [mode, setMode] = useState(() => {
-    return getAuthField("mode", "Personal");
+    const storedMode = getAuthField("mode");
+    if (storedMode) return storedMode;
+    return user?.role === "caregiver" ? "Caregiver" : "Personal";
   });
 
   // Caregiver modal state
@@ -207,20 +254,47 @@ function App() {
     }
   }, [isAuthenticated, user, mode]);
 
+  const normalizeUser = (userData) => ({
+    ...userData,
+    id: userData?.id || userData?._id,
+  });
+
   // Handle login from auth page
-  const handleLogin = (userData) => {
-    setUser({
-      name: userData.name || "Sarah Johnson",
-      email: userData.email,
-    });
-    setMode(userData.mode || "Personal");
+  const handleLogin = async (credentials) => {
+    const data = await api.auth.signin(credentials);
+    const normalizedUser = normalizeUser(data.user || {});
+    const userMode =
+      normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
+    setUser(normalizedUser);
+    setMode(userMode);
     setIsAuthenticated(true);
+    return data;
   };
 
-  // Handle showing onboarding for new users
-  const handleShowOnboarding = (userData) => {
-    setPendingUser(userData);
+  const handleSignup = async (signupData) => {
+    await api.auth.signup({
+      name: signupData.name,
+      email: signupData.email,
+      password: signupData.password,
+      role: signupData.role === "caregiver" ? "caregiver" : "patient",
+    });
+    const loginData = await api.auth.signin({
+      email: signupData.email,
+      password: signupData.password,
+    });
+    const normalizedUser = normalizeUser(loginData.user || {});
+    const userMode =
+      normalizedUser.role === "caregiver" ? "Caregiver" : "Personal";
+    setUser(normalizedUser);
+    setMode(userMode);
+    setIsAuthenticated(true);
+    setPendingUser({
+      name: normalizedUser.name,
+      email: normalizedUser.email,
+      mode: userMode,
+    });
     setShowOnboarding(true);
+    return loginData;
   };
 
   // Handle onboarding completion
@@ -284,24 +358,27 @@ function App() {
   };
 
   // Handle caregiver login
-  const handleCaregiverLogin = (userData) => {
+  const handleCaregiverLogin = async (credentials) => {
+    const data = await handleLogin(credentials);
     setMode("Caregiver");
     setShowCaregiverModal(false);
+    return data;
   };
 
   // Handle caregiver signup (show onboarding)
-  const handleCaregiverSignup = (userData) => {
+  const handleCaregiverSignup = async (userData) => {
+    const data = await handleSignup({ ...userData, role: "caregiver" });
     setShowCaregiverModal(false);
-    setPendingUser({ ...userData, mode: "Caregiver" });
-    setShowOnboarding(true);
+    return data;
   };
 
   // Handle logout
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setUser({ name: "Sarah Johnson", email: "sarahjohnson@gmail.com" });
+    setUser({ name: "", email: "" });
     setMode("Personal");
     removeAuthData();
+    api.auth.logout();
   };
 
   // Handle delete account
@@ -325,10 +402,7 @@ function App() {
   if (!isAuthenticated) {
     return (
       <ErrorProvider>
-        <AuthPage
-          onLogin={handleLogin}
-          onShowOnboarding={handleShowOnboarding}
-        />
+        <AuthPage onLogin={handleLogin} onSignup={handleSignup} />
       </ErrorProvider>
     );
   }

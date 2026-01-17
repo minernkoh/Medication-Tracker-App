@@ -2,7 +2,7 @@
  * CaregiverDashboard Component - Overview dashboard for caregivers
  * Shows all patients at a glance with their medication status and upcoming appointments
  */
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   UsersIcon,
@@ -19,63 +19,89 @@ import {
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { GradientBackground } from "../../ui";
 import { colors } from "../../../../tailwind.config.js";
+import { api } from "../../../api";
+import { useError } from "../../../contexts/ErrorContext";
 
-// Mock patient data
-const mockPatients = [
-  {
-    id: 1,
-    name: "Mom (Linda)",
-    initials: "L",
-    color: colors.patient.pink,
-    medicationsTaken: 3,
-    medicationsTotal: 4,
-    nextMedication: "2:00 PM",
-    nextAppointment: { title: "Cardiology Checkup", date: "Jan 18", time: "10:00 AM" },
-    alerts: 1,
-    status: "attention",
-  },
-  {
-    id: 2,
-    name: "Dad (Robert)",
-    initials: "R",
-    color: colors.patient.blue,
-    medicationsTaken: 5,
-    medicationsTotal: 5,
-    nextMedication: null,
-    nextAppointment: { title: "Physical Therapy", date: "Jan 20", time: "3:00 PM" },
-    alerts: 0,
-    status: "good",
-  },
-  {
-    id: 3,
-    name: "Grandma (Eleanor)",
-    initials: "E",
-    color: colors.patient.green,
-    medicationsTaken: 2,
-    medicationsTotal: 6,
-    nextMedication: "1:30 PM",
-    nextAppointment: { title: "Eye Exam", date: "Jan 22", time: "9:00 AM" },
-    alerts: 2,
-    status: "warning",
-  },
+const PATIENT_COLORS = [
+  colors.patient.pink,
+  colors.patient.blue,
+  colors.patient.green,
+  colors.patient.amber,
+  colors.patient.purple,
 ];
 
-function CaregiverDashboard({ userName = "Caregiver" }) {
+const getInitials = (name = "") => {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split(" ");
+  return parts.length === 1
+    ? parts[0].charAt(0).toUpperCase()
+    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
+const getPatientColor = (patient, index) => {
+  if (patient?.color) return patient.color;
+  if (typeof index === "number") {
+    return PATIENT_COLORS[index % PATIENT_COLORS.length];
+  }
+  return colors.patient.blue;
+};
+
+const normalizePatient = (patient, index) => {
+  if (!patient) return null;
+  const name = patient.nickname
+    ? `${patient.nickname} (${patient.name})`
+    : patient.name;
+  return {
+    ...patient,
+    id: patient.id || patient._id,
+    name,
+    initials: patient.initials || getInitials(patient.nickname || patient.name),
+    color: getPatientColor(patient, index),
+  };
+};
+
+function CaregiverDashboard({ userName = "" }) {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
+  const [patients, setPatients] = useState([]);
+  const { showError } = useError();
+
+  const loadPatients = useCallback(async () => {
+    try {
+      const data = await api.caregiver.getPatients();
+      setPatients(
+        (Array.isArray(data) ? data : []).map((patient, index) =>
+          normalizePatient(patient, index)
+        )
+      );
+    } catch (error) {
+      showError(error.message || "Unable to load patients");
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    loadPatients();
+  }, [loadPatients]);
 
   // Calculate totals
-  const totalPatients = mockPatients.length;
-  const totalMedicationsToday = mockPatients.reduce((sum, p) => sum + p.medicationsTotal, 0);
-  const totalMedicationsTaken = mockPatients.reduce((sum, p) => sum + p.medicationsTaken, 0);
-  const totalAlerts = mockPatients.reduce((sum, p) => sum + p.alerts, 0);
-  const upcomingAppointments = mockPatients.filter((p) => p.nextAppointment).length;
+  const totalPatients = patients.length;
+  const totalMedicationsToday = patients.reduce(
+    (sum, p) => sum + (p.medicationsTotal || 0),
+    0
+  );
+  const totalMedicationsTaken = patients.reduce(
+    (sum, p) => sum + (p.medicationsTaken || 0),
+    0
+  );
+  const totalAlerts = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
+  const upcomingAppointments = patients.filter((p) => p.nextAppointment).length;
 
   // Patient card component
   const PatientCard = ({ patient }) => {
-    const completionPercent = Math.round(
-      (patient.medicationsTaken / patient.medicationsTotal) * 100
-    );
+    const total = patient.medicationsTotal || 0;
+    const taken = patient.medicationsTaken || 0;
+    const completionPercent = total > 0 ? Math.round((taken / total) * 100) : 0;
 
     return (
       <div
@@ -94,7 +120,7 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
             <div>
               <h3 className="font-poppins font-bold text-text-primary">{patient.name}</h3>
               <p className="font-poppins text-xs text-text-secondary">
-                {patient.medicationsTaken}/{patient.medicationsTotal} medications today
+                {taken}/{total} medications today
               </p>
             </div>
           </div>
@@ -250,115 +276,24 @@ function CaregiverDashboard({ userName = "Caregiver" }) {
 
           {/* Patient cards grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockPatients.map((patient) => (
+          {patients.map((patient) => (
             <PatientCard key={patient.id} patient={patient} />
           ))}
         </div>
 
           {/* Today's schedule section */}
           <div>
-          <h2 className="font-poppins font-bold text-xl text-text-primary mb-4">
-            Today's Medication Schedule
-          </h2>
-          <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border-default bg-background-subtle">
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Patient
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Medication
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Time
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-border-default hover:bg-background-hover">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-poppins font-semibold text-sm"
-                          style={{ backgroundColor: colors.patient.pink }}
-                        >
-                          L
-                        </div>
-                        <span className="font-poppins font-medium text-text-primary">Mom (Linda)</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="font-poppins text-text-primary">Blood Pressure Medication</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="font-poppins text-text-secondary">2:00 PM</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-poppins text-xs font-semibold">
-                        <ClockIcon size={12} weight="fill" />
-                        Pending
-                      </span>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-border-default hover:bg-background-hover">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-poppins font-semibold text-sm"
-                          style={{ backgroundColor: colors.patient.green }}
-                        >
-                          E
-                        </div>
-                        <span className="font-poppins font-medium text-text-primary">Grandma (Eleanor)</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="font-poppins text-text-primary">Vitamin D Supplement</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="font-poppins text-text-secondary">1:30 PM</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-poppins text-xs font-semibold">
-                        <ClockIcon size={12} weight="fill" />
-                        Pending
-                      </span>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-background-hover">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-poppins font-semibold text-sm"
-                          style={{ backgroundColor: colors.patient.blue }}
-                        >
-                          R
-                        </div>
-                        <span className="font-poppins font-medium text-text-primary">Dad (Robert)</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="font-poppins text-text-primary">Pain Medication</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="font-poppins text-text-secondary">8:00 AM</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-poppins text-xs font-semibold">
-                        <CheckCircleIcon size={12} weight="fill" />
-                        Taken
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <h2 className="font-poppins font-bold text-xl text-text-primary mb-4">
+              Today's Medication Schedule
+            </h2>
+            <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
+              <div className="px-5 py-8 text-center">
+                <ClockIcon size={28} className="mx-auto mb-2 text-text-secondary" />
+                <p className="font-poppins text-text-secondary">
+                  No medication schedule available yet.
+                </p>
+              </div>
             </div>
-          </div>
           </div>
         </div>
       </div>

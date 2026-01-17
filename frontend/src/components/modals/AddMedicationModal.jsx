@@ -211,7 +211,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="e.g., Paracetamol"
+              placeholder="e.g., Medication name"
               className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
                 errors.name ? "border-red-500" : "border-border-default"
               }`}
