@@ -6,7 +6,7 @@ import {
   MapPinIcon,
   CaretRightIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../utils/colors";
+import { colors } from "../../../tailwind.config.js";
 
 /**
  * AppointmentCard Component

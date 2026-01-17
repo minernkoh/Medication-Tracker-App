@@ -16,7 +16,7 @@
  */
 import React from "react";
 import { PillIcon, CheckCircleIcon } from "@phosphor-icons/react";
-import { colors } from "../../../utils/colors";
+import { colors } from "../../../../tailwind.config.js";
 import ActionButtons from "./ActionButtons";
 
 function MedicineDue({
