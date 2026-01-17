@@ -14,8 +14,9 @@
  */
 import React from "react";
 import { CaretUpIcon, CaretDownIcon, PillIcon } from "@phosphor-icons/react";
-import { getPrimaryColor } from "../../utils/colors";
-import { ActionButtons } from "./buttons";
+import { getModeHexColor, getModeClasses } from "../../utils/modeUtils";
+import ActionButtons from "./ActionButtons";
+import EmptyState from "./EmptyState";
 
 function DataTable({
   columns = [],
@@ -32,7 +33,8 @@ function DataTable({
   showActions = true,
   rowClassName,
 }) {
-  const primaryColor = getPrimaryColor(mode);
+  const primaryColor = getModeHexColor(mode);
+  const modeClasses = getModeClasses(mode);
 
   // Handle sort column click
   const handleSort = (key) => {
@@ -55,15 +57,13 @@ function DataTable({
       <CaretUpIcon
         size={12}
         weight="bold"
-        className="ml-1"
-        color={primaryColor}
+        className={`ml-1 ${modeClasses.text}`}
       />
     ) : (
       <CaretDownIcon
         size={12}
         weight="bold"
-        className="ml-1"
-        color={primaryColor}
+        className={`ml-1 ${modeClasses.text}`}
       />
     );
   };
@@ -82,7 +82,11 @@ function DataTable({
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    onClick={col.sortable !== false ? () => handleSort(col.key) : undefined}
+                    onClick={
+                      col.sortable !== false
+                        ? () => handleSort(col.key)
+                        : undefined
+                    }
                     className={`${headerPadding} text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide ${
                       col.sortable !== false && onSort
                         ? "cursor-pointer hover:text-text-primary transition-colors group select-none"
@@ -118,7 +122,9 @@ function DataTable({
                 >
                   {columns.map((col) => (
                     <td key={col.key} className={cellPadding}>
-                      {col.render ? col.render(row[col.key], row) : row[col.key]}
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : row[col.key]}
                     </td>
                   ))}
                   {showActions && (
@@ -138,22 +144,12 @@ function DataTable({
           </table>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{ backgroundColor: `${primaryColor}15` }}
-          >
-            <EmptyIcon size={32} weight="light" color={primaryColor} />
-          </div>
-          <p className="font-poppins font-medium text-text-primary">
-            {emptyMessage}
-          </p>
-          {emptySubMessage && (
-            <p className="font-poppins text-sm text-text-secondary mt-1 max-w-xs">
-              {emptySubMessage}
-            </p>
-          )}
-        </div>
+        <EmptyState
+          icon={<EmptyIcon size={64} weight="regular" />}
+          title={emptyMessage}
+          description={emptySubMessage}
+          size="md"
+        />
       )}
     </div>
   );

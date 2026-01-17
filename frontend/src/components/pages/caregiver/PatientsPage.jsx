@@ -2,7 +2,7 @@
  * PatientsPage Component - List of all patients for caregiver
  * Allows adding, editing, and viewing patient details
  */
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   UsersIcon,
@@ -19,14 +19,102 @@ import {
   PhoneIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { colors, getModeColors } from "../../../utils/colors";
-import { api } from "../../../api";
+import { getModeHexColor } from "../../../utils/modeUtils";
+import { colors } from "../../../../tailwind.config.js";
+import ConfirmDialog from "../../ui/ConfirmDialog";
+
+// Patient color palette using design tokens
+const PATIENT_COLORS = [
+  colors.patient.pink,
+  colors.patient.blue,
+  colors.patient.green,
+  colors.patient.amber,
+  colors.patient.purple,
+];
+
+// Mock patient data
+const initialPatients = [
+  {
+    id: 1,
+    name: "Linda Johnson",
+    nickname: "Mom",
+    initials: "L",
+    color: colors.patient.pink,
+    phone: "+1 (555) 123-4567",
+    relationship: "Mother",
+    medicationsTaken: 3,
+    medicationsTotal: 4,
+    medications: [
+      "Blood Pressure Med",
+      "Vitamin D",
+      "Calcium",
+      "Heart Medicine",
+    ],
+    nextAppointment: {
+      title: "Cardiology Checkup",
+      date: "Jan 18, 2026",
+      time: "10:00 AM",
+    },
+    alerts: 1,
+    adherenceRate: 92,
+  },
+  {
+    id: 2,
+    name: "Robert Johnson",
+    nickname: "Dad",
+    initials: "R",
+    color: colors.patient.blue,
+    phone: "+1 (555) 234-5678",
+    relationship: "Father",
+    medicationsTaken: 5,
+    medicationsTotal: 5,
+    medications: [
+      "Pain Medication",
+      "Blood Thinner",
+      "Statin",
+      "Vitamin B12",
+      "Probiotic",
+    ],
+    nextAppointment: {
+      title: "Physical Therapy",
+      date: "Jan 20, 2026",
+      time: "3:00 PM",
+    },
+    alerts: 0,
+    adherenceRate: 98,
+  },
+  {
+    id: 3,
+    name: "Eleanor Smith",
+    nickname: "Grandma",
+    initials: "E",
+    color: colors.patient.green,
+    phone: "+1 (555) 345-6789",
+    relationship: "Grandmother",
+    medicationsTaken: 2,
+    medicationsTotal: 6,
+    medications: [
+      "Diabetes Medication",
+      "Eye Drops",
+      "Vitamin D",
+      "Calcium",
+      "Blood Pressure Med",
+      "Aspirin",
+    ],
+    nextAppointment: {
+      title: "Eye Exam",
+      date: "Jan 22, 2026",
+      time: "9:00 AM",
+    },
+    alerts: 2,
+    adherenceRate: 78,
+  },
+];
 
 function PatientsPage() {
   const navigate = useNavigate();
-  const modeColors = getModeColors("Caregiver");
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const modeHexColor = getModeHexColor("Caregiver");
+  const [patients, setPatients] = useState(initialPatients);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPatient, setNewPatient] = useState({
@@ -35,21 +123,11 @@ function PatientsPage() {
     phone: "",
     relationship: "",
   });
-
-  // Fetch patients from backend
-  useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const data = await api.caregiver.getPatients();
-        setPatients(data);
-      } catch (error) {
-        console.error("Failed to fetch patients:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPatients();
-  }, []);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    patientId: null,
+    patientName: "",
+  });
 
   // Filter patients based on search
   const filteredPatients = patients.filter(
@@ -59,53 +137,54 @@ function PatientsPage() {
   );
 
   // Handle add patient
-  const handleAddPatient = async (e) => {
+  const handleAddPatient = (e) => {
     e.preventDefault();
     if (!newPatient.name.trim()) return;
 
-    const patientData = {
+    const patient = {
+      id: Date.now(),
       name: newPatient.name,
       nickname: newPatient.nickname || newPatient.name.split(" ")[0],
       initials: newPatient.name.charAt(0).toUpperCase(),
-      color: ["#da7488", "#155dfc", "#10b981", "#f59e0b", "#8b5cf6"][
-        Math.floor(Math.random() * 5)
-      ],
+      color: PATIENT_COLORS[Math.floor(Math.random() * PATIENT_COLORS.length)],
       phone: newPatient.phone,
       relationship: newPatient.relationship,
+      medicationsTaken: 0,
+      medicationsTotal: 0,
+      medications: [],
+      nextAppointment: null,
+      alerts: 0,
+      adherenceRate: 0,
     };
 
-    try {
-      const addedPatient = await api.caregiver.addPatient(patientData);
-      setPatients([...patients, addedPatient]);
-      setNewPatient({ name: "", nickname: "", phone: "", relationship: "" });
-      setShowAddModal(false);
-    } catch (error) {
-      console.error("Failed to add patient:", error);
-      alert("Failed to add patient. Please try again.");
-    }
+    setPatients([...patients, patient]);
+    setNewPatient({ name: "", nickname: "", phone: "", relationship: "" });
+    setShowAddModal(false);
   };
 
   // Handle delete patient
-  const handleDeletePatient = async (id) => {
-    if (window.confirm("Are you sure you want to remove this patient?")) {
-      try {
-        await api.caregiver.deletePatient(id);
-        setPatients(patients.filter((p) => p.id !== id));
-      } catch (error) {
-        console.error("Failed to delete patient:", error);
-        alert("Failed to delete patient.");
-      }
+  const handleDeletePatient = (id) => {
+    const patient = patients.find((p) => p.id === id);
+    setDeleteConfirm({
+      isOpen: true,
+      patientId: id,
+      patientName: patient?.name || "this patient",
+    });
+  };
+
+  // Confirm delete
+  const confirmDelete = () => {
+    if (deleteConfirm.patientId) {
+      setPatients(patients.filter((p) => p.id !== deleteConfirm.patientId));
     }
+    setDeleteConfirm({ isOpen: false, patientId: null, patientName: "" });
   };
 
   // Patient row component
   const PatientRow = ({ patient }) => {
-    const completionPercent =
-      patient.medicationsTotal && patient.medicationsTotal > 0
-        ? Math.round(
-            (patient.medicationsTaken / patient.medicationsTotal) * 100
-          )
-        : 0;
+    const completionPercent = patient.medicationsTotal
+      ? Math.round((patient.medicationsTaken / patient.medicationsTotal) * 100)
+      : 0;
 
     return (
       <tr
@@ -138,7 +217,7 @@ function PatientsPage() {
               color={colors.text.secondary}
             />
             <span className="font-poppins text-text-primary">
-              {patient.medicationsTotal || 0} medications
+              {patient.medicationsTotal} medications
             </span>
           </div>
         </td>
@@ -148,13 +227,13 @@ function PatientsPage() {
               <div
                 className="h-full rounded-full"
                 style={{
-                  width: `${patient.adherenceRate || 0}%`,
+                  width: `${patient.adherenceRate}%`,
                   backgroundColor:
-                    (patient.adherenceRate || 0) >= 90
-                      ? "#10b981"
-                      : (patient.adherenceRate || 0) >= 70
-                      ? "#f59e0b"
-                      : "#ef4444",
+                    patient.adherenceRate >= 90
+                      ? colors.success.DEFAULT
+                      : patient.adherenceRate >= 70
+                      ? colors.warning.DEFAULT
+                      : colors.danger.DEFAULT,
                 }}
               />
             </div>
@@ -162,14 +241,14 @@ function PatientsPage() {
               className="font-poppins text-sm font-medium"
               style={{
                 color:
-                  (patient.adherenceRate || 0) >= 90
+                  patient.adherenceRate >= 90
                     ? "#10b981"
-                    : (patient.adherenceRate || 0) >= 70
+                    : patient.adherenceRate >= 70
                     ? "#f59e0b"
                     : "#ef4444",
               }}
             >
-              {patient.adherenceRate || 0}%
+              {patient.adherenceRate}%
             </span>
           </div>
         </td>
@@ -241,13 +320,13 @@ function PatientsPage() {
   };
 
   return (
-    <div className="bg-background-default w-full h-full p-6 md:p-10">
+    <div className="bg-background-default w-full p-6 md:p-10">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <UsersIcon size={28} weight="fill" color={modeColors.DEFAULT} />
+              <UsersIcon size={28} weight="fill" color={modeHexColor} />
               <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
                 My Patients
               </h1>
@@ -260,8 +339,8 @@ function PatientsPage() {
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-5 py-3 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all"
             style={{
-              backgroundColor: modeColors.DEFAULT,
-              boxShadow: `0 10px 25px -5px ${modeColors.DEFAULT}40`,
+              backgroundColor: modeHexColor,
+              boxShadow: `0 10px 25px -5px ${modeHexColor}40`,
             }}
           >
             <PlusIcon size={20} weight="bold" />
@@ -288,131 +367,121 @@ function PatientsPage() {
           </div>
         </div>
 
-        {loading && (
-          <div className="text-center py-10 text-text-secondary">
-            Loading patients...
-          </div>
-        )}
-
         {/* Patients table */}
-        {!loading && (
-          <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border-default bg-background-subtle">
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Patient
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Medications
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Adherence
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Next Appointment
-                    </th>
-                    <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Actions
-                    </th>
+        <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border-default bg-background-subtle">
+                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Patient
+                  </th>
+                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Medications
+                  </th>
+                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Adherence
+                  </th>
+                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Next Appointment
+                  </th>
+                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Status
+                  </th>
+                  <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPatients.length > 0 ? (
+                  filteredPatients.map((patient) => (
+                    <PatientRow key={patient.id} patient={patient} />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-12 text-center">
+                      <UsersIcon
+                        size={48}
+                        weight="regular"
+                        color={colors.text.secondary}
+                        className="mx-auto mb-3 opacity-50"
+                      />
+                      <p className="font-poppins text-text-secondary">
+                        {searchQuery
+                          ? "No patients found matching your search"
+                          : "No patients added yet"}
+                      </p>
+                      {!searchQuery && (
+                        <button
+                          onClick={() => setShowAddModal(true)}
+                          className="mt-3 font-poppins font-semibold text-sm"
+                          style={{ color: modeHexColor }}
+                        >
+                          Add your first patient
+                        </button>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredPatients.length > 0 ? (
-                    filteredPatients.map((patient) => (
-                      <PatientRow key={patient.id} patient={patient} />
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-12 text-center">
-                        <UsersIcon
-                          size={48}
-                          weight="regular"
-                          color={colors.text.secondary}
-                          className="mx-auto mb-3 opacity-50"
-                        />
-                        <p className="font-poppins text-text-secondary">
-                          {searchQuery
-                            ? "No patients found matching your search"
-                            : "No patients added yet"}
-                        </p>
-                        {!searchQuery && (
-                          <button
-                            onClick={() => setShowAddModal(true)}
-                            className="mt-3 font-poppins font-semibold text-sm"
-                            style={{ color: modeColors.DEFAULT }}
-                          >
-                            Add your first patient
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
 
         {/* Patient cards for mobile */}
-        {!loading && (
-          <div className="md:hidden mt-4 space-y-4">
-            {filteredPatients.map((patient) => (
-              <div
-                key={patient.id}
-                onClick={() => navigate(`/patients/${patient.id}`)}
-                className="bg-background-default border border-border-default rounded-2xl p-4 cursor-pointer"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-poppins font-bold"
-                    style={{ backgroundColor: patient.color }}
-                  >
-                    {patient.initials}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-poppins font-semibold text-text-primary">
-                      {patient.nickname}
-                    </p>
-                    <p className="font-poppins text-xs text-text-secondary">
-                      {patient.relationship}
-                    </p>
-                  </div>
-                  {patient.alerts > 0 && (
-                    <span className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-full">
-                      <WarningCircleIcon size={12} weight="fill" />
-                      <span className="font-poppins text-xs font-semibold">
-                        {patient.alerts}
-                      </span>
+        <div className="md:hidden mt-4 space-y-4">
+          {filteredPatients.map((patient) => (
+            <div
+              key={patient.id}
+              onClick={() => navigate(`/patients/${patient.id}`)}
+              className="bg-background-default border border-border-default rounded-2xl p-4 cursor-pointer"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-poppins font-bold"
+                  style={{ backgroundColor: patient.color }}
+                >
+                  {patient.initials}
+                </div>
+                <div className="flex-1">
+                  <p className="font-poppins font-semibold text-text-primary">
+                    {patient.nickname}
+                  </p>
+                  <p className="font-poppins text-xs text-text-secondary">
+                    {patient.relationship}
+                  </p>
+                </div>
+                {patient.alerts > 0 && (
+                  <span className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-full">
+                    <WarningCircleIcon size={12} weight="fill" />
+                    <span className="font-poppins text-xs font-semibold">
+                      {patient.alerts}
                     </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-poppins text-text-secondary">
-                    {patient.medicationsTotal} medications
                   </span>
-                  <span
-                    className="font-poppins font-semibold"
-                    style={{
-                      color:
-                        (patient.adherenceRate || 0) >= 90
-                          ? "#10b981"
-                          : (patient.adherenceRate || 0) >= 70
-                          ? "#f59e0b"
-                          : "#ef4444",
-                    }}
-                  >
-                    {patient.adherenceRate || 0}% adherence
-                  </span>
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-poppins text-text-secondary">
+                  {patient.medicationsTotal} medications
+                </span>
+                <span
+                  className="font-poppins font-semibold"
+                  style={{
+                    color:
+                      patient.adherenceRate >= 90
+                        ? colors.success.DEFAULT
+                        : patient.adherenceRate >= 70
+                        ? colors.warning.DEFAULT
+                        : colors.danger.DEFAULT,
+                  }}
+                >
+                  {patient.adherenceRate}% adherence
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Add Patient Modal */}
@@ -426,7 +495,7 @@ function PatientsPage() {
             {/* Modal header */}
             <div
               className="p-6 pb-4"
-              style={{ backgroundColor: `${modeColors.DEFAULT}10` }}
+              style={{ backgroundColor: `${modeHexColor}10` }}
             >
               <button
                 onClick={() => setShowAddModal(false)}
@@ -436,15 +505,15 @@ function PatientsPage() {
               </button>
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-                style={{ backgroundColor: modeColors.DEFAULT }}
+                style={{ backgroundColor: modeHexColor }}
               >
-                <UsersIcon size={24} weight="fill" color="#ffffff" />
+                <UsersIcon size={24} weight="fill" color={colors.text.onPrimary} />
               </div>
               <h2 className="font-poppins font-bold text-xl text-text-primary">
                 Add New Patient
               </h2>
               <p className="font-poppins text-sm text-text-secondary mt-1">
-                Add someone you're caring for
+                Add someone you're caring for. You'll be able to manage their medications and appointments.
               </p>
             </div>
 
@@ -526,8 +595,8 @@ function PatientsPage() {
                 type="submit"
                 className="w-full py-3.5 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all mt-6"
                 style={{
-                  backgroundColor: modeColors.DEFAULT,
-                  boxShadow: `0 10px 25px -5px ${modeColors.DEFAULT}40`,
+                  backgroundColor: modeHexColor,
+                  boxShadow: `0 10px 25px -5px ${modeHexColor}40`,
                 }}
               >
                 Add Patient
@@ -536,6 +605,20 @@ function PatientsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, patientId: null, patientName: "" })
+        }
+        onConfirm={confirmDelete}
+        title="Remove Patient"
+        message={`Are you sure you want to remove ${deleteConfirm.patientName}? This will remove all their medication and appointment data. This action cannot be undone.`}
+        confirmText="Remove Patient"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

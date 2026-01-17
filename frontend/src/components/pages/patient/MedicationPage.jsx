@@ -6,71 +6,99 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   PlusIcon,
   PillIcon,
-  ClockIcon,
   CheckCircleIcon,
-  XIcon,
 } from "@phosphor-icons/react";
-import { colors, getPrimaryColor } from "../../../utils/colors";
-import { MedicineDue, DataTable, MedicationSection } from "../../ui";
-import { api } from "../../../api";
-import EditMedicationModal from "../../modals/EditMedicationModal";
+import { getModeHexColor } from "../../../utils/modeUtils";
+import {
+  DataTable,
+  PageHeader,
+  SectionHeader,
+  GradientBackground,
+  Button,
+} from "../../ui";
+import { MedicationSection } from "../../features";
+import { AddMedicationModal, EditMedicationModal } from "../../modals";
+import { colors } from "../../../../tailwind.config.js";
+import { getMedicationColor } from "../../../utils/medicationColors";
 
-const MedicationPage = ({ userName, mode }) => {
-  // Get user data from localStorage
-  const [userData] = useState(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+const MedicationPage = ({ userName = "Sarah", mode = "Personal" }) => {
+  const primaryColor = getModeHexColor(mode);
 
-  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
-  const primaryColor = getPrimaryColor(displayMode);
-  // State to track medications
-  const [medications, setMedications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // State to track medications - initially populated with sample data
+  const [medications, setMedications] = useState([
+    // Pending medications (for today)
+    {
+      id: 1,
+      name: "Paracetamol",
+      dosage: "2 pills",
+      timeOfDay: "08:00",
+      quantity: "50 pills",
+      status: "pending",
+      takenTime: null,
+      additionalInfo: "For headache",
+    },
+    {
+      id: 2,
+      name: "Ibuprofen",
+      dosage: "1 pill",
+      timeOfDay: "13:00",
+      quantity: "30 pills",
+      status: "pending",
+      additionalInfo: "After Meal",
+      pillColor: "#ffd5d5",
+    },
+    {
+      id: 3,
+      name: "Vitamin C",
+      dosage: "1 pill",
+      timeOfDay: "20:00",
+      quantity: "45 pills",
+      status: "pending",
+      additionalInfo: "Before Sleep",
+      pillColor: "#d9ffaf",
+    },
 
-  // Fetch medications from backend
-  const fetchMedications = async () => {
-    try {
-      const data = await api.medications.getAll();
-      // Map backend data to frontend format
-      const formatted = data.map((med) => ({
-        ...med,
-        id: med._id || med.id,
-        timeOfDay: med.time || med.timeOfDay, // Ensure time is mapped correctly
-        status: med.taken ? "taken" : "pending",
-      }));
-      setMedications(formatted);
-    } catch (error) {
-      console.error("Failed to fetch medications:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Taken medications (example of already taken today)
 
-  useEffect(() => {
-    fetchMedications();
-  }, []);
+    {
+      id: 4,
+      name: "Aspirin",
+      dosage: "1 pill",
+      timeOfDay: "08:00",
+      quantity: "100 pills",
+      status: "taken",
+      takenTime: "9:00 AM",
+      additionalInfo: "",
+    },
+
+    {
+      id: 5,
+      name: "Metformin",
+      dosage: "500mg",
+      status: "supply",
+      quantity: "30 pills",
+      timeOfDay: "08:00",
+      refillDate: "2026-02-15",
+      additionalInfo: "Before Meal",
+    },
+    {
+      id: 6,
+      name: "Blood Pressure Meds",
+      dosage: "1 pill",
+      status: "supply",
+      quantity: "60 pills",
+      timeOfDay: "20:00",
+      refillDate: "2026-03-10",
+      additionalInfo: "Before Sleep",
+    },
+  ]);
 
   // State for add medication form modal
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newMedication, setNewMedication] = useState({
-    name: "",
-    dosage: "",
-    type: "pills",
-    frequencyType: "timesPerDay", // "timesPerDay", "everyHours", "custom"
-    frequencyValue: "",
-    frequencyText: "", // For custom frequency
-    quantity: "",
-    instructions: [], // Array of selected instruction checkboxes
-  });
 
   // State for supply table sorting
   const [supplySortConfig, setSupplySortConfig] = useState({
@@ -112,34 +140,28 @@ const MedicationPage = ({ userName, mode }) => {
   const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
     const { key, direction } = supplySortConfig;
     const multiplier = direction === "asc" ? 1 : -1;
-    if (key === "name") {
-      const aVal = a.name || "";
-      const bVal = b.name || "";
-      return multiplier * aVal.localeCompare(bVal);
+    if (key === "name") return multiplier * a.name.localeCompare(b.name);
+    if (key === "dosage") return multiplier * a.dosage.localeCompare(b.dosage);
+    if (key === "quantity")
+      return multiplier * a.quantity.localeCompare(b.quantity);
+    if (key === "refillDate") {
+      const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
+      const dateB = b.refillDate ? new Date(b.refillDate).getTime() : 0;
+      return multiplier * (dateA - dateB);
     }
-    if (key === "dosage") {
-      const aVal = a.dosage || "";
-      const bVal = b.dosage || "";
-      return multiplier * aVal.localeCompare(bVal);
-    }
-    if (key === "quantity") {
-      const aVal = a.quantity || "";
-      const bVal = b.quantity || "";
-      return multiplier * aVal.localeCompare(bVal);
+    if (key === "supplyStatus") {
+      const statusOrder = { Low: 0, Medium: 1, High: 2 };
+      const statusA = getSupplyStatus(a.quantity).label;
+      const statusB = getSupplyStatus(b.quantity).label;
+      return multiplier * (statusOrder[statusA] - statusOrder[statusB]);
     }
     return 0;
   });
 
   // Get supply status based on quantity
   const getSupplyStatus = (quantityStr) => {
-    // Handle undefined, null, or non-string values
-    if (!quantityStr || typeof quantityStr !== "string") {
-      return { label: "N/A", className: "bg-gray-100 text-gray-500" };
-    }
-    
     // Extract numeric value from quantity string (e.g., "30 pills" -> 30)
-    const match = quantityStr.match(/\d+/);
-    const numericValue = match ? parseInt(match[0], 10) : 0;
+    const numericValue = parseInt(quantityStr.match(/\d+/)?.[0] || "0");
 
     if (numericValue < 20) {
       return { label: "Low", className: "bg-red-100 text-red-700" };
@@ -150,21 +172,48 @@ const MedicationPage = ({ userName, mode }) => {
     }
   };
 
+  // Helper: format date for display
+  const formatRefillDate = (dateStr) => {
+    if (!dateStr) return null;
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return null;
+    }
+  };
+
   // Supply table columns
   const supplyColumns = [
     {
       key: "name",
       label: "Medication",
-      render: (value, row) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-background-subtle flex items-center justify-center">
-            <PillIcon size={18} weight="regular" color={colors.icon.primary} />
+      render: (value, row) => {
+        const medicationColor = getMedicationColor(value);
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+              style={{ backgroundColor: medicationColor.bg }}
+              aria-hidden="true"
+            >
+              <PillIcon
+                size={20}
+                weight="fill"
+                color={medicationColor.icon}
+                aria-label={`${value} medication icon`}
+              />
+            </div>
+            <span className="font-poppins font-semibold text-sm text-text-primary">
+              {value}
+            </span>
           </div>
-          <span className="font-poppins font-semibold text-sm text-text-primary">
-            {value}
-          </span>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "dosage",
@@ -175,44 +224,12 @@ const MedicationPage = ({ userName, mode }) => {
     },
     {
       key: "quantity",
-      label: "Quantity",
-      // Display quantity field which is now editable in the modal
+      label: "Current Quantity",
       render: (value) => (
-        <span className="font-poppins text-sm text-text-primary">
+        <span className="font-poppins text-sm font-medium text-text-primary">
           {value || "N/A"}
         </span>
       ),
-    },
-    {
-      key: "timeOfDay",
-      label: "Time",
-      //  Display timeOfDay in readable format (convert 24-hour to readable time)
-      render: (value) => {
-        if (!value)
-          return (
-            <span className="font-poppins text-sm text-text-secondary">
-              N/A
-            </span>
-          );
-        // Convert 24-hour format to readable time (08:00 -> 8:00 AM)
-        if (typeof value === "string" && value.includes(":")) {
-          const [hour, minute] = value.split(":");
-          const numHour = parseInt(hour);
-          const ampm = numHour >= 12 ? "PM" : "AM";
-          const displayHour =
-            numHour > 12 ? numHour - 12 : numHour === 0 ? 12 : numHour;
-          return (
-            <span className="font-poppins text-sm text-text-primary">
-              {displayHour}:{minute} {ampm}
-            </span>
-          );
-        }
-        return (
-          <span className="font-poppins text-sm text-text-primary">
-            {value}
-          </span>
-        );
-      },
     },
     {
       key: "supplyStatus",
@@ -228,30 +245,49 @@ const MedicationPage = ({ userName, mode }) => {
         );
       },
     },
+    {
+      key: "refillDate",
+      label: "Refill Date",
+      render: (value, row) => {
+        const formattedDate = formatRefillDate(value);
+        if (!formattedDate) {
+          return (
+            <span className="font-poppins text-sm text-text-secondary">
+              Not set
+            </span>
+          );
+        }
+        return (
+          <span className="font-poppins text-sm text-text-primary">
+            {formattedDate}
+          </span>
+        );
+      },
+    },
   ];
 
   /**
    * Handle marking a medication as taken
    * When clicked, moves medication from pending to taken with current timestamp
    */
-  const handleMarkAsTaken = async (medicationId) => {
-    try {
-      const currentTime = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
+  const handleMarkAsTaken = (medicationId) => {
+    const currentTime = new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
 
-      await api.medications.update(medicationId, {
-        taken: true,
-        takenTime: currentTime,
-      });
-
-      // Refresh list
-      fetchMedications();
-    } catch (error) {
-      console.error("Failed to mark medication as taken:", error);
-    }
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId
+          ? {
+              ...med,
+              status: "taken",
+              takenTime: currentTime,
+            }
+          : med
+      )
+    );
   };
 
   /**
@@ -259,29 +295,14 @@ const MedicationPage = ({ userName, mode }) => {
    * Moves medication back to pending status instead of permanently deleting
    * When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
    */
-  const handleDeleteMedication = async (medicationId) => {
-    const med = medications.find((m) => m.id === medicationId);
-    if (!med) return;
-
-    try {
-      if (med.status === "taken") {
-        // Undo taken status
-        await api.medications.update(medicationId, {
-          taken: false,
-          takenTime: null,
-        });
-      } else {
-        // Permanently delete from supply/pending
-        if (
-          window.confirm("Are you sure you want to delete this medication?")
-        ) {
-          await api.medications.delete(medicationId);
-        }
-      }
-      fetchMedications();
-    } catch (error) {
-      console.error("Failed to delete/restore medication:", error);
-    }
+  const handleDeleteMedication = (medicationId) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId
+          ? { ...med, status: "pending", takenTime: null }
+          : med
+      )
+    );
   };
 
   /**
@@ -289,176 +310,80 @@ const MedicationPage = ({ userName, mode }) => {
    * In a full implementation, this would open an edit modal
    */
   const handleEditMedication = (medication) => {
+    console.log("Opening edit modal for medication:", medication?.id);
     setEditingMedication(medication);
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = async (updatedMedication) => {
-    try {
-      await api.medications.update(updatedMedication.id, updatedMedication);
-      setShowEditModal(false);
-      setEditingMedication(null);
-      fetchMedications();
-    } catch (error) {
-      console.error("Failed to update medication:", error);
-    }
+  const handleSaveEditedMedication = (updatedMedication) => {
+    console.log("Saving edited medication:", updatedMedication);
+    // Update the medication in state
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === updatedMedication.id ? { ...med, ...updatedMedication } : med
+      )
+    );
+    setShowEditModal(false);
+    setEditingMedication(null);
   };
 
   /**
    * Handle adding a new medication to supply
-   * Validates form and adds medication to current supply
+   * Receives medication data from AddMedicationModal
    */
-  const handleAddMedication = async (e) => {
-    e.preventDefault();
+  const handleAddMedication = (medicationData) => {
+    // Get existing medication colors to ensure differentiation
+    const existingColors = medications
+      .map((med) => {
+        if (med.name) {
+          const color = getMedicationColor(med.name);
+          return color.bg;
+        }
+        return null;
+      })
+      .filter((color) => color !== null);
 
-    // Basic validation
-    if (
-      !newMedication.name ||
-      !newMedication.dosage ||
-      !newMedication.quantity
-    ) {
-      alert("Please fill in all required fields");
-      return;
-    }
+    // Generate color for new medication, ensuring it's different from existing ones
+    const newMedicationColor = getMedicationColor(
+      medicationData.name,
+      existingColors
+    );
 
-    // Validate frequency based on type
-    if (newMedication.frequencyType === "custom") {
-      if (!newMedication.frequencyText) {
-        alert("Please enter frequency information");
-        return;
-      }
-    } else if (!newMedication.frequencyValue) {
-      alert("Please enter frequency information");
-      return;
-    }
-
-    // Format frequency string
-    let frequencyString = "";
-    if (newMedication.frequencyType === "timesPerDay") {
-      const times = newMedication.frequencyValue;
-      frequencyString = times === "1" ? "Once daily" : `${times} times per day`;
-    } else if (newMedication.frequencyType === "everyHours") {
-      frequencyString = `Every ${newMedication.frequencyValue} hour${
-        newMedication.frequencyValue !== "1" ? "s" : ""
-      }`;
-    } else {
-      frequencyString = newMedication.frequencyText;
-    }
-
-    // Format instructions into additionalInfo string
-    const additionalInfo =
-      newMedication.instructions.length > 0
-        ? newMedication.instructions.join(", ")
-        : null;
-
-    // Create new medication object
-    const medData = {
-      name: newMedication.name,
-      dosage: newMedication.dosage,
-      type: newMedication.type,
-      frequency: frequencyString, // Backend might expect 'frequency' string
-      time: "08:00", // Default time if not specified, or add time input to form
-      quantity: newMedication.quantity,
-      additionalInfo: additionalInfo,
-      taken: false,
+    // Create new medication object with ID
+    const newMed = {
+      id: medications.length + 1,
+      ...medicationData,
+      // Store the generated color (optional, for consistency)
+      pillColor: newMedicationColor.bg,
     };
 
-    try {
-      await api.medications.create(medData);
-      setNewMedication({
-        name: "",
-        dosage: "",
-        type: "pills",
-        frequencyType: "timesPerDay",
-        frequencyValue: "",
-        frequencyText: "",
-        quantity: "",
-        instructions: [],
-      });
-      setShowAddForm(false);
-      fetchMedications();
-    } catch (error) {
-      console.error("Failed to add medication:", error);
-      alert("Failed to add medication");
-    }
+    // Add to medications list
+    setMedications((prev) => [...prev, newMed]);
+    setShowAddForm(false);
   };
-
-  /**
-   * Handle input change in add medication form
-   */
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setNewMedication((prev) => ({ ...prev, [name]: value }));
-  };
-
-  /**
-   * Handle checkbox change for medication instructions
-   */
-  const handleInstructionChange = (instruction) => {
-    setNewMedication((prev) => {
-      const instructions = prev.instructions.includes(instruction)
-        ? prev.instructions.filter((inst) => inst !== instruction)
-        : [...prev.instructions, instruction];
-      return { ...prev, instructions };
-    });
-  };
-
-  /**
-   * Handle backdrop click to close modal
-   */
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      setShowAddForm(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-10 text-center text-text-secondary">
-        Loading medications...
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-background-default w-full h-full overflow-x-hidden">
-      {/* Gradient background decoration - matches Dashboard styling */}
-      <div className="hidden md:block absolute h-[85.6875rem] left-[4.3125rem] top-[-11rem] w-[88.3125rem] pointer-events-none z-0">
-        <div className="absolute inset-[-36.47%_-35.39%]">
-          <div
-            className="w-full h-full opacity-10"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(21, 93, 252, 0.1) 0%, rgba(218, 116, 136, 0.1) 100%)",
-            }}
-          />
-        </div>
-      </div>
+    <div className="bg-background-default w-full overflow-x-hidden">
+      {/* Gradient background decoration */}
+      <GradientBackground />
 
       {/* Main content area */}
       <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-10">
-        <div className="w-full max-w-[67.5rem] mx-auto">
-          {/* Page Header with Add Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-            <div>
-              <h1 className="font-poppins font-bold leading-none text-2xl md:text-3xl text-text-primary">
-                Medication Tracker
-              </h1>
-              <p className="font-poppins text-sm text-text-secondary mt-2">
-                Track your daily medications and manage your supply
-              </p>
-            </div>
-
-            {/* Add Medication Button */}
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-95 shadow-sm"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <PlusIcon size={18} weight="bold" />
-              <span>Add Medication</span>
-            </button>
-          </div>
+        <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
+          {/* Page Header */}
+          <PageHeader
+            title="Medication Tracker"
+            description="Track your daily medications and manage your supply"
+            action={
+              <Button
+                variant="primary"
+                onClick={() => setShowAddForm(true)}
+                icon={<PlusIcon size={18} weight="bold" />}
+                style={{ backgroundColor: primaryColor }}
+              >
+                Add Medication
+              </Button>
+            }
+          />
 
           {showEditModal && editingMedication && (
             <EditMedicationModal
@@ -469,12 +394,12 @@ const MedicationPage = ({ userName, mode }) => {
               }}
               onSave={handleSaveEditedMedication}
               medication={editingMedication}
-              mode={displayMode}
+              mode={mode}
             />
           )}
 
           {/* PENDING TODAY and TAKEN TODAY Sections - Horizontal Layout */}
-          <div className="flex flex-col md:flex-row gap-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-6">
             {/* 1. PENDING TODAY SECTION */}
             <div className="flex-1">
               <MedicationSection
@@ -501,26 +426,22 @@ const MedicationPage = ({ userName, mode }) => {
 
           {/* 3. CURRENT SUPPLY SECTION */}
           <div>
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-3">
+            <SectionHeader
+              icon={
                 <PillIcon
                   size={24}
                   weight="regular"
                   color={colors.icon.primary}
                 />
-                <div>
-                  <h2 className="font-poppins font-bold text-xl text-text-primary">
-                    Current Supply
-                  </h2>
-                  <p className="font-poppins text-sm text-text-secondary mt-1">
-                    Your current medication inventory
-                  </p>
-                </div>
-              </div>
-              <span className="font-poppins font-semibold text-sm text-text-secondary bg-background-hover px-3 py-1 rounded-full">
-                {supplyMeds.length} in supply
-              </span>
-            </div>
+              }
+              title="Current Supply"
+              description="Your current medication inventory"
+              action={
+                <span className="font-poppins font-semibold text-sm text-text-secondary bg-background-hover px-3 py-1 rounded-full">
+                  {supplyMeds.length} in supply
+                </span>
+              }
+            />
 
             <DataTable
               columns={supplyColumns}
@@ -532,246 +453,19 @@ const MedicationPage = ({ userName, mode }) => {
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"
               EmptyIcon={PillIcon}
-              mode={displayMode}
+              mode={mode}
             />
           </div>
         </div>
       </div>
 
       {/* ADD MEDICATION MODAL */}
-      {showAddForm && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={handleBackdropClick}
-        >
-          <div className="bg-background-default rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border-default">
-              <h2 className="font-poppins font-bold text-xl text-text-primary">
-                Add New Medication
-              </h2>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="p-2 rounded-lg hover:bg-background-hover transition-colors"
-                aria-label="Close modal"
-              >
-                <XIcon size={24} weight="regular" color={colors.icon.primary} />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleAddMedication} className="p-5">
-              <div className="flex flex-col gap-4">
-                {/* Medication Name */}
-                <div>
-                  <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                    Medication Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={newMedication.name}
-                    onChange={handleFormChange}
-                    placeholder="e.g., Paracetamol"
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                    required
-                  />
-                </div>
-
-                {/* Dosage */}
-                <div>
-                  <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                    Dosage *
-                  </label>
-                  <input
-                    type="text"
-                    name="dosage"
-                    value={newMedication.dosage}
-                    onChange={handleFormChange}
-                    placeholder="e.g., 500mg or 2"
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                    required
-                  />
-                </div>
-
-                {/* Type */}
-                <div>
-                  <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                    Type
-                  </label>
-                  <select
-                    name="type"
-                    value={newMedication.type}
-                    onChange={handleFormChange}
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value="pills">Pills</option>
-                    <option value="tablets">Tablets</option>
-                    <option value="capsules">Capsules</option>
-                    <option value="liquid">Liquid</option>
-                    <option value="drops">Drops</option>
-                    <option value="spray">Spray</option>
-                    <option value="injection">Injection</option>
-                    <option value="patch">Patch</option>
-                    <option value="cream">Cream</option>
-                    <option value="ointment">Ointment</option>
-                    <option value="gel">Gel</option>
-                    <option value="powder">Powder</option>
-                    <option value="inhaler">Inhaler</option>
-                  </select>
-                </div>
-
-                {/* Frequency */}
-                <div>
-                  <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                    Frequency *
-                  </label>
-                  <div className="flex flex-col gap-3">
-                    {/* Frequency Type Selector */}
-                    <select
-                      name="frequencyType"
-                      value={newMedication.frequencyType}
-                      onChange={handleFormChange}
-                      className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                    >
-                      <option value="timesPerDay">Times per day</option>
-                      <option value="everyHours">Every X hours</option>
-                      <option value="custom">Custom</option>
-                    </select>
-
-                    {/* Frequency Input based on type */}
-                    {newMedication.frequencyType === "timesPerDay" && (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          name="frequencyValue"
-                          value={newMedication.frequencyValue}
-                          onChange={handleFormChange}
-                          placeholder="e.g., 2"
-                          min="1"
-                          max="12"
-                          className="w-24 px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                          required
-                        />
-                        <span className="font-poppins text-sm text-text-secondary">
-                          times per day
-                        </span>
-                      </div>
-                    )}
-
-                    {newMedication.frequencyType === "everyHours" && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-poppins text-sm text-text-secondary">
-                          Every
-                        </span>
-                        <input
-                          type="number"
-                          name="frequencyValue"
-                          value={newMedication.frequencyValue}
-                          onChange={handleFormChange}
-                          placeholder="e.g., 4"
-                          min="1"
-                          max="24"
-                          className="w-24 px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                          required
-                        />
-                        <span className="font-poppins text-sm text-text-secondary">
-                          hour(s)
-                        </span>
-                      </div>
-                    )}
-
-                    {newMedication.frequencyType === "custom" && (
-                      <input
-                        type="text"
-                        name="frequencyText"
-                        value={newMedication.frequencyText}
-                        onChange={handleFormChange}
-                        placeholder="e.g., Every 6 hours, 3 times daily, As needed"
-                        className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                        required
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* Quantity */}
-                <div>
-                  <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                    Quantity *
-                  </label>
-                  <input
-                    type="text"
-                    name="quantity"
-                    value={newMedication.quantity}
-                    onChange={handleFormChange}
-                    placeholder="e.g., 30 pills"
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                    required
-                  />
-                </div>
-
-                {/* Instructions */}
-                <div>
-                  <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                    Instructions
-                  </label>
-                  <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
-                    {[
-                      "Before Meal",
-                      "After Meal",
-                      "With Food",
-                      "On Empty Stomach",
-                      "Causes Drowsiness",
-                      "Avoid Alcohol",
-                      "Take with Water",
-                      "Do Not Crush",
-                    ].map((instruction) => (
-                      <label
-                        key={instruction}
-                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={newMedication.instructions.includes(
-                            instruction
-                          )}
-                          onChange={() => handleInstructionChange(instruction)}
-                          className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
-                          style={{
-                            accentColor: primaryColor,
-                          }}
-                        />
-                        <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary">
-                          {instruction}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-text-primary border border-border-default hover:bg-background-hover transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98]"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  Add to Supply
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddMedicationModal
+        isOpen={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        onSave={handleAddMedication}
+        mode={mode}
+      />
     </div>
   );
 };

@@ -2,7 +2,7 @@
  * ActionButtons Component - Reusable edit/delete action buttons
  *
  * Provides consistent styling for edit and delete actions across the app.
- * Used in DataTable, MedicineDue, and other components with row actions.
+ * Used in DataTable, PendingMedicine, and other components with row actions.
  *
  * @param {function} onEdit - Callback when edit button is clicked
  * @param {function} onDelete - Callback when delete button is clicked
@@ -39,28 +39,34 @@ function ActionButtons({
       {showEdit && onEdit && (
         <button
           type="button"
-          onClick={onEdit}
-          className={`${sizeConfig.padding} rounded-lg hover:bg-blue-50 transition-colors group/edit`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className={`${sizeConfig.padding} rounded-lg hover:bg-primary-light transition-colors group/edit focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
           aria-label={editLabel}
         >
           <PencilSimpleIcon
             size={sizeConfig.icon}
             weight="regular"
-            className="text-icon-primary group-hover/edit:text-blue-500 transition-colors"
+            className="text-icon-primary group-hover/edit:text-primary transition-colors"
           />
         </button>
       )}
       {showDelete && onDelete && (
         <button
           type="button"
-          onClick={onDelete}
-          className={`${sizeConfig.padding} rounded-lg hover:bg-red-50 transition-colors group/delete`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className={`${sizeConfig.padding} rounded-lg hover:bg-danger-light transition-colors group/delete focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2`}
           aria-label={deleteLabel}
         >
           <TrashIcon
             size={sizeConfig.icon}
             weight="regular"
-            className="text-icon-primary group-hover/delete:text-red-500 transition-colors"
+            className="text-icon-primary group-hover/delete:text-danger transition-colors"
           />
         </button>
       )}

@@ -9,7 +9,7 @@ export { default as AuthPage } from "./AuthPage";
 
 // Patient pages (Personal mode)
 export {
-  Dashboard,
+  DashboardPage,
   MedicationPage,
   AppointmentsPage,
 } from "./patient";

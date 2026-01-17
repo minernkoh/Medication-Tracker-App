@@ -19,8 +19,7 @@ import {
   BellIcon,
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../utils/colors";
-import { api } from "../../api";
+import { colors } from "../../../tailwind.config.js";
 
 function AuthPage({ onLogin, onShowOnboarding }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -74,58 +73,26 @@ function AuthPage({ onLogin, onShowOnboarding }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (validateForm()) {
+      // For demo purposes, just trigger login
+      const isFirstTime = !isLogin;
+      const mode = accountType === "caregiver" ? "Caregiver" : "Personal";
 
-    try {
-      if (isLogin) {
-        // Real login against backend
-        const data = await api.auth.signin({
+      if (isFirstTime) {
+        onShowOnboarding?.({
+          name: formData.name,
           email: formData.email,
-          password: formData.password,
-        });
-
-        const mode = data.user?.role === "caregiver" ? "Caregiver" : "Personal";
-
-        onLogin?.({
-          name: data.user?.name || "User",
-          email: data.user?.email || formData.email,
           mode,
         });
       } else {
-        // Signup then optional onboarding + login
-        await api.auth.signup({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: accountType === "caregiver" ? "caregiver" : "patient",
-        });
-
-        const data = await api.auth.signin({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        const mode = data.user?.role === "caregiver" ? "Caregiver" : "Personal";
-
-        onShowOnboarding?.({
-          name: data.user?.name || formData.name,
-          email: data.user?.email || formData.email,
-          mode,
-        });
-
         onLogin?.({
-          name: data.user?.name || formData.name,
-          email: data.user?.email || formData.email,
-          mode,
+          name: formData.name || "Sarah Johnson",
+          email: formData.email,
+          mode: "Personal", // Default to personal for login
         });
       }
-    } catch (err) {
-      setErrors((prev) => ({
-        ...prev,
-        form: err.message || "Authentication failed. Please try again.",
-      }));
     }
   };
 
@@ -160,7 +127,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
         <Icon
           size={24}
           weight={selected ? "fill" : "regular"}
-          color={selected ? "#ffffff" : colors.icon.primary}
+          color={selected ? colors.text.onPrimary : colors.icon.primary}
         />
       </div>
       <h3 className="font-poppins font-bold text-lg text-text-primary mb-1">
@@ -183,7 +150,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
   );
 
   return (
-    <div className="h-full w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
       {/* Left side - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background pattern */}
@@ -196,7 +163,11 @@ function AuthPage({ onLogin, onShowOnboarding }) {
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-            <FirstAidKitIcon size={28} weight="fill" color="#ffffff" />
+            <FirstAidKitIcon
+              size={28}
+              weight="fill"
+              color={colors.text.onPrimary}
+            />
           </div>
           <div>
             <h1 className="font-poppins font-bold text-2xl text-white">
@@ -223,7 +194,11 @@ function AuthPage({ onLogin, onShowOnboarding }) {
           <div className="space-y-4">
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <BellIcon size={20} weight="fill" color="#ffffff" />
+                <BellIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.text.onPrimary}
+                />
               </div>
               <div>
                 <p className="font-poppins font-semibold text-white">
@@ -236,7 +211,11 @@ function AuthPage({ onLogin, onShowOnboarding }) {
             </div>
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <CalendarCheckIcon size={20} weight="fill" color="#ffffff" />
+                <CalendarCheckIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.text.onPrimary}
+                />
               </div>
               <div>
                 <p className="font-poppins font-semibold text-white">
@@ -249,7 +228,11 @@ function AuthPage({ onLogin, onShowOnboarding }) {
             </div>
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <HeartIcon size={20} weight="fill" color="#ffffff" />
+                <HeartIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.text.onPrimary}
+                />
               </div>
               <div>
                 <p className="font-poppins font-semibold text-white">
@@ -274,7 +257,11 @@ function AuthPage({ onLogin, onShowOnboarding }) {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <FirstAidKitIcon size={24} weight="fill" color="#ffffff" />
+              <FirstAidKitIcon
+                size={24}
+                weight="fill"
+                color={colors.text.onPrimary}
+              />
             </div>
             <h1 className="font-poppins font-bold text-xl text-text-primary">
               MedTracker
@@ -334,8 +321,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   <UserIcon
                     size={20}
                     weight="regular"
-                    color={colors.icon.secondary}
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
+                    className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                   />
                   <input
                     type="text"
@@ -367,8 +353,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <EnvelopeIcon
                   size={20}
                   weight="regular"
-                  color={colors.icon.secondary}
-                  className="absolute left-4 top-1/2 -translate-y-1/2"
+                  className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="email"
@@ -399,8 +384,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                 <LockIcon
                   size={20}
                   weight="regular"
-                  color={colors.icon.secondary}
-                  className="absolute left-4 top-1/2 -translate-y-1/2"
+                  className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -443,8 +427,7 @@ function AuthPage({ onLogin, onShowOnboarding }) {
                   <LockIcon
                     size={20}
                     weight="regular"
-                    color={colors.icon.secondary}
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
+                    className="text-icon-secondary absolute left-4 top-1/2 -translate-y-1/2"
                   />
                   <input
                     type={showPassword ? "text" : "password"}

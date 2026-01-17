@@ -25,13 +25,15 @@ A full-stack web application for tracking medications, appointments, and health 
 
 - **Sign Up/Login**: Email authentication with form validation
 - **Account Types**: Choose between Patient or Caregiver accounts
-- **Onboarding Tutorial**: Step-by-step guide for new users
+- **Onboarding Tutorial**: Step-by-step guide for new users (can be skipped and accessed later from Settings)
 - **Mode Switching**: Seamlessly switch between Personal and Caregiver modes
 
 ### Settings & Preferences
 
 - **Account Management**: Profile display, password change
 - **Privacy Controls**: Account deletion with data cleanup
+- **Help & Support**: Access tutorial from Settings
+- **Logout Confirmation**: Prevents accidental logouts with confirmation dialog
 
 ### User Interface
 
@@ -57,17 +59,26 @@ A full-stack web application for tracking medications, appointments, and health 
 - **MongoDB**: NoSQL database for data storage
 - **Mongoose**: MongoDB object modeling for Node.js
 - **CORS**: Cross-origin resource sharing support
+- **dotenv**: Environment variable management
+- **JWT**: JSON Web Token authentication (via middleware)
 
 ### Design System
 
+The design system is centralized in `frontend/tailwind.config.js` as a **single source of truth**:
+
 - **Typography**: Poppins font family (Regular, SemiBold, Bold)
-- **Color Palette**:
+- **Color System**: Centralized color tokens exported from `tailwind.config.js`
   - Personal Mode: Blue (#155dfc)
   - Caregiver Mode: Rose/Pink (#da7488)
-  - Status Colors: Success (green), Warning (amber), Danger (red)
+  - Semantic tokens: text, icon, background, border with variants
+  - Status colors: success, warning, danger with hover/light variants
+  - Patient colors: pink, blue, green, amber, purple (for caregiver mode)
+  - All components import colors directly from the config
+  - Utility functions: `getGradientBackground()`, `getBoxShadow()`, `hexToRgba()`
 - **Spacing**: Consistent rem-based scale (0.25rem to 5rem)
-- **Button Glow Effects**: Subtle shadows on hover for interactive elements
+- **Button Glow Effects**: CSS-only hover states using Tailwind classes
 - **Animations**: fadeIn, slideUp, slideDown, scaleIn
+- **Z-Index Scale**: Organized layering (dropdown: 10, modal: 40, tooltip: 60)
 
 ## 📁 Project Structure
 
@@ -93,50 +104,86 @@ Medication-Tracker-App/
 │   │   ├── auth.js                  # Auth routes
 │   │   ├── medications.js           # Medication routes
 │   │   └── users.js                 # User routes
-│   └── server.js                    # Express entry point
+│   ├── server.js                    # Express entry point
+│   └── package.json
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ui/                  # All reusable UI components
-│   │   │   │   ├── buttons/         # Interactive button elements
-│   │   │   │   │   ├── ActionButtons.jsx
-│   │   │   │   │   ├── Button.jsx
-│   │   │   │   │   ├── CalendarDate.jsx
-│   │   │   │   │   ├── MedicineDue.jsx
-│   │   │   │   │   ├── MenuButtons.jsx
-│   │   │   │   │   └── index.js
-│   │   │   │   ├── AppointmentCard.jsx
+│   │   │   ├── ui/                  # Reusable UI components
+│   │   │   │   ├── ActionButtons.jsx
+│   │   │   │   ├── Button.jsx
+│   │   │   │   ├── CalendarDateButton.jsx
+│   │   │   │   ├── Card.jsx
+│   │   │   │   ├── ConfirmDialog.jsx
 │   │   │   │   ├── DataTable.jsx
+│   │   │   │   ├── EmptyState.jsx
 │   │   │   │   ├── ErrorBoundary.jsx
+│   │   │   │   ├── FormField.jsx
+│   │   │   │   ├── GradientBackground.jsx
+│   │   │   │   ├── LoadingState.jsx
+│   │   │   │   ├── Modal.jsx
+│   │   │   │   ├── PageHeader.jsx
+│   │   │   │   ├── PieChart.jsx
+│   │   │   │   ├── SectionHeader.jsx
+│   │   │   │   ├── SideMenuButtons.jsx
+│   │   │   │   ├── StatCard.jsx
+│   │   │   │   ├── Toast.jsx
+│   │   │   │   └── index.js
+│   │   │   ├── features/            # Feature-specific components
+│   │   │   │   ├── AppointmentCard.jsx
 │   │   │   │   ├── MedicationSection.jsx
 │   │   │   │   ├── OnboardingTutorial.jsx
-│   │   │   │   ├── PieChart.jsx
+│   │   │   │   ├── PendingMedicine.jsx
+│   │   │   │   └── index.js
+│   │   │   ├── layout/             # Layout components
 │   │   │   │   ├── Sidebar.jsx
 │   │   │   │   └── index.js
-│   │   │   ├── modals/              # Modal components
+│   │   │   ├── modals/             # Modal components
 │   │   │   │   ├── AddAppointmentModal.jsx
+│   │   │   │   ├── AddMedicationModal.jsx
 │   │   │   │   ├── CaregiverAuthModal.jsx
+│   │   │   │   ├── EditMedicationModal.jsx
 │   │   │   │   └── index.js
-│   │   │   ├── pages/               # Page components
-│   │   │   │   ├── caregiver/       # Caregiver mode pages
-│   │   │   │   ├── patient/         # Patient mode pages
+│   │   │   ├── pages/              # Page components
+│   │   │   │   ├── caregiver/      # Caregiver mode pages
+│   │   │   │   │   ├── CaregiverAppointmentsPage.jsx
+│   │   │   │   │   ├── CaregiverDashboard.jsx
+│   │   │   │   │   ├── PatientDetailPage.jsx
+│   │   │   │   │   ├── PatientsPage.jsx
+│   │   │   │   │   └── index.js
+│   │   │   │   ├── patient/        # Patient mode pages
+│   │   │   │   │   ├── AppointmentsPage.jsx
+│   │   │   │   │   ├── Dashboard.jsx
+│   │   │   │   │   ├── MedicationPage.jsx
+│   │   │   │   │   └── index.js
 │   │   │   │   ├── AuthPage.jsx
+│   │   │   │   ├── NotFoundPage.jsx
 │   │   │   │   ├── SettingsPage.jsx
 │   │   │   │   └── index.js
-│   │   │   └── index.js             # Central barrel export
+│   │   │   └── index.js            # Central barrel export
+│   │   ├── contexts/
+│   │   │   └── ErrorContext.jsx    # Error handling context
 │   │   ├── utils/
-│   │   │   ├── colors.js            # Color tokens
-│   │   │   └── designSystem.js      # Design tokens
-│   │   ├── App.jsx                  # Root component
-│   │   ├── main.jsx                 # React entry
-│   │   └── index.css                # Global styles
+│   │   │   ├── apiErrorHandler.js
+│   │   │   ├── dateUtils.js
+│   │   │   ├── emptyStates.jsx
+│   │   │   ├── medicationColors.js
+│   │   │   ├── modeUtils.js
+│   │   │   ├── storageUtils.js
+│   │   │   ├── timeUtils.js
+│   │   │   ├── typography.js
+│   │   │   ├── validation.js
+│   │   │   └── index.js
+│   │   ├── App.jsx                 # Root component
+│   │   ├── main.jsx                # React entry point
+│   │   └── index.css               # Global styles
 │   ├── index.html
-│   ├── tailwind.config.js           # Tailwind + design tokens
+│   ├── tailwind.config.js          # Tailwind + design tokens
 │   ├── vite.config.js
+│   ├── postcss.config.js
 │   └── package.json
 │
-├── CHANGELOG.md                     # Version history
 └── README.md
 ```
 
@@ -181,6 +228,12 @@ Medication-Tracker-App/
    JWT_SECRET=your-secret-key-here
    ```
 
+   **Note:** For production, use a strong, randomly generated JWT secret. You can generate one using:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+   ```
+
 ### Running the Application
 
 #### Development Mode
@@ -220,19 +273,52 @@ Medication-Tracker-App/
 
 ## 🎨 Design System
 
+### Architecture
+
+The design system follows a **single source of truth** pattern. All design tokens are defined in `frontend/tailwind.config.js`:
+
+- **Color tokens** are exported and imported directly in components
+- **No duplicate color definitions** - all colors reference the config
+- **Tailwind classes** automatically use the same tokens via the config
+- **Consistent design language** across all components
+
 ### Semantic Color Tokens
 
-Colors are defined in `frontend/src/utils/colors.js` and mirrored in `tailwind.config.js`:
+Colors are defined and exported from `tailwind.config.js`:
 
-| Token                | Value                   | Usage                  |
-| -------------------- | ----------------------- | ---------------------- |
-| `primary`            | `#155dfc`               | Personal mode actions  |
-| `secondary`          | `#da7488`               | Caregiver mode actions |
-| `text-primary`       | `#181818`               | Main text              |
-| `text-secondary`     | `#646464`               | Subdued text           |
-| `background-default` | `#ffffff`               | Page background        |
-| `background-subtle`  | `#f9f9f9`               | Card backgrounds       |
-| `border-default`     | `rgba(100,100,100,0.2)` | Default borders        |
+| Token                | Value                   | Usage                   |
+| -------------------- | ----------------------- | ----------------------- |
+| `primary.DEFAULT`    | `#155dfc`               | Personal mode actions   |
+| `primary.hover`      | `#1350e0`               | Personal hover state    |
+| `primary.light`      | `#e8f0fe`               | Personal light variant  |
+| `secondary.DEFAULT`  | `#da7488`               | Caregiver mode actions  |
+| `secondary.hover`    | `#c86478`               | Caregiver hover state   |
+| `secondary.light`    | `#fce8ec`               | Caregiver light variant |
+| `text.primary`       | `#181818`               | Main text               |
+| `text.secondary`     | `#646464`               | Subdued text            |
+| `icon.primary`       | `#181818`               | Default icon color      |
+| `icon.secondary`     | `#646464`               | Secondary icon color    |
+| `background.default` | `#ffffff`               | Page background         |
+| `background.subtle`  | `#f9f9f9`               | Card backgrounds        |
+| `background.hover`   | `#f9f9f9`               | Hover backgrounds       |
+| `border.default`     | `rgba(100,100,100,0.2)` | Default borders         |
+| `border.subtle`      | `rgba(100,100,100,0.1)` | Subtle borders          |
+
+**Usage in Components:**
+
+```javascript
+import { colors } from "../../../tailwind.config.js";
+
+// Use in JSX (e.g., for icon colors)
+<Icon color={colors.icon.primary} />;
+```
+
+**Usage in Tailwind Classes:**
+
+```jsx
+// Tailwind automatically uses the same tokens
+<div className="bg-primary text-text-onPrimary" />
+```
 
 ### Button Variants
 
@@ -276,15 +362,47 @@ All values use rem units for accessibility:
 
 ## 🔌 API Endpoints
 
-| Endpoint               | Method | Description        |
-| ---------------------- | ------ | ------------------ |
-| `/api/auth/login`      | POST   | User login         |
-| `/api/auth/register`   | POST   | User registration  |
-| `/api/users/:id`       | GET    | Get user profile   |
-| `/api/medications`     | GET    | List medications   |
-| `/api/medications/:id` | PUT    | Update medication  |
-| `/api/appointments`    | GET    | List appointments  |
-| `/api/appointments`    | POST   | Create appointment |
+### Authentication
+
+| Endpoint       | Method | Description       |
+| -------------- | ------ | ----------------- |
+| `/auth/signup` | POST   | User registration |
+| `/auth/signin` | POST   | User login        |
+
+### Users
+
+| Endpoint                      | Method | Description                 |
+| ----------------------------- | ------ | --------------------------- |
+| `/users/me`                   | GET    | Get current user profile    |
+| `/users/:id`                  | PUT    | Update user profile         |
+| `/users/:id/assign-caregiver` | PUT    | Assign caregiver to patient |
+
+### Medications
+
+| Endpoint                               | Method | Description                   |
+| -------------------------------------- | ------ | ----------------------------- |
+| `/medications/:id`                     | GET    | Get medication by ID          |
+| `/medications/:id`                     | PUT    | Update medication             |
+| `/medications/:id`                     | DELETE | Delete medication             |
+| `/patients/:patientId/medications`     | GET    | List patient medications      |
+| `/patients/:patientId/medications`     | POST   | Create medication for patient |
+| `/patients/:patientId/medications/:id` | PUT    | Update patient medication     |
+| `/patients/:patientId/medications/:id` | DELETE | Delete patient medication     |
+
+### Appointments
+
+| Endpoint                                | Method | Description                    |
+| --------------------------------------- | ------ | ------------------------------ |
+| `/appointments/:id`                     | GET    | Get appointment by ID          |
+| `/appointments/:id`                     | PUT    | Update appointment             |
+| `/appointments/:id`                     | DELETE | Delete appointment             |
+| `/patients/:patientId/appointments`     | GET    | List patient appointments      |
+| `/patients/:patientId/appointments`     | POST   | Create appointment for patient |
+| `/patients/:patientId/appointments/:id` | GET    | Get patient appointment by ID  |
+| `/patients/:patientId/appointments/:id` | PUT    | Update patient appointment     |
+| `/patients/:patientId/appointments/:id` | DELETE | Delete patient appointment     |
+
+**Note:** All endpoints (except authentication) require JWT token authentication via the `Authorization` header.
 
 ## 🧪 Development
 
@@ -298,16 +416,70 @@ All values use rem units for accessibility:
 ### State Management
 
 - React `useState`/`useEffect` for local state
-- `localStorage` for session persistence
+- `localStorage` for session persistence (via `storageUtils.js`)
+- React Context API (`ErrorContext`) for global error handling
 - Props for component communication
 - Callback functions for parent-child interaction
 
 ### Component Guidelines
 
 1. **Keep components focused**: Single responsibility principle
-2. **Use design tokens**: Import from `utils/colors.js` and `utils/designSystem.js`
-3. **Mode-aware styling**: Use `getPrimaryColor(mode)` for mode-specific colors
-4. **Reuse shared components**: `DataTable`, `MedicationSection`, `Button`
+2. **Use design tokens from config**:
+   - Import colors directly: `import { colors } from "../../../tailwind.config.js"`
+   - Use Tailwind classes when possible (they reference the same tokens)
+   - Never hardcode color values - always use tokens
+3. **CSS-only hover states**: Use Tailwind `hover:` variants, not JS `useState`
+4. **Accessible components**: Use semantic HTML (`<button>` not `<div onClick>`)
+5. **Mode-aware styling**: Use Tailwind classes like `bg-primary` vs `bg-secondary`
+6. **Reuse shared components**: `DataTable`, `MedicationSection`, `Button`, `ActionButtons`
+7. **Error handling**: Use `ErrorContext` for global error management
+8. **Loading states**: Use `LoadingState` component for async operations
+9. **Empty states**: Use `EmptyState` component with appropriate messaging
+
+### Design System Best Practices
+
+- ✅ **Single source of truth**: All design tokens in `tailwind.config.js`
+- ✅ **Import colors directly**: `import { colors } from "../tailwind.config.js"`
+- ✅ **Use Tailwind classes first**: Prefer Tailwind utility classes over inline styles
+- ✅ **Consistent spacing**: Use the defined rem-based spacing scale
+- ✅ **Semantic tokens**: Use semantic names (e.g., `text.primary` not `#181818`)
+- ❌ **Don't hardcode colors**: Always use tokens from the config
+- ❌ **Don't duplicate definitions**: Reference the config, don't redefine
+
+## 📚 Documentation
+
+- **README.md**: This file - project overview and setup
+
+**Note:** Additional documentation files (DESIGN_EVALUATION.md, COMPONENT_ORGANIZATION.md, etc.) may exist in the repository. Check the root directory for available documentation.
+
+## 🎯 Key Features & Improvements
+
+**Recent Improvements:**
+
+- ✅ Onboarding flow: Skip option and Settings access
+- ✅ Medication management: Prominent CTAs and empty states
+- ✅ Appointment management: Improved editing/deletion flows with confirmation dialogs
+- ✅ Error recovery: Custom 404 page and enhanced error handling
+- ✅ Logout flow: Confirmation dialog to prevent accidental logouts
+- ✅ Settings organization: Logically grouped sections
+- ✅ Design token system: Centralized color and design tokens in Tailwind config
+- ✅ Component organization: Clear separation between UI, features, layout, and pages
+
+## 🧪 Testing
+
+Currently, the project does not include automated tests. To add testing:
+
+1. **Backend**: Consider adding Jest or Mocha for API endpoint testing
+2. **Frontend**: Consider adding React Testing Library for component testing
+3. **E2E**: Consider adding Cypress or Playwright for end-to-end testing
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 

@@ -1,9 +1,8 @@
 /**
- * Dashboard Component - Main page showing calendar, medications, and appointments
- * All data is fetched from the backend API
+ * DashboardPage Component - Main page showing calendar, medications, and appointments
  *
- * @param {string} userName - User's name (optional, will use localStorage if not provided)
- * @param {string} mode - "Personal" or "Caregiver" (optional, will detect from user role)
+ * @param {string} userName - User's name (default: "Sarah")
+ * @param {string} mode - "Personal" or "Caregiver" (default: "Personal")
  */
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
@@ -13,152 +12,158 @@ import {
   CaretUpIcon,
   CaretDownIcon,
   CalendarIcon,
+  PlusIcon,
+  PillIcon,
+  ArrowRightIcon,
+  InfoIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../../utils/colors";
 import { useNavigate } from "react-router-dom";
 import {
-  CalendarDate,
-  AppointmentCard,
+  CalendarDateButton,
   PieChart,
-  MedicationSection,
+  EmptyState,
+  PageHeader,
+  GradientBackground,
+  Button,
 } from "../../ui";
-import { api } from "../../../api";
+import { AppointmentCard, MedicationSection } from "../../features";
 import EditMedicationModal from "../../modals/EditMedicationModal";
+import { colors } from "../../../../tailwind.config.js";
+import {
+  hexToRgba,
+  MONTHS,
+  DAYS,
+  getDaysInMonth,
+  getStartOfWeek,
+  formatMonthYear,
+  formatShortMonthYear,
+  formatDate,
+  formatTime,
+  timeToMinutes,
+  textStyles,
+} from "../../../utils";
 
-// Helper functions for calendar
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-
-const getStartOfWeek = (date) => {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday start
-  return new Date(d.setDate(diff));
-};
-
-const formatMonthYear = (month, year) => `${MONTHS[month]} ${year}`;
-
-const formatShortMonthYear = (month, year) =>
-  `${MONTHS[month].slice(0, 3)} ${year}`;
-
-function Dashboard({ userName, mode, onMenuClick }) {
-  // Get user data from localStorage
-  const [userData, setUserData] = useState(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const displayName = userName || userData?.name || "User";
-  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
-
+function DashboardPage({ userName = "Sarah", mode = "Personal", onMenuClick }) {
+  const navigate = useNavigate();
+  
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 13)); // Jan 13, 2026
   const [currentWeekStart, setCurrentWeekStart] = useState(
-    getStartOfWeek(today)
+    getStartOfWeek(new Date(2026, 0, 13))
   );
 
   // Modal state for editing taken-time entries
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // State: track medication status (taken/not taken)
-  const [medications, setMedications] = useState([]);
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // State: track medication status (taken/not taken) — synced with MedicationPage sample data
+  const [medications, setMedications] = useState([
+    {
+      id: 1,
+      name: "Paracetamol",
+      dosage: "2 pills",
+      timeOfDay: "08:00",
+      quantity: "50 pills",
+      taken: false,
+      takenTime: null,
+      additionalInfo: "For headache",
+    },
+    {
+      id: 2,
+      name: "Ibuprofen",
+      dosage: "1 pill",
+      timeOfDay: "13:00",
+      quantity: "30 pills",
+      additionalInfo: "After Meal",
+      pillColor: "#ffd5d5",
+      taken: false,
+      takenTime: null,
+    },
+    {
+      id: 3,
+      name: "Vitamin C",
+      dosage: "1 pill",
+      timeOfDay: "20:00",
+      quantity: "45 pills",
+      additionalInfo: "Before Sleep",
+      pillColor: "#d9ffaf",
+      taken: false,
+      takenTime: null,
+    },
+    {
+      id: 4,
+      name: "Aspirin",
+      dosage: "1 pill",
+      timeOfDay: "08:00",
+      quantity: "100 pills",
+      taken: true,
+      takenTime: "9:00 AM",
+      additionalInfo: "",
+    },
+  ]);
 
-  // Fetch data from backend
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Get user data to check role
-        const storedUser = localStorage.getItem("user");
-        const userData = storedUser ? JSON.parse(storedUser) : null;
-        
-        // Only fetch if user is a patient (not a caregiver)
-        if (userData?.role === "caregiver") {
-          setMedications([]);
-          setAppointments([]);
-          setLoading(false);
-          return;
-        }
+  // Sample appointments shared with AppointmentsPage to keep Upcoming card consistent
+  const appointments = useMemo(
+    () => [
+      {
+        id: 1,
+        title: "Annual Physical Check Up",
+        doctorName: "Dr Williams",
+        location: "Singapore General Hospital",
+        date: "2026-01-15",
+        time: "14:00",
+        notes: "Bring previous test results",
+      },
+      {
+        id: 2,
+        title: "Dental Cleaning",
+        doctorName: "Dr Chen",
+        location: "Smile Dental Clinic",
+        date: "2026-01-22",
+        time: "10:30",
+        notes: "",
+      },
+      {
+        id: 3,
+        title: "Eye Examination",
+        doctorName: "Dr Tan",
+        location: "Vision Care Center",
+        date: "2026-02-05",
+        time: "09:00",
+        notes: "Prescription glasses renewal",
+      },
+      {
+        id: 4,
+        title: "Follow-up Consultation",
+        doctorName: "Dr Williams",
+        location: "Singapore General Hospital",
+        date: "2026-02-18",
+        time: "15:30",
+        notes: "",
+      },
+      {
+        id: 5,
+        title: "Blood Test",
+        doctorName: "Dr Lee",
+        location: "HealthFirst Lab",
+        date: "2026-04-10",
+        time: "08:00",
+        notes: "Fasting required",
+      },
+      {
+        id: 6,
+        title: "Vaccination",
+        doctorName: "Dr Williams",
+        location: "Singapore General Hospital",
+        date: "2026-06-20",
+        time: "11:00",
+        notes: "",
+      },
+    ],
+    []
+  );
 
-        const [medsData, apptsData] = await Promise.all([
-          api.medications.getAll(),
-          api.appointments.getAll(),
-        ]);
-
-        // Map _id to id for frontend compatibility
-        setMedications(medsData.map((m) => ({ ...m, id: m._id || m.id })));
-        setAppointments(apptsData.map((a) => ({ ...a, id: a._id || a.id })));
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Helper: convert HH:MM to minutes for sorting
-  const timeToMinutes = (timeStr) => {
-    if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":"))
-      return Number.MAX_SAFE_INTEGER;
-    const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
-    if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
-    return h * 60 + m;
-  };
-
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return `${days[date.getDay()]}, ${date.getDate()} ${
-      months[date.getMonth()]
-    }`;
-  };
-
-  const formatTime = (timeStr) => {
-    const [hours, minutes] = timeStr.split(":");
-    const hourNum = parseInt(hours, 10);
-    const ampm = hourNum >= 12 ? "PM" : "AM";
-    const displayHour = hourNum % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
 
   const upcomingAppointment = useMemo(() => {
     const now = new Date();
@@ -180,8 +185,8 @@ function Dashboard({ userName, mode, onMenuClick }) {
     }
   };
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
-  const [pickerYear, setPickerYear] = useState(today.getFullYear());
+  const [pickerMonth, setPickerMonth] = useState(0); // January
+  const [pickerYear, setPickerYear] = useState(2026);
 
   const datePickerRef = useRef(null);
 
@@ -395,30 +400,12 @@ function Dashboard({ userName, mode, onMenuClick }) {
   };
 
   // Handle marking medication as taken
-  const handleMarkAsTaken = async (medicationId) => {
-    try {
-      const currentTime = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-
-      await api.medications.update(medicationId, {
-        taken: true,
-        takenTime: currentTime,
-      });
-
-      // Optimistic update
-      setMedications((prev) =>
-        prev.map((med) =>
-          med.id === medicationId
-            ? { ...med, taken: true, takenTime: currentTime }
-            : med
-        )
-      );
-    } catch (error) {
-      console.error("Failed to mark medication as taken:", error);
-    }
+  const handleMarkAsTaken = (medicationId) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId ? { ...med, taken: true } : med
+      )
+    );
   };
 
   // Handle editing taken-time only for taken medications
@@ -427,45 +414,27 @@ function Dashboard({ userName, mode, onMenuClick }) {
     setShowEditModal(true);
   };
 
-  const handleSaveEditedMedication = async (updatedMedication) => {
-    try {
-      await api.medications.update(updatedMedication.id, {
-        takenTime: updatedMedication.takenTime,
-      });
-
-      setMedications((prev) =>
-        prev.map((med) =>
-          med.id === updatedMedication.id
-            ? { ...med, takenTime: updatedMedication.takenTime }
-            : med
-        )
-      );
-      setShowEditModal(false);
-      setEditingMedication(null);
-    } catch (error) {
-      console.error("Failed to update medication:", error);
-    }
+  const handleSaveEditedMedication = (updatedMedication) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === updatedMedication.id
+          ? { ...med, takenTime: updatedMedication.takenTime }
+          : med
+      )
+    );
+    setShowEditModal(false);
+    setEditingMedication(null);
   };
 
   // Handle deleting a medication from taken section
-  const handleDeleteMedication = async (medicationId) => {
-    try {
-      // Restore to pending
-      await api.medications.update(medicationId, {
-        taken: false,
-        takenTime: null,
-      });
-
-      setMedications((prev) =>
-        prev.map((med) =>
-          med.id === medicationId
-            ? { ...med, taken: false, takenTime: null }
-            : med
-        )
-      );
-    } catch (error) {
-      console.error("Failed to restore medication:", error);
-    }
+  // Moves medication back to pending status instead of permanently deleting
+  // When user clicks delete on "Taken Today" section, this restores it to "Pending Today"
+  const handleDeleteMedication = (medicationId) => {
+    setMedications((prev) =>
+      prev.map((med) =>
+        med.id === medicationId ? { ...med, taken: false } : med
+      )
+    );
   };
 
   // Get medications by status - transform to match MedicationSection format
@@ -476,6 +445,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
   const takenMedications = medications.filter((med) => med.taken);
 
   const stats = getMedicationStats();
+  const hasMedications = medications.length > 0;
 
   const appointmentCardProps = upcomingAppointment
     ? {
@@ -488,28 +458,50 @@ function Dashboard({ userName, mode, onMenuClick }) {
       }
     : {};
 
+  // Handle navigation to MedicationPage
+  const handleAddMedication = () => {
+    navigate("/medications");
+  };
+
   return (
-    <div className="bg-background-default w-full h-full overflow-x-hidden">
+    <div className="bg-background-default w-full relative">
       {/* Gradient background decoration */}
-      <div className="hidden md:block absolute h-[85.6875rem] left-[4.3125rem] top-[-11rem] w-[88.3125rem] pointer-events-none z-0">
-        <div className="absolute inset-[-36.47%_-35.39%]">
-          <div
-            className="w-full h-full opacity-10"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(21, 93, 252, 0.1) 0%, rgba(218, 116, 136, 0.1) 100%)",
-            }}
-          />
-        </div>
-      </div>
+      <GradientBackground />
 
       {/* Main content area - positioned at top, starts after sidebar */}
-      <div className="relative flex flex-col gap-lg items-start pt-10 px-4 md:px-0 w-full pb-10 z-10">
-        <div className="w-full max-w-[67.5rem] mx-auto">
+      <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-6">
+        <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
           {/* Header */}
-          <p className="font-poppins font-bold leading-none text-2xl md:text-3xl text-text-primary w-full">
-            Good Morning, {displayName}!
-          </p>
+          <PageHeader
+            title={
+              <p className={`${textStyles.heading["2xl"]} md:${textStyles.heading["3xl"]} leading-none text-text-primary`}>
+                Good Morning, {userName}!
+              </p>
+            }
+          >
+            {!hasMedications && (
+              <div
+                className="relative group"
+                title="Add your medications to track daily doses, manage supply, and stay on schedule. Click 'Add Medication' to get started."
+              >
+                <InfoIcon
+                  size={20}
+                  weight="regular"
+                  className="cursor-help text-icon-secondary"
+                />
+                {/* Tooltip on hover */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-64">
+                  <div className="bg-text-primary text-text-onPrimary rounded-lg p-3 shadow-lg text-xs font-poppins">
+                    <p className="font-semibold mb-1">Getting Started</p>
+                    <p>
+                      Add your medications to track daily doses, manage supply, and stay on schedule. Click "Add Medication" to get started.
+                    </p>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-text-primary"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </PageHeader>
 
           {/* Calendar section */}
           <div className="bg-background-default border border-border-default flex flex-col gap-2 items-center p-4 rounded-2xl shrink-0 w-full relative overflow-visible">
@@ -527,23 +519,21 @@ function Dashboard({ userName, mode, onMenuClick }) {
                   size={18}
                   weight="regular"
                   className="text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                  color={colors.primary.DEFAULT}
                 />
-                <p className="font-poppins font-bold leading-6 text-base text-text-primary text-center">
+                <p className={`${textStyles.heading.small} text-text-primary text-center`}>
                   {getDisplayMonthYear()}
                 </p>
                 {isDatePickerOpen ? (
                   <CaretUpIcon
                     size={16}
                     weight="bold"
-                    color={colors.primary.DEFAULT}
+                    className="text-primary"
                   />
                 ) : (
                   <CaretDownIcon
                     size={16}
                     weight="regular"
-                    color={colors.text.secondary}
-                    className="group-hover:text-primary"
+                    className="text-text-secondary group-hover:text-primary"
                   />
                 )}
               </button>
@@ -551,9 +541,8 @@ function Dashboard({ userName, mode, onMenuClick }) {
               {/* Date Picker Dropdown - using fixed positioning to escape overflow clipping */}
               {isDatePickerOpen && (
                 <div
-                  className="fixed left-1/2 -translate-x-1/2 border border-border-default rounded-2xl shadow-2xl z-[100] p-4 min-w-[20rem]"
+                  className="fixed left-1/2 -translate-x-1/2 border border-border-default rounded-2xl shadow-2xl z-[100] p-4 min-w-[20rem] bg-background-default"
                   style={{
-                    backgroundColor: "#ffffff",
                     top: datePickerRef.current
                       ? datePickerRef.current.getBoundingClientRect().bottom + 8
                       : "auto",
@@ -565,7 +554,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
                       onClick={goToPrevMonth}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                      <CaretLeftIcon size={20} weight="bold" color="#181818" />
+                      <CaretLeftIcon size={20} weight="bold" className="text-text-primary" />
                     </button>
                     <div className="flex items-center gap-2">
                       {/* Month selector */}
@@ -574,14 +563,14 @@ function Dashboard({ userName, mode, onMenuClick }) {
                         onChange={(e) =>
                           setPickerMonth(parseInt(e.target.value))
                         }
-                        className="font-poppins font-bold text-base bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 cursor-pointer text-center border-none outline-none"
-                        style={{ WebkitAppearance: "none", color: "#181818" }}
+                        className={`${textStyles.heading.small} bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 cursor-pointer text-center border-none outline-none text-text-primary`}
+                        style={{ WebkitAppearance: "none" }}
                       >
                         {MONTHS.map((month, idx) => (
                           <option
                             key={month}
                             value={idx}
-                            style={{ color: "#181818" }}
+                            className="text-text-primary"
                           >
                             {month}
                           </option>
@@ -593,15 +582,15 @@ function Dashboard({ userName, mode, onMenuClick }) {
                         onChange={(e) =>
                           setPickerYear(parseInt(e.target.value))
                         }
-                        className="font-poppins font-bold text-base bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 cursor-pointer text-center border-none outline-none"
-                        style={{ WebkitAppearance: "none", color: "#181818" }}
+                        className={`${textStyles.heading.small} bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 cursor-pointer text-center border-none outline-none text-text-primary`}
+                        style={{ WebkitAppearance: "none" }}
                       >
                         {Array.from({ length: 20 }, (_, i) => 2020 + i).map(
                           (year) => (
                             <option
                               key={year}
                               value={year}
-                              style={{ color: "#181818" }}
+                              className="text-text-primary"
                             >
                               {year}
                             </option>
@@ -613,7 +602,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
                       onClick={goToNextMonth}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                      <CaretRightIcon size={20} weight="bold" color="#181818" />
+                      <CaretRightIcon size={20} weight="bold" className="text-text-primary" />
                     </button>
                   </div>
 
@@ -622,8 +611,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
                     {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
                       <div
                         key={day}
-                        className="font-poppins text-xs text-center py-1 font-medium"
-                        style={{ color: "#646464" }}
+                        className={`${textStyles.caption.small} text-center py-1 font-medium`}
                       >
                         {day}
                       </div>
@@ -643,29 +631,21 @@ function Dashboard({ userName, mode, onMenuClick }) {
                             flex items-center justify-center
                             ${
                               isPickerDateSelected(cell)
-                                ? "font-bold shadow-md"
+                                ? "font-bold shadow-md bg-primary text-text-onPrimary"
                                 : isToday(cell)
-                                ? "font-semibold ring-1"
-                                : "hover:bg-gray-100"
+                                ? "font-semibold ring-1 ring-primary/30 bg-primary-light text-primary"
+                                : !cell.isCurrentMonth
+                                ? "text-text-secondary/40 hover:bg-gray-100"
+                                : "text-text-primary hover:bg-gray-100"
                             }
                           `}
-                          style={{
-                            color: isPickerDateSelected(cell)
-                              ? "#ffffff"
+                          style={
+                            !cell.isCurrentMonth
+                              ? { color: hexToRgba(colors.text.secondary, 0.4) }
                               : isToday(cell)
-                              ? "#155dfc"
-                              : !cell.isCurrentMonth
-                              ? "#64646466"
-                              : "#181818",
-                            backgroundColor: isPickerDateSelected(cell)
-                              ? "#155dfc"
-                              : isToday(cell)
-                              ? "#e8f0fe"
-                              : "transparent",
-                            borderColor: isToday(cell)
-                              ? "rgba(21, 93, 252, 0.3)"
-                              : "transparent",
-                          }}
+                              ? { borderColor: hexToRgba(colors.primary.DEFAULT, 0.3) }
+                              : undefined
+                          }
                         >
                           {cell.day}
                         </button>
@@ -679,8 +659,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
                   >
                     <button
                       onClick={goToToday}
-                      className="font-poppins text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-150"
-                      style={{ color: "#155dfc" }}
+                      className={`${textStyles.label.medium} px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-150 text-primary`}
                     >
                       Go to Today
                     </button>
@@ -689,7 +668,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
               )}
             </div>
 
-            {/* Calendar dates - .map() creates a CalendarDate for each date */}
+            {/* Calendar dates - .map() creates a CalendarDateButton for each date */}
             <div className="flex gap-1 md:gap-2 h-[3.75rem] items-center shrink-0 w-full overflow-x-auto pb-2">
               <button
                 onClick={goToPreviousWeek}
@@ -698,7 +677,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
                 <CaretLeftIcon
                   size={20}
                   weight="regular"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               </button>
 
@@ -708,7 +687,7 @@ function Dashboard({ userName, mode, onMenuClick }) {
                   item.fullDate.getMonth() === today.getMonth() &&
                   item.fullDate.getFullYear() === today.getFullYear();
                 return (
-                  <CalendarDate
+                  <CalendarDateButton
                     key={`${item.fullDate.toISOString()}-${idx}`}
                     day={item.day}
                     date={item.date}
@@ -726,22 +705,22 @@ function Dashboard({ userName, mode, onMenuClick }) {
                 <CaretRightIcon
                   size={20}
                   weight="regular"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               </button>
             </div>
           </div>
 
           {/* Stats and appointment cards */}
-          <div className="flex flex-col md:flex-row gap-6 items-stretch w-full mt-6">
+          <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
             {/* Today's Progress card */}
             <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-4 p-5 rounded-2xl">
-              <p className="font-poppins font-bold leading-6 text-base text-text-primary w-full">
+              <p className={`${textStyles.heading.small} text-text-primary w-full`}>
                 {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
               </p>
 
               {/* Pie chart and stats */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-6 w-full">
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full">
                 {/* Pie Chart */}
                 <PieChart
                   taken={stats.taken}
@@ -753,14 +732,13 @@ function Dashboard({ userName, mode, onMenuClick }) {
                 <div className="flex flex-col gap-3 items-start">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: "#10b981" }}
+                      className="w-4 h-4 rounded-full bg-success"
                     />
                     <div className="flex flex-col">
-                      <p className="font-poppins font-bold text-lg text-text-primary">
+                      <p className={`${textStyles.heading.medium} text-text-primary`}>
                         {stats.taken}
                       </p>
-                      <p className="font-poppins text-sm text-text-secondary">
+                      <p className={textStyles.body.small}>
                         Taken
                       </p>
                     </div>
@@ -769,27 +747,26 @@ function Dashboard({ userName, mode, onMenuClick }) {
                   <div className="flex items-center gap-3">
                     <div
                       className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: colors.border.subtle }}
+                      style={{ backgroundColor: "rgba(100,100,100,0.1)" }}
                     />
                     <div className="flex flex-col">
-                      <p className="font-poppins font-bold text-lg text-text-primary">
+                      <p className={`${textStyles.heading.medium} text-text-primary`}>
                         {stats.notTaken}
                       </p>
-                      <p className="font-poppins text-sm text-text-secondary">
+                      <p className={textStyles.body.small}>
                         Pending
                       </p>
                     </div>
                   </div>
 
                   <div
-                    className="flex items-center gap-3 pt-2"
-                    style={{ borderTop: `1px solid ${colors.border.subtle}` }}
+                    className="flex items-center gap-3 pt-2 border-t border-border-subtle"
                   >
                     <div className="flex flex-col">
-                      <p className="font-poppins font-bold text-lg text-text-primary">
+                      <p className={`${textStyles.heading.medium} text-text-primary`}>
                         {stats.total}
                       </p>
-                      <p className="font-poppins text-sm text-text-secondary">
+                      <p className={textStyles.body.small}>
                         Total Medications
                       </p>
                     </div>
@@ -803,32 +780,70 @@ function Dashboard({ userName, mode, onMenuClick }) {
           </div>
 
           {/* Medications section */}
-          <div className="flex flex-col md:flex-row gap-6 items-stretch w-full mt-6">
-            {/* Pending medications column */}
-            <div className="flex-1 min-h-[18.75rem]">
-              <MedicationSection
-                variant="pending"
-                medications={pendingMedications}
-                onMarkAsTaken={handleMarkAsTaken}
-                showTimeGroups={true}
-                compact={true}
-                dateLabel={dateLabel}
-              />
-            </div>
+          {hasMedications ? (
+            <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
+              {/* Pending medications column */}
+              <div className="flex-1 min-h-[18.75rem]">
+                <MedicationSection
+                  variant="pending"
+                  medications={pendingMedications}
+                  onMarkAsTaken={handleMarkAsTaken}
+                  showTimeGroups={true}
+                  compact={true}
+                  dateLabel={dateLabel}
+                  onAddMedication={handleAddMedication}
+                  onCardClick={handleAddMedication}
+                />
+              </div>
 
-            {/* Taken medications column */}
-            <div className="flex-1 min-h-[18.75rem]">
-              <MedicationSection
-                variant="taken"
-                medications={takenMedications}
-                onEdit={handleEditMedication}
-                onDelete={handleDeleteMedication}
-                showTimeGroups={true}
-                compact={true}
-                dateLabel={dateLabel}
-              />
+              {/* Taken medications column */}
+              <div className="flex-1 min-h-[18.75rem]">
+                <MedicationSection
+                  variant="taken"
+                  medications={takenMedications}
+                  onEdit={handleEditMedication}
+                  onDelete={handleDeleteMedication}
+                  showTimeGroups={true}
+                  compact={true}
+                  dateLabel={dateLabel}
+                  onCardClick={handleAddMedication}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Empty State - Prominent CTA when no medications */
+            <div className="w-full">
+              <div className="bg-background-default border-2 border-dashed border-border-default rounded-2xl p-8 md:p-12">
+                <EmptyState
+                  icon={
+                    <PillIcon
+                      size={80}
+                      weight="regular"
+                      className="text-icon-secondary"
+                    />
+                  }
+                  title="No medications yet"
+                  description="Start tracking your health journey by adding your first medication. You'll be able to track doses, manage supply, and stay on schedule."
+                  size="lg"
+                  action={
+                    <div className="flex flex-col items-center gap-4">
+                      <button
+                        onClick={handleAddMedication}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-lg hover:shadow-xl bg-primary`}
+                      >
+                        <PlusIcon size={20} weight="bold" />
+                        <span>Add Your First Medication</span>
+                        <ArrowRightIcon size={20} weight="bold" />
+                      </button>
+                      <p className={`${textStyles.caption.small} max-w-md`}>
+                        💡 <strong>Tip:</strong> You can also access the full medication management page from the sidebar menu
+                      </p>
+                    </div>
+                  }
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -841,11 +856,11 @@ function Dashboard({ userName, mode, onMenuClick }) {
           }}
           onSave={handleSaveEditedMedication}
           medication={editingMedication}
-          mode={displayMode}
+          mode={mode}
         />
       )}
     </div>
   );
 }
 
-export default Dashboard;
+export default DashboardPage;

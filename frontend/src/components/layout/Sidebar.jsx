@@ -13,8 +13,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FirstAidKitIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
-import { MenuButtons } from "./buttons";
-import { colors } from "../../utils/colors";
+import { SideMenuButtons } from "../ui";
+import { colors } from "../../../tailwind.config.js";
 
 function Sidebar({
   userName,
@@ -120,7 +120,7 @@ function Sidebar({
             }}
             className="w-full no-underline"
           >
-            <MenuButtons
+            <SideMenuButtons
               type="Dashboard"
               isSelected={currentMenu === "Dashboard"}
               mode={displayMode}
@@ -141,7 +141,7 @@ function Sidebar({
               }}
               className="w-full no-underline"
             >
-              <MenuButtons
+              <SideMenuButtons
                 type="Patients"
                 isSelected={currentMenu === "Patients"}
                 mode={displayMode}
@@ -162,7 +162,7 @@ function Sidebar({
               }}
               className="w-full no-underline"
             >
-              <MenuButtons
+              <SideMenuButtons
                 type="Medications"
                 isSelected={currentMenu === "Medications"}
                 mode={displayMode}
@@ -181,7 +181,7 @@ function Sidebar({
             }}
             className="w-full no-underline"
           >
-            <MenuButtons
+            <SideMenuButtons
               type="Appointments"
               isSelected={currentMenu === "Appointments"}
               mode={displayMode}
@@ -200,7 +200,7 @@ function Sidebar({
             }}
             className="w-full no-underline"
           >
-            <MenuButtons
+            <SideMenuButtons
               type="Settings"
               isSelected={currentMenu === "Settings"}
               mode={displayMode}

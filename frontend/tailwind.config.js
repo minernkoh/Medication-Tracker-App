@@ -1,9 +1,7 @@
 /** @type {import('tailwindcss').Config} */
-export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  theme: {
-    extend: {
-      colors: {
+
+// Single source of truth for colors - exported for use in components
+export const colors = {
         // Semantic color tokens
         primary: {
           DEFAULT: "#155dfc", // Personal mode primary color
@@ -40,7 +38,42 @@ export default {
           default: "rgba(100,100,100,0.2)", // Default border color
           subtle: "rgba(100,100,100,0.1)", // Subtle border
         },
-      },
+        separator: {
+          default: "rgba(100, 100, 100, 1)",
+          subtle: "rgba(100, 100, 100, 0.5)",
+        },
+        // Status colors
+        success: {
+          DEFAULT: "#10b981", // Success green
+          hover: "#059669",
+          light: "#d1fae5",
+        },
+        warning: {
+          DEFAULT: "#f59e0b", // Warning amber
+          hover: "#d97706",
+          light: "#fef3c7",
+        },
+        danger: {
+          DEFAULT: "#ef4444", // Danger red
+          hover: "#dc2626",
+          light: "#fee2e2",
+        },
+        // Patient colors (for caregiver mode)
+        patient: {
+          pink: "#da7488",    // Secondary color
+          blue: "#155dfc",    // Primary color
+          green: "#10b981",   // Success color
+          amber: "#f59e0b",   // Warning color
+          purple: "#8b5cf6",  // Additional patient color
+        },
+};
+
+// Tailwind config using the colors object
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors,
       fontFamily: {
         poppins: ["Poppins", "sans-serif"],
       },
@@ -80,6 +113,7 @@ export default {
         lg: "1rem", // 16px
         xl: "1.25rem", // 20px
         "2xl": "1.5rem", // 24px
+        full: "9999px",
       },
       boxShadow: {
         // Button glow effects
@@ -100,12 +134,36 @@ export default {
         // Elevated shadows
         elevated: "0 0.25rem 0.5rem rgba(0, 0, 0, 0.1)",
         modal: "0 1rem 3rem rgba(0, 0, 0, 0.2)",
+        // Standard shadows
+        sm: "0 0.0625rem 0.125rem rgba(0, 0, 0, 0.05)",
+        base: "0 0.125rem 0.25rem rgba(0, 0, 0, 0.1)",
+        md: "0 0.25rem 0.5rem rgba(0, 0, 0, 0.1)",
+        lg: "0 0.5rem 1rem rgba(0, 0, 0, 0.15)",
+        xl: "0 1rem 2rem rgba(0, 0, 0, 0.2)",
+      },
+      transitionDuration: {
+        fast: "150ms",
+        base: "200ms",
+        slow: "300ms",
+      },
+      transitionTimingFunction: {
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+      },
+      zIndex: {
+        base: "0",
+        dropdown: "10",
+        sticky: "20",
+        overlay: "30",
+        modal: "40",
+        popover: "50",
+        tooltip: "60",
       },
       animation: {
         "fade-in": "fadeIn 0.3s ease-out",
         "slide-up": "slideUp 0.3s ease-out",
         "slide-down": "slideDown 0.3s ease-out",
         "scale-in": "scaleIn 0.2s ease-out",
+        "fade-in-slide-down": "fadeInSlideDown 0.2s ease-out forwards",
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
       keyframes: {
@@ -120,6 +178,10 @@ export default {
         slideDown: {
           "0%": { opacity: "0", transform: "translateY(-10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        fadeInSlideDown: {
+          "0%": { opacity: "0", transform: "translateX(-50%) translateY(-0.5rem)" },
+          "100%": { opacity: "1", transform: "translateX(-50%) translateY(0)" },
         },
         scaleIn: {
           "0%": { opacity: "0", transform: "scale(0.95)" },
