@@ -23,6 +23,10 @@ import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
 
 const MedicationPage = ({ userName = "", mode = "Personal" }) => {
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
+
   const primaryColor = getModeHexColor(mode);
   const {
     medications,
@@ -35,8 +39,14 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     resetMedicationStatus,
   } = useMedications();
 
+  // ============================================================================
+  // STATE MANAGEMENT
+  // ============================================================================
+
   // State for add medication form modal
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingMedication, setEditingMedication] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // State for supply table sorting
   const [supplySortConfig, setSupplySortConfig] = useState({
@@ -44,66 +54,40 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     direction: "asc",
   });
 
-  const [editingMedication, setEditingMedication] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
 
-  // Helper: convert HH:MM to minutes for sorting
+  /**
+   * Convert HH:MM to minutes for time-based sorting
+   */
   const timeToMinutes = (timeStr) => {
     if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":"))
       return Number.MAX_SAFE_INTEGER;
+
     const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
     if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
     return h * 60 + m;
   };
 
-  // Filter medications by status for display
-  // Include medications with status "pending" OR "supply" that have a scheduled time
-  const pendingMeds = medications.filter((med) => {
-    const isPending = med.status === "pending";
-    const isSupplyWithSchedule = med.status === "supply" && (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
-    return isPending || isSupplyWithSchedule;
-  });
-  const takenMeds = medications.filter((med) => med.status === "taken");
-  // Sort pending medications by time ascending so they display in order
-  const pendingMedsSorted = [...pendingMeds].sort(
-    (a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay)
-  );
-
-  // Keep current supply aligned with all medications regardless of pending/taken status
-  const supplyMeds = medications.filter(
-    (med) =>
-      med.quantity !== undefined && med.quantity !== null && med.quantity !== ""
-  );
-
-  // Sort supply medications
-  const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
-    const { key, direction } = supplySortConfig;
-    const multiplier = direction === "asc" ? 1 : -1;
-    if (key === "name") return multiplier * a.name.localeCompare(b.name);
-    if (key === "dosage") return multiplier * a.dosage.localeCompare(b.dosage);
-    if (key === "quantity")
-      return multiplier * a.quantity.localeCompare(b.quantity);
-    if (key === "refillDate") {
-      const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
-      const dateB = b.refillDate ? new Date(b.refillDate).getTime() : 0;
-      return multiplier * (dateA - dateB);
+  // Helper: format date for display
+  const formatRefillDate = (dateStr) => {
+    if (!dateStr) return null;
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return null;
     }
-    if (key === "supplyStatus") {
-      const statusA = getSupplyStatus(a);
-      const statusB = getSupplyStatus(b);
-      // Medications without status (not taken yet) go to the end
-      if (!statusA && !statusB) return 0;
-      if (!statusA) return 1;
-      if (!statusB) return -1;
-      // Sort by percentage value
-      const percentA = parseInt(statusA.label.replace("%", ""), 10);
-      const percentB = parseInt(statusB.label.replace("%", ""), 10);
-      return multiplier * (percentA - percentB);
-    }
-    return 0;
-  });
+  };
 
-  // Get supply status as percentage (only calculated when medication has been taken)
+  /**
+   * Calculate supply status as percentage
+   */
   const getSupplyStatus = (medication) => {
     // Only calculate percentage if medication has been taken and has initialQuantity
     if (!medication.taken || !medication.initialQuantity) {
@@ -132,20 +116,131 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     return { label: `${percentage}%`, className };
   };
 
-  // Helper: format date for display
-  const formatRefillDate = (dateStr) => {
-    if (!dateStr) return null;
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
+  /**
+   * Handle adding a new medication
+   */
+
+  const handleAddMedication = async (medicationData) => {
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      await createMedication(medicationData);
+      setShowAddForm(false);
     } catch {
-      return null;
+      // Errors are surfaced via global error handler
     }
   };
+
+  /**
+   * Handle editing a medication
+   */
+  const handleEditMedication = (medication) => {
+    setEditingMedication(medication);
+    setShowEditModal(true);
+  };
+
+  /**
+   * Handle saving edited medication
+   */
+  const handleSaveEditedMedication = async (updatedMedication) => {
+    try {
+      await updateMedication(updatedMedication.id, updatedMedication);
+      setShowEditModal(false);
+      setEditingMedication(null);
+    } catch {
+      // Errors are surfaced via global error handler
+    }
+  };
+
+  /**
+   * Handle deleting a medication from taken section
+   */
+
+  const handleDeleteMedication = async (id) => {
+    try {
+      await deleteMedication(id);
+    } catch (error) {
+      // Errors are surfaced via global error handler
+    }
+  };
+
+  /**
+   * Handle resetting medication status (from taken to pending)
+   */
+  const handleResetMedicationStatus = async (medication) => {
+    try {
+      await resetMedicationStatus(medication.id);
+    } catch (error) {
+      // Errors are surfaced via global error handler
+    }
+  };
+
+  // ============================================================================
+  // MEDICATION FILTERING & SORTING
+  // ============================================================================
+
+  // Filter medications by status for display
+
+  const pendingMeds = medications.filter((med) => med.status === "pending");
+  const takenMeds = medications.filter((med) => med.status === "taken");
+  const supplyMeds = medications.filter(
+    (med) =>
+      med.quantity !== undefined &&
+      med.quantity !== null &&
+      med.quantity !== "",
+  );
+
+  // Sort pending medications by time of day
+  const pendingMedsSorted = [...pendingMeds].sort(
+    (a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay),
+  );
+
+  // Sort supply medications
+  const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
+    const { key, direction } = supplySortConfig;
+    const multiplier = direction === "asc" ? 1 : -1;
+
+    switch (key) {
+      case "name":
+        return multiplier * a.name.localeCompare(b.name);
+
+      case "dosage":
+        return multiplier * a.dosage.localeCompare(b.dosage);
+
+      case "quantity":
+        return multiplier * a.quantity.localeCompare(b.quantity);
+
+      case "refillDate": {
+        const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
+        const dateB = b.refillDate ? new Date(b.refillDate).getTime() : 0;
+        return multiplier * (dateA - dateB);
+      }
+
+      case "supplyStatus": {
+        const statusA = getSupplyStatus(a);
+        const statusB = getSupplyStatus(b);
+
+        // Medications without status go to the end
+        if (!statusA && !statusB) return 0;
+        if (!statusA) return 1;
+        if (!statusB) return -1;
+
+        // Sort by percentage value
+        const percentA = parseInt(statusA.label.replace("%", ""), 10);
+        const percentB = parseInt(statusB.label.replace("%", ""), 10);
+        return multiplier * (percentA - percentB);
+      }
+
+      default:
+        return 0;
+    }
+  });
+
+  // ============================================================================
+  // TABLE COLUMNS CONFIGURATION
+  // ============================================================================
 
   // Supply table columns
   const supplyColumns = [
@@ -184,7 +279,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     },
     {
       key: "quantity",
-      label: "Current Quantity",
+      label: "Quantity",
       render: (value) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
           {value || "N/A"}
@@ -233,47 +328,10 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     },
   ];
 
-  /**
-   * Handle marking a medication as taken
-   * Handled by context (handleMarkAsTaken)
-   */
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
-  /**
-   * Handle deleting a medication from taken section
-   * Handled by context (handleDeleteMedication)
-   */
-
-  /**
-   * Handle editing a medication
-   * In a full implementation, this would open an edit modal
-   */
-  const handleEditMedication = (medication) => {
-    setEditingMedication(medication);
-    setShowEditModal(true);
-  };
-
-  const handleSaveEditedMedication = async (updatedMedication) => {
-    try {
-      await updateMedication(updatedMedication.id, updatedMedication);
-      setShowEditModal(false);
-      setEditingMedication(null);
-    } catch {
-      // Errors are surfaced via global error handler
-    }
-  };
-
-  /**
-   * Handle adding a new medication to supply
-   * Receives medication data from AddMedicationModal
-   */
-  const handleAddMedication = async (medicationData) => {
-    try {
-      await createMedication(medicationData);
-      setShowAddForm(false);
-    } catch {
-      // Errors are surfaced via global error handler
-    }
-  };
   return (
     <div className="bg-background-default w-full overflow-x-hidden">
       {/* Gradient background decoration */}
@@ -298,6 +356,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
             }
           />
 
+          {/* Edit Medication Modal */}
           {showEditModal && editingMedication && (
             <EditMedicationModal
               isOpen={showEditModal}
@@ -330,7 +389,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
                 variant="taken"
                 medications={takenMeds}
                 onEdit={handleEditMedication}
-                onDelete={resetMedicationStatus}
+                onDelete={handleResetMedicationStatus}
                 showTimeGroups={true}
                 compact={false}
               />
@@ -362,7 +421,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               sortConfig={supplySortConfig}
               onSort={setSupplySortConfig}
               onEdit={(row) => handleEditMedication(row)}
-              onDelete={(row) => deleteMedication(row.id)}
+              onDelete={(row) => handleDeleteMedication(row.id)}
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"
               EmptyIcon={PillIcon}

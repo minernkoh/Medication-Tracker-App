@@ -161,6 +161,53 @@ export const api = {
       );
       return handleResponse(response);
     },
+
+    getByStatus: async (status) => {
+      const response = await fetch(`${API_URL}/medications?status=${status}`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+
+    getForDate: async (date) => {
+      // Format: YYYY-MM-DD
+      const response = await fetch(`${API_URL}/medications/date/${date}`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+
+    markAsTaken: async (id, takenTime = null) => {
+      const response = await fetch(`${API_URL}/medications/${id}/taken`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          status: "taken",
+          takenTime:
+            takenTime ||
+            new Date().toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            }),
+        }),
+      });
+      return handleResponse(response);
+    },
+
+    getSupply: async () => {
+      const response = await fetch(`${API_URL}/medications/supply`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+
+    getDueToday: async () => {
+      const response = await fetch(`${API_URL}/medications/today`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
   },
 
   // Appointments
