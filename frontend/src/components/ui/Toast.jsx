@@ -23,26 +23,26 @@ const iconConfig = {
   success: {
     icon: CheckCircleIcon,
     color: colors.success.DEFAULT,
-    bgColor: "bg-success/10",
-    borderColor: "border-success/30",
+    bgColor: "bg-success-light",
+    borderColor: "border-success",
   },
   error: {
     icon: XCircleIcon,
     color: colors.danger.DEFAULT,
-    bgColor: "bg-danger/10",
-    borderColor: "border-danger/30",
+    bgColor: "bg-danger-light",
+    borderColor: "border-danger",
   },
   warning: {
     icon: WarningCircleIcon,
     color: colors.warning.DEFAULT,
-    bgColor: "bg-warning/10",
-    borderColor: "border-warning/30",
+    bgColor: "bg-warning-light",
+    borderColor: "border-warning",
   },
   info: {
     icon: InfoIcon,
     color: colors.primary.DEFAULT,
-    bgColor: "bg-primary/10",
-    borderColor: "border-primary/30",
+    bgColor: "bg-primary-light",
+    borderColor: "border-primary",
   },
 };
 
@@ -70,7 +70,7 @@ function Toast({
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 rounded-xl border-l-4 ${config.borderColor} ${config.bgColor} bg-background-default shadow-lg animate-slide-up min-w-[300px] max-w-[500px]`}
+      className={`flex items-start gap-3 p-4 rounded-xl border-l-4 ${config.borderColor} ${config.bgColor} shadow-lg animate-slide-up min-w-[300px] max-w-[500px]`}
       role="alert"
       aria-live={type === "error" ? "assertive" : "polite"}
     >

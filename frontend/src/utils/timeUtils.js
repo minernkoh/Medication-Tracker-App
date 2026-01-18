@@ -50,8 +50,15 @@ export const to12HourDisplay = (value) => {
  * @returns {number} Time in minutes or MAX_SAFE_INTEGER if invalid
  */
 export const timeToMinutes = (timeStr) => {
-  if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":"))
-    return Number.MAX_SAFE_INTEGER;
+  if (!timeStr || typeof timeStr !== "string") return Number.MAX_SAFE_INTEGER;
+
+  // Support coarse time buckets used across the app
+  const normalized = timeStr.trim().toLowerCase();
+  if (normalized === "morning") return 8 * 60;
+  if (normalized === "afternoon") return 13 * 60;
+  if (normalized === "night") return 20 * 60;
+
+  if (!timeStr.includes(":")) return Number.MAX_SAFE_INTEGER;
   const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
   if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
   return h * 60 + m;

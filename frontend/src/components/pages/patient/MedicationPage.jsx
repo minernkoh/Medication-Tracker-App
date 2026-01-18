@@ -21,6 +21,11 @@ import { AddMedicationModal, EditMedicationModal } from "../../modals";
 import { useMedications } from "../../../contexts/MedicationsContext";
 import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
+import {
+  timeToMinutes,
+  calculateSupplyStatus,
+  filterMedsByStatus,
+} from "../../../utils";
 
 const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   // ============================================================================
@@ -37,6 +42,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     deleteMedication,
     markMedicationAsTaken,
     resetMedicationStatus,
+    isReadOnlyPatient,
   } = useMedications();
 
   // ============================================================================
@@ -61,14 +67,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   /**
    * Convert HH:MM to minutes for time-based sorting
    */
-  const timeToMinutes = (timeStr) => {
-    if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":"))
-      return Number.MAX_SAFE_INTEGER;
-
-    const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
-    if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
-    return h * 60 + m;
-  };
+  // Use shared helper that supports both "morning" and "09:30" formats
 
   // Helper: format date for display
   const formatRefillDate = (dateStr) => {
@@ -88,32 +87,9 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   /**
    * Calculate supply status as percentage
    */
+  // Calculate supply status using shared utility
   const getSupplyStatus = (medication) => {
-    // Only calculate percentage if medication has been taken and has initialQuantity
-    if (!medication.taken || !medication.initialQuantity) {
-      return null; // No status shown if medication hasn't been taken yet
-    }
-
-    const currentValue = parseQuantity(medication.quantity).value;
-    const initialValue = parseQuantity(medication.initialQuantity).value;
-
-    if (initialValue === 0) {
-      return null; // Avoid division by zero
-    }
-
-    const percentage = Math.round((currentValue / initialValue) * 100);
-
-    // Determine color based on percentage
-    let className;
-    if (percentage < 30) {
-      className = "bg-red-100 text-red-700";
-    } else if (percentage <= 60) {
-      className = "bg-amber-100 text-amber-700";
-    } else {
-      className = "bg-green-100 text-green-700";
-    }
-
-    return { label: `${percentage}%`, className };
+    return calculateSupplyStatus(medication, parseQuantity);
   };
 
   // ============================================================================
@@ -126,6 +102,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
 
   const handleAddMedication = async (medicationData) => {
     try {
+      if (isReadOnlyPatient) return;
       await createMedication(medicationData);
       setShowAddForm(false);
     } catch {
@@ -137,6 +114,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
    * Handle editing a medication
    */
   const handleEditMedication = (medication) => {
+    if (isReadOnlyPatient) return;
     setEditingMedication(medication);
     setShowEditModal(true);
   };
@@ -146,6 +124,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
    */
   const handleSaveEditedMedication = async (updatedMedication) => {
     try {
+      if (isReadOnlyPatient) return;
       await updateMedication(updatedMedication.id, updatedMedication);
       setShowEditModal(false);
       setEditingMedication(null);
@@ -160,6 +139,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
 
   const handleDeleteMedication = async (id) => {
     try {
+      if (isReadOnlyPatient) return;
       await deleteMedication(id);
     } catch (error) {
       // Errors are surfaced via global error handler
@@ -171,6 +151,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
    */
   const handleResetMedicationStatus = async (medication) => {
     try {
+      if (isReadOnlyPatient) return;
       await resetMedicationStatus(medication.id);
     } catch (error) {
       // Errors are surfaced via global error handler
@@ -183,14 +164,9 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
 
   // Filter medications by status for display
 
-  const pendingMeds = medications.filter((med) => med.status === "pending");
-  const takenMeds = medications.filter((med) => med.status === "taken");
-  const supplyMeds = medications.filter(
-    (med) =>
-      med.quantity !== undefined &&
-      med.quantity !== null &&
-      med.quantity !== "",
-  );
+  const pendingMeds = filterMedsByStatus(medications, "pending");
+  const takenMeds = filterMedsByStatus(medications, "taken");
+  const supplyMeds = filterMedsByStatus(medications, "supply");
 
   // Sort pending medications by time of day
   const pendingMedsSorted = [...pendingMeds].sort(
@@ -345,14 +321,16 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
             title="Medication Tracker"
             description="Track your daily medications and manage your supply"
             action={
-              <Button
-                variant="primary"
-                onClick={() => setShowAddForm(true)}
-                icon={<PlusIcon size={18} weight="bold" />}
-                style={{ backgroundColor: primaryColor }}
-              >
-                Add Medication
-              </Button>
+              isReadOnlyPatient ? null : (
+                <Button
+                  variant="primary"
+                  onClick={() => setShowAddForm(true)}
+                  icon={<PlusIcon size={18} weight="bold" />}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Add Medication
+                </Button>
+              )
             }
           />
 
@@ -377,7 +355,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               <MedicationSection
                 variant="pending"
                 medications={pendingMedsSorted}
-                onMarkAsTaken={markMedicationAsTaken}
+                onMarkAsTaken={isReadOnlyPatient ? undefined : markMedicationAsTaken}
                 showTimeGroups={true}
                 compact={false}
               />
@@ -388,8 +366,8 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               <MedicationSection
                 variant="taken"
                 medications={takenMeds}
-                onEdit={handleEditMedication}
-                onDelete={handleResetMedicationStatus}
+                onEdit={isReadOnlyPatient ? undefined : handleEditMedication}
+                onDelete={isReadOnlyPatient ? undefined : handleResetMedicationStatus}
                 showTimeGroups={true}
                 compact={false}
               />
@@ -420,8 +398,9 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               data={sortedSupplyMeds}
               sortConfig={supplySortConfig}
               onSort={setSupplySortConfig}
-              onEdit={(row) => handleEditMedication(row)}
-              onDelete={(row) => handleDeleteMedication(row.id)}
+              onEdit={isReadOnlyPatient ? undefined : (row) => handleEditMedication(row)}
+              onDelete={isReadOnlyPatient ? undefined : (row) => handleDeleteMedication(row.id)}
+              showActions={!isReadOnlyPatient}
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"
               EmptyIcon={PillIcon}

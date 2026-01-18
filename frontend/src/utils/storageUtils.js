@@ -65,3 +65,25 @@ export const updateAuthField = (field, value) => {
     [field]: value,
   });
 };
+
+/**
+ * Get the current user object from storage (best-effort).
+ * Prefers the structured auth payload; falls back to legacy `localStorage.user`.
+ */
+export const getStoredUser = () => {
+  const user = getAuthField("user");
+  if (user) return user;
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Patients linked to a caregiver have read-only access to their own data.
+ */
+export const isReadOnlyPatientUser = (user) => {
+  return user?.role === "patient" && Boolean(user?.caregiver);
+};

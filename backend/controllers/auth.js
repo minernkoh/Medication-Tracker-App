@@ -1,7 +1,13 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { validationResult } = require("express-validator");
 
 const signup = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     const user = await User.create(req.body);
     const userObj = user.toObject();
@@ -16,6 +22,11 @@ const signup = async (req, res) => {
 };
 
 const signin = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     if (!req.body || !req.body.email || !req.body.password) {
       return res

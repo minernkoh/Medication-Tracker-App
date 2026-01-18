@@ -20,13 +20,22 @@ import {
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { formatDateLocale } from "../../../utils/dateUtils";
-import { normalizeMedication, normalizeAppointment } from "../../../utils";
+import {
+  calculateSupplyStatus,
+  filterMedsByStatus,
+  normalizeMedication,
+  normalizeAppointment,
+} from "../../../utils";
 import { MedicationSection } from "../../features";
-import { SectionHeader, StatCard, Button } from "../../ui";
+import { DataTable, SectionHeader, StatCard, Button } from "../../ui";
+import AddAppointmentModal from "../../modals/AddAppointmentModal";
+import AddMedicationModal from "../../modals/AddMedicationModal";
 import EditMedicationModal from "../../modals/EditMedicationModal";
+import ConfirmDialog from "../../ui/ConfirmDialog";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
+import { getMedicationColor } from "../../../utils/medicationColors";
 
 const PATIENT_COLORS = [
   colors.patient.pink,
@@ -57,25 +66,44 @@ function PatientDetailPage() {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
   const { showError } = useError();
+  const todayStr = new Date().toISOString().split("T")[0];
 
   const [patientData, setPatientData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Add state for edit modal control
+  // Modal state: medications
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddMedicationModal, setShowAddMedicationModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    medicationId: null,
+    medicationName: "",
+  });
+
+  // Modal state: appointments
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
+  const [appointmentDeleteConfirm, setAppointmentDeleteConfirm] = useState({
+    isOpen: false,
+    appointmentId: null,
+    appointmentTitle: "",
+  });
 
   const loadPatient = useCallback(async () => {
     if (!patientId) return;
     setIsLoading(true);
     try {
-      const data = await api.caregiver.getPatient(patientId);
+      const [data, medsForToday] = await Promise.all([
+        api.caregiver.getPatient(patientId),
+        api.medications.getForPatient(patientId, todayStr),
+      ]);
       const normalized = {
         ...data,
         id: data.id || data._id,
         initials: data.initials || getInitials(data.nickname || data.name || ""),
         color: getPatientColor(data),
-        medications: (data.medications || [])
+        medications: (Array.isArray(medsForToday) ? medsForToday : [])
           .map(normalizeMedication)
           .filter(Boolean),
         appointments: (data.appointments || [])
@@ -89,7 +117,7 @@ function PatientDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [patientId, showError]);
+  }, [patientId, showError, todayStr]);
 
   useEffect(() => {
     loadPatient();
@@ -100,6 +128,145 @@ function PatientDetailPage() {
   // Separate medications by status
   const pendingMeds = patient?.medications?.filter((m) => m.status === "pending") || [];
   const takenMeds = patient?.medications?.filter((m) => m.status === "taken") || [];
+  const supplyMeds = filterMedsByStatus(patient?.medications || [], "supply");
+
+  const [supplySortConfig, setSupplySortConfig] = useState({
+    key: "name",
+    direction: "asc",
+  });
+
+  const parseQuantity = (quantityStr = "") => {
+    const str = String(quantityStr || "");
+    const match = str.match(/^\s*(\d+)\s*(.*)\s*$/);
+    const value = match ? parseInt(match[1], 10) || 0 : 0;
+    const unit = match && match[2] ? match[2].trim() : "";
+    return { value, unit };
+  };
+
+  const formatRefillDate = (dateStr) => {
+    if (!dateStr) return null;
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const getSupplyStatus = (medication) => {
+    return calculateSupplyStatus(medication, parseQuantity);
+  };
+
+  const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
+    const { key, direction } = supplySortConfig;
+    const multiplier = direction === "asc" ? 1 : -1;
+
+    switch (key) {
+      case "name":
+        return multiplier * (a.name || "").localeCompare(b.name || "");
+      case "dosage":
+        return multiplier * (a.dosage || "").localeCompare(b.dosage || "");
+      case "quantity":
+        return multiplier * (a.quantity || "").localeCompare(b.quantity || "");
+      case "refillDate": {
+        const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
+        const dateB = b.refillDate ? new Date(b.refillDate).getTime() : 0;
+        return multiplier * (dateA - dateB);
+      }
+      case "supplyStatus": {
+        const statusA = getSupplyStatus(a);
+        const statusB = getSupplyStatus(b);
+        if (!statusA && !statusB) return 0;
+        if (!statusA) return 1;
+        if (!statusB) return -1;
+        return multiplier * (statusA.percentage - statusB.percentage);
+      }
+      default:
+        return 0;
+    }
+  });
+
+  const supplyColumns = [
+    {
+      key: "name",
+      label: "Medication",
+      render: (value) => {
+        const medicationColor = getMedicationColor(value);
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+              style={{ backgroundColor: medicationColor.bg }}
+              aria-hidden="true"
+            >
+              <PillIcon
+                size={20}
+                weight="fill"
+                color={medicationColor.icon}
+                aria-label={`${value} medication icon`}
+              />
+            </div>
+            <span className="font-poppins font-semibold text-sm text-text-primary">
+              {value}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "dosage",
+      label: "Dosage",
+      render: (value) => (
+        <span className="font-poppins text-sm text-text-primary">{value}</span>
+      ),
+    },
+    {
+      key: "quantity",
+      label: "Quantity",
+      render: (value) => (
+        <span className="font-poppins text-sm font-medium text-text-primary">
+          {value || "N/A"}
+        </span>
+      ),
+    },
+    {
+      key: "supplyStatus",
+      label: "Supply Status",
+      render: (value, row) => {
+        const status = getSupplyStatus(row);
+        if (!status) {
+          return (
+            <span className="font-poppins text-sm text-text-secondary">
+              Not calculated
+            </span>
+          );
+        }
+        return (
+          <span
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${status.className}`}
+          >
+            {status.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "refillDate",
+      label: "Refill Date",
+      render: (value) => {
+        const formatted = formatRefillDate(value);
+        return (
+          <span className="font-poppins text-sm text-text-primary">
+            {formatted || "Not set"}
+          </span>
+        );
+      },
+    },
+  ];
 
   // Calculate stats - only count medications with pending or taken status
   const activeMedications = patient?.medications?.filter(
@@ -119,7 +286,17 @@ function PatientDetailPage() {
         )
       : patient?.adherenceRate || 0;
 
-  // Handler to mark medication as taken
+  const handleAddMedication = async (medicationData) => {
+    try {
+      await api.medications.createForPatient(patientId, medicationData);
+      setShowAddMedicationModal(false);
+      await loadPatient();
+    } catch (error) {
+      showError(error.message || "Unable to add medication");
+    }
+  };
+
+  // Mark medication as taken (uses daily log + quantity updates)
   const handleMarkAsTaken = async (medId) => {
     const currentTime = new Date().toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -127,21 +304,9 @@ function PatientDetailPage() {
       hour12: true,
     });
 
-    setPatientData((prevData) => ({
-      ...prevData,
-      medications: prevData.medications.map((med) =>
-        med.id === medId
-          ? { ...med, taken: true, status: "taken", takenTime: currentTime }
-          : med
-      ),
-    }));
-
     try {
-      await api.medications.updateForPatient(patientId, medId, {
-        taken: true,
-        status: "taken",
-        takenTime: currentTime,
-      });
+      await api.medications.markAsTaken(medId, currentTime, todayStr);
+      await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to update medication status");
       loadPatient();
@@ -170,22 +335,92 @@ function PatientDetailPage() {
       }));
       setShowEditModal(false);
       setEditingMedication(null);
+      await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to update medication");
     }
   };
 
-  // When user clicks delete on "taken today" section, move medication back to pending
-  // This restores the medication to its pending state instead of permanently deleting it
-  const handleDeleteMedication = async (medId) => {
+  // Undo "taken" for today (restores quantity + removes today's log entry)
+  const handleUndoTakenMedication = async (medId) => {
+    try {
+      await api.medications.undoMarkAsTaken(medId, todayStr);
+      await loadPatient();
+    } catch (error) {
+      showError(error.message || "Unable to undo medication");
+    }
+  };
+
+  const requestDeleteMedication = (medication) => {
+    setDeleteConfirm({
+      isOpen: true,
+      medicationId: medication?.id,
+      medicationName: medication?.name || "this medication",
+    });
+  };
+
+  const confirmDeleteMedication = async () => {
+    const medId = deleteConfirm.medicationId;
+    if (!medId) return;
     try {
       await api.medications.deleteForPatient(patientId, medId);
-      setPatientData((prevData) => ({
-        ...prevData,
-        medications: prevData.medications.filter((med) => med.id !== medId),
-      }));
+      setDeleteConfirm({ isOpen: false, medicationId: null, medicationName: "" });
+      await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to delete medication");
+    }
+  };
+
+  const openAddAppointmentModal = () => {
+    setEditingAppointment(null);
+    setShowAppointmentModal(true);
+  };
+
+  const openEditAppointmentModal = (appointment) => {
+    setEditingAppointment(appointment);
+    setShowAppointmentModal(true);
+  };
+
+  const handleSaveAppointment = async (appointmentData) => {
+    try {
+      if (editingAppointment?.id) {
+        await api.appointments.updateForPatient(
+          patientId,
+          editingAppointment.id,
+          { ...appointmentData, id: editingAppointment.id },
+        );
+      } else {
+        await api.appointments.createForPatient(patientId, appointmentData);
+      }
+      setShowAppointmentModal(false);
+      setEditingAppointment(null);
+      await loadPatient();
+    } catch (error) {
+      showError(error.message || "Unable to save appointment");
+    }
+  };
+
+  const requestDeleteAppointment = (appointment) => {
+    setAppointmentDeleteConfirm({
+      isOpen: true,
+      appointmentId: appointment?.id,
+      appointmentTitle: appointment?.title || "this appointment",
+    });
+  };
+
+  const confirmDeleteAppointment = async () => {
+    const apptId = appointmentDeleteConfirm.appointmentId;
+    if (!apptId) return;
+    try {
+      await api.appointments.deleteForPatient(patientId, apptId);
+      setAppointmentDeleteConfirm({
+        isOpen: false,
+        appointmentId: null,
+        appointmentTitle: "",
+      });
+      await loadPatient();
+    } catch (error) {
+      showError(error.message || "Unable to delete appointment");
     }
   };
 

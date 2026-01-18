@@ -25,7 +25,7 @@ import {
   GradientBackground,
   Button,
 } from "../../ui";
-import { AppointmentCard, MedicationSection } from "../../features";
+import { AppointmentCard, MedicationSection, Calendar } from "../../features";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 import { useMedications } from "../../../contexts/MedicationsContext";
 import { useError } from "../../../contexts/ErrorContext";
@@ -44,6 +44,7 @@ import {
   timeToMinutes,
   textStyles,
   normalizeAppointment,
+  filterMedsByStatus,
 } from "../../../utils";
 
 function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
@@ -54,6 +55,8 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     deleteMedication,
     updateMedication,
     resetMedicationStatus,
+    refreshMedications,
+    isReadOnlyPatient,
   } = useMedications();
   const { showError } = useError();
   const [appointments, setAppointments] = useState([]);
@@ -92,6 +95,12 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     };
   }, [showError]);
 
+  // Refresh medications when selected date changes
+  useEffect(() => {
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    refreshMedications(dateStr);
+  }, [selectedDate, refreshMedications]);
+
   const upcomingAppointment = useMemo(() => {
     const now = new Date();
     const parsed = appointments
@@ -108,203 +117,22 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     return next || parsed[parsed.length - 1] || null;
   }, [appointments]);
 
-  // Handle menu navigation - use parent callback if provided (optional, React Router handles navigation)
-  const handleMenuClick = (menu) => {
-    if (onMenuClick) {
-      onMenuClick(menu);
-    }
-  };
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
-  const [pickerYear, setPickerYear] = useState(today.getFullYear());
-
-  const datePickerRef = useRef(null);
-
-  // Close date picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        datePickerRef.current &&
-        !datePickerRef.current.contains(event.target)
-      ) {
-        setIsDatePickerOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Generate calendar week dates
-  const getWeekDates = () => {
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(currentWeekStart);
-      date.setDate(currentWeekStart.getDate() + i);
-      dates.push({
-        day: DAYS[date.getDay()],
-        date: date.getDate(),
-        fullDate: new Date(date),
-        month: date.getMonth(),
-        year: date.getFullYear(),
-      });
-    }
-    return dates;
+  // Handle date selection
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
   };
 
-  const calendarDates = getWeekDates();
-
-  // Navigate weeks
-  const goToPreviousWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(currentWeekStart.getDate() - 7);
-    setCurrentWeekStart(newStart);
-  };
-
-  const goToNextWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(currentWeekStart.getDate() + 7);
-    setCurrentWeekStart(newStart);
-  };
-
-  // Handle date selection from week view
-  const handleDateClick = (item) => {
-    setSelectedDate(item.fullDate);
-  };
-
-  // Check if a date is selected
-  const isDateSelected = (item) => {
-    return (
-      selectedDate.getDate() === item.date &&
-      selectedDate.getMonth() === item.month &&
-      selectedDate.getFullYear() === item.year
-    );
-  };
-
-  // Date picker navigation
-  const goToPrevMonth = () => {
-    if (pickerMonth === 0) {
-      setPickerMonth(11);
-      setPickerYear(pickerYear - 1);
-    } else {
-      setPickerMonth(pickerMonth - 1);
-    }
-  };
-
-  const goToNextMonth = () => {
-    if (pickerMonth === 11) {
-      setPickerMonth(0);
-      setPickerYear(pickerYear + 1);
-    } else {
-      setPickerMonth(pickerMonth + 1);
-    }
-  };
-
-  // Generate calendar grid for date picker
-  const getCalendarGrid = () => {
-    const daysInMonth = getDaysInMonth(pickerYear, pickerMonth);
-    const firstDay = new Date(pickerYear, pickerMonth, 1).getDay();
-    const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1; // Monday = 0
-
-    const grid = [];
-    let dayCount = 1;
-
-    // Previous month's trailing days
-    const prevMonth = pickerMonth === 0 ? 11 : pickerMonth - 1;
-    const prevYear = pickerMonth === 0 ? pickerYear - 1 : pickerYear;
-    const daysInPrevMonth = getDaysInMonth(prevYear, prevMonth);
-
-    for (let i = 0; i < 6; i++) {
-      const week = [];
-      for (let j = 0; j < 7; j++) {
-        const cellIndex = i * 7 + j;
-        if (cellIndex < adjustedFirstDay) {
-          // Previous month
-          week.push({
-            day: daysInPrevMonth - adjustedFirstDay + cellIndex + 1,
-            isCurrentMonth: false,
-            month: prevMonth,
-            year: prevYear,
-          });
-        } else if (dayCount <= daysInMonth) {
-          week.push({
-            day: dayCount,
-            isCurrentMonth: true,
-            month: pickerMonth,
-            year: pickerYear,
-          });
-          dayCount++;
-        } else {
-          // Next month
-          const nextMonth = pickerMonth === 11 ? 0 : pickerMonth + 1;
-          const nextYear = pickerMonth === 11 ? pickerYear + 1 : pickerYear;
-          week.push({
-            day: dayCount - daysInMonth,
-            isCurrentMonth: false,
-            month: nextMonth,
-            year: nextYear,
-          });
-          dayCount++;
-        }
-      }
-      grid.push(week);
-      if (dayCount > daysInMonth && i >= 3) break;
-    }
-    return grid;
-  };
-
-  // Handle date selection from picker
-  const handlePickerDateSelect = (cell) => {
-    const newDate = new Date(cell.year, cell.month, cell.day);
-    setSelectedDate(newDate);
-    setCurrentWeekStart(getStartOfWeek(newDate));
-    setIsDatePickerOpen(false);
-  };
-
-  // Check if a picker cell is selected
-  const isPickerDateSelected = (cell) => {
-    return (
-      selectedDate.getDate() === cell.day &&
-      selectedDate.getMonth() === cell.month &&
-      selectedDate.getFullYear() === cell.year
-    );
-  };
-
-  // Check if a picker cell is today
-  const isToday = (cell) => {
-    return (
-      today.getDate() === cell.day &&
-      today.getMonth() === cell.month &&
-      today.getFullYear() === cell.year
-    );
-  };
-
-  // Go to today
-  const goToToday = () => {
-    setSelectedDate(today);
-    setCurrentWeekStart(getStartOfWeek(today));
-    setPickerMonth(today.getMonth());
-    setPickerYear(today.getFullYear());
-    setIsDatePickerOpen(false);
-  };
-
-  // Get display month/year for header (based on week being viewed)
-  const getDisplayMonthYear = () => {
-    const midWeek = new Date(currentWeekStart);
-    midWeek.setDate(currentWeekStart.getDate() + 3);
-    return formatShortMonthYear(midWeek.getMonth(), midWeek.getFullYear());
-  };
-
-  // Check if selected date is today
   const isSelectedDateToday = () => {
+    const todayLocal = new Date();
     return (
-      selectedDate.getDate() === today.getDate() &&
-      selectedDate.getMonth() === today.getMonth() &&
-      selectedDate.getFullYear() === today.getFullYear()
+      selectedDate.getDate() === todayLocal.getDate() &&
+      selectedDate.getMonth() === todayLocal.getMonth() &&
+      selectedDate.getFullYear() === todayLocal.getFullYear()
     );
   };
 
-  // Format selected date for display (e.g., "Mon, Jan 13")
-  const formatSelectedDate = () => {
+  // Format selected date for display
+  const formatSelectedDateForLabel = () => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dayName = days[selectedDate.getDay()];
     const monthName = MONTHS[selectedDate.getMonth()].slice(0, 3);
@@ -312,20 +140,17 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     return `${dayName}, ${monthName} ${date}`;
   };
 
-  // Get the date label for titles (null if today, formatted date otherwise)
-  const getDateLabel = () => {
-    return isSelectedDateToday() ? null : formatSelectedDate();
-  };
-
-  const dateLabel = getDateLabel();
+  const dateLabel = isSelectedDateToday() ? null : formatSelectedDateForLabel();
 
   // Calculate medication stats for today
   const getMedicationStats = () => {
-    const taken = medications.filter((med) => med.status === "taken").length;
+    const taken = filterMedsByStatus(medications, "taken").length;
     // Include medications with status "pending" OR "supply" that have a scheduled time
     const notTaken = medications.filter((med) => {
       const isPending = med.status === "pending";
-      const isSupplyWithSchedule = med.status === "supply" && (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
+      const isSupplyWithSchedule =
+        med.status === "supply" &&
+        (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
       return isPending || isSupplyWithSchedule;
     }).length;
     const total = taken + notTaken;
@@ -337,12 +162,14 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   // Remove the local handler functions - using context handlers instead
   // The context handlers (handleMarkAsTaken, handleDeleteMedication) manage quantity sync
   const handleEditMedication = (medication) => {
+    if (isReadOnlyPatient) return;
     setEditingMedication(medication);
     setShowEditModal(true);
   };
 
   const handleSaveEditedMedication = async (updatedMedication) => {
     try {
+      if (isReadOnlyPatient) return;
       await updateMedication(updatedMedication.id, {
         takenTime: updatedMedication.takenTime,
       });
@@ -358,12 +185,14 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   const pendingMedications = medications
     .filter((med) => {
       const isPending = med.status === "pending";
-      const isSupplyWithSchedule = med.status === "supply" && (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
+      const isSupplyWithSchedule =
+        med.status === "supply" &&
+        (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
       return isPending || isSupplyWithSchedule;
     })
     .sort((a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay));
 
-  const takenMedications = medications.filter((med) => med.status === "taken");
+  const takenMedications = filterMedsByStatus(medications, "taken");
 
   const stats = getMedicationStats();
   const hasMedications = medications.length > 0;
@@ -386,6 +215,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
 
   // Handle navigation to MedicationPage
   const handleAddMedication = () => {
+    if (isReadOnlyPatient) return;
     navigate("/medications");
   };
 
@@ -409,227 +239,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           />
 
           {/* Calendar section */}
-          <div className="bg-background-default border border-border-default flex flex-col gap-2 items-center p-4 rounded-2xl shrink-0 w-full relative overflow-visible">
-            {/* Month/Year selector button */}
-            <div className="relative w-full" ref={datePickerRef}>
-              <button
-                onClick={() => {
-                  setPickerMonth(selectedDate.getMonth());
-                  setPickerYear(selectedDate.getFullYear());
-                  setIsDatePickerOpen(!isDatePickerOpen);
-                }}
-                className="flex items-center justify-center gap-2 w-full group hover:bg-background-hover rounded-lg py-1 px-2 transition-all duration-200"
-              >
-                <CalendarIcon
-                  size={18}
-                  weight="regular"
-                  className="text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                />
-                <p
-                  className={`${textStyles.heading.small} text-text-primary text-center`}
-                >
-                  {getDisplayMonthYear()}
-                </p>
-                {isDatePickerOpen ? (
-                  <CaretUpIcon
-                    size={16}
-                    weight="bold"
-                    className="text-primary"
-                  />
-                ) : (
-                  <CaretDownIcon
-                    size={16}
-                    weight="regular"
-                    className="text-text-secondary group-hover:text-primary"
-                  />
-                )}
-              </button>
-
-              {/* Date Picker Dropdown - using fixed positioning to escape overflow clipping */}
-              {isDatePickerOpen && (
-                <div
-                  className="fixed left-1/2 -translate-x-1/2 border border-border-default rounded-2xl shadow-2xl z-[100] p-4 min-w-[20rem] bg-background-default"
-                  style={{
-                    top: datePickerRef.current
-                      ? datePickerRef.current.getBoundingClientRect().bottom + 8
-                      : "auto",
-                  }}
-                >
-                  {/* Picker Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <button
-                      onClick={goToPrevMonth}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <CaretLeftIcon
-                        size={20}
-                        weight="bold"
-                        className="text-text-primary"
-                      />
-                    </button>
-                    <div className="flex items-center gap-2">
-                      {/* Month selector */}
-                      <select
-                        value={pickerMonth}
-                        onChange={(e) =>
-                          setPickerMonth(parseInt(e.target.value))
-                        }
-                        className={`${textStyles.heading.small} bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 cursor-pointer text-center border-none outline-none text-text-primary`}
-                        style={{ WebkitAppearance: "none" }}
-                      >
-                        {MONTHS.map((month, idx) => (
-                          <option
-                            key={month}
-                            value={idx}
-                            className="text-text-primary"
-                          >
-                            {month}
-                          </option>
-                        ))}
-                      </select>
-                      {/* Year selector */}
-                      <select
-                        value={pickerYear}
-                        onChange={(e) =>
-                          setPickerYear(parseInt(e.target.value))
-                        }
-                        className={`${textStyles.heading.small} bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 cursor-pointer text-center border-none outline-none text-text-primary`}
-                        style={{ WebkitAppearance: "none" }}
-                      >
-                        {Array.from({ length: 20 }, (_, i) => 2020 + i).map(
-                          (year) => (
-                            <option
-                              key={year}
-                              value={year}
-                              className="text-text-primary"
-                            >
-                              {year}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-                    <button
-                      onClick={goToNextMonth}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <CaretRightIcon
-                        size={20}
-                        weight="bold"
-                        className="text-text-primary"
-                      />
-                    </button>
-                  </div>
-
-                  {/* Days header */}
-                  <div className="grid grid-cols-7 gap-1 mb-2">
-                    {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
-                      <div
-                        key={day}
-                        className={`${textStyles.caption.small} text-center py-1 font-medium`}
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Calendar grid */}
-                  <div className="grid grid-cols-7 gap-1">
-                    {getCalendarGrid()
-                      .flat()
-                      .map((cell, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handlePickerDateSelect(cell)}
-                          className={`
-                            w-9 h-9 rounded-lg font-poppins text-sm transition-all duration-150
-                            flex items-center justify-center
-                            ${
-                              isPickerDateSelected(cell)
-                                ? "font-bold shadow-md bg-primary text-text-onPrimary"
-                                : isToday(cell)
-                                ? "font-semibold ring-1 ring-primary/30 bg-primary-light text-primary"
-                                : !cell.isCurrentMonth
-                                ? "text-text-secondary/40 hover:bg-gray-100"
-                                : "text-text-primary hover:bg-gray-100"
-                            }
-                          `}
-                          style={
-                            !cell.isCurrentMonth
-                              ? { color: hexToRgba(colors.text.secondary, 0.4) }
-                              : isToday(cell)
-                              ? {
-                                  borderColor: hexToRgba(
-                                    colors.primary.DEFAULT,
-                                    0.3
-                                  ),
-                                }
-                              : undefined
-                          }
-                        >
-                          {cell.day}
-                        </button>
-                      ))}
-                  </div>
-
-                  {/* Footer with Today button */}
-                  <div
-                    className="mt-4 pt-3 flex justify-center"
-                    style={{ borderTop: "1px solid rgba(100,100,100,0.2)" }}
-                  >
-                    <button
-                      onClick={goToToday}
-                      className={`${textStyles.label.medium} px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-150 text-primary`}
-                    >
-                      Go to Today
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Calendar dates - .map() creates a CalendarDateButton for each date */}
-            <div className="flex gap-1 md:gap-2 min-h-[4.5rem] items-center shrink-0 w-full overflow-x-auto overflow-y-visible pb-4">
-              <button
-                onClick={goToPreviousWeek}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all duration-150"
-              >
-                <CaretLeftIcon
-                  size={20}
-                  weight="regular"
-                  className="text-icon-primary"
-                />
-              </button>
-
-              {calendarDates.map((item, idx) => {
-                const itemIsToday =
-                  item.fullDate.getDate() === today.getDate() &&
-                  item.fullDate.getMonth() === today.getMonth() &&
-                  item.fullDate.getFullYear() === today.getFullYear();
-                return (
-                  <CalendarDateButton
-                    key={`${item.fullDate.toISOString()}-${idx}`}
-                    day={item.day}
-                    date={item.date}
-                    isSelected={isDateSelected(item)}
-                    isToday={itemIsToday}
-                    onClick={() => handleDateClick(item)}
-                  />
-                );
-              })}
-
-              <button
-                onClick={goToNextWeek}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all duration-150"
-              >
-                <CaretRightIcon
-                  size={20}
-                  weight="regular"
-                  className="text-icon-primary"
-                />
-              </button>
-            </div>
-          </div>
+          <Calendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
           {/* Stats and appointment cards */}
           <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
@@ -715,12 +325,20 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                 <MedicationSection
                   variant="pending"
                   medications={pendingMedications}
-                  onMarkAsTaken={markMedicationAsTaken}
+                  onMarkAsTaken={
+                    isReadOnlyPatient
+                      ? undefined
+                      : (id) =>
+                          markMedicationAsTaken(
+                            id,
+                            selectedDate.toISOString().split("T")[0],
+                          )
+                  }
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}
-                  onAddMedication={handleAddMedication}
-                  onCardClick={handleAddMedication}
+                  onAddMedication={isReadOnlyPatient ? undefined : handleAddMedication}
+                  onCardClick={isReadOnlyPatient ? undefined : handleAddMedication}
                 />
               </div>
 
@@ -729,12 +347,20 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                 <MedicationSection
                   variant="taken"
                   medications={takenMedications}
-                  onEdit={handleEditMedication}
-                  onDelete={resetMedicationStatus}
+                  onEdit={isReadOnlyPatient ? undefined : handleEditMedication}
+                  onDelete={
+                    isReadOnlyPatient
+                      ? undefined
+                      : (id) =>
+                          resetMedicationStatus(
+                            id,
+                            selectedDate.toISOString().split("T")[0],
+                          )
+                  }
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}
-                  onCardClick={handleAddMedication}
+                  onCardClick={isReadOnlyPatient ? undefined : handleAddMedication}
                 />
               </div>
             </div>

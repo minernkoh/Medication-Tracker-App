@@ -1,32 +1,62 @@
 const API_URL = "/api";
 
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
 // Helper function to format medication data for API
 const formatMedicationForAPI = (medicationData) => {
+  if (!medicationData || typeof medicationData !== "object") return {};
+
   // Convert frontend frequency fields to single frequency string
   const formatFrequency = (data) => {
     if (data.frequencyType === "timesPerDay") {
       return `${data.frequencyValue} times per day`;
     } else if (data.frequencyType === "everyHours") {
-      return `Every ${data.frequencyValue} hour${data.frequencyValue !== "1" ? "s" : ""}`;
+      const value = String(data.frequencyValue);
+      return `Every ${value} hour${value !== "1" ? "s" : ""}`;
     } else if (data.frequencyType === "custom") {
       return data.frequencyText;
     }
-    return data.frequency || "";
+    return data.frequency;
   };
 
-  return {
-    name: medicationData.name,
-    dosage: medicationData.dosage,
-    type: medicationData.type || "pills",
-    status: medicationData.status || "supply",
-    timeOfDay: medicationData.timeOfDay || null,
-    frequency: formatFrequency(medicationData),
-    quantity: medicationData.quantity || "",
-    refillDate: medicationData.refillDate || "",
-    additionalInfo: medicationData.additionalInfo || "",
-    pillColor: medicationData.pillColor || "",
-    instructions: medicationData.instructions || [],
-  };
+  // Build a payload that is safe for PARTIAL updates.
+  // Only include keys that are actually present on the incoming object,
+  // otherwise we risk wiping required fields (name/dosage) during PUT updates.
+  const out = {};
+
+  const passthroughKeys = [
+    "name",
+    "dosage",
+    "type",
+    "status",
+    "timeOfDay",
+    "quantity",
+    "initialQuantity",
+    "refillDate",
+    "additionalInfo",
+    "pillColor",
+    "instructions",
+    "takenTime",
+  ];
+
+  for (const key of passthroughKeys) {
+    if (hasOwn(medicationData, key)) out[key] = medicationData[key];
+  }
+
+  if (hasOwn(medicationData, "timesOfDay") && Array.isArray(medicationData.timesOfDay)) {
+    out.timesOfDay = medicationData.timesOfDay;
+  }
+
+  const frequency = formatFrequency(medicationData);
+  if (frequency !== undefined) {
+    out.frequency = frequency;
+  }
+
+  if (hasOwn(medicationData, "taken")) {
+    out.taken = Boolean(medicationData.taken);
+  }
+
+  return out;
 };
 
 const getHeaders = () => {
@@ -81,8 +111,9 @@ export const api = {
 
   // Medications
   medications: {
-    getAll: async () => {
-      const response = await fetch(`${API_URL}/medications`, {
+    getAll: async (date = null) => {
+      const url = date ? `${API_URL}/medications?date=${date}` : `${API_URL}/medications`;
+      const response = await fetch(url, {
         headers: getHeaders(),
       });
       return handleResponse(response);
@@ -118,13 +149,13 @@ export const api = {
       });
       return handleResponse(response);
     },
-    getForPatient: async (patientId) => {
-      const response = await fetch(
-        `${API_URL}/patients/${patientId}/medications`,
-        {
-          headers: getHeaders(),
-        },
-      );
+    getForPatient: async (patientId, date = null) => {
+      const url = date
+        ? `${API_URL}/patients/${patientId}/medications?date=${date}`
+        : `${API_URL}/patients/${patientId}/medications`;
+      const response = await fetch(url, {
+        headers: getHeaders(),
+      });
       return handleResponse(response);
     },
     createForPatient: async (patientId, data) => {
@@ -162,27 +193,27 @@ export const api = {
       return handleResponse(response);
     },
 
-    getByStatus: async (status) => {
-      const response = await fetch(`${API_URL}/medications?status=${status}`, {
+    getByStatus: async (status, date = null) => {
+      let url = `${API_URL}/medications?status=${status}`;
+      if (date) url += `&date=${date}`;
+      const response = await fetch(url, {
         headers: getHeaders(),
       });
       return handleResponse(response);
     },
 
     getForDate: async (date) => {
-      // Format: YYYY-MM-DD
-      const response = await fetch(`${API_URL}/medications/date/${date}`, {
-        headers: getHeaders(),
-      });
-      return handleResponse(response);
+      // Use the generic getAll with date query param for consistency
+      return api.medications.getAll(date);
     },
 
-    markAsTaken: async (id, takenTime = null) => {
+    markAsTaken: async (id, takenTime = null, date = null) => {
       const response = await fetch(`${API_URL}/medications/${id}/taken`, {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify({
           status: "taken",
+          date: date || new Date().toISOString().split('T')[0],
           takenTime:
             takenTime ||
             new Date().toLocaleTimeString("en-US", {
@@ -190,6 +221,16 @@ export const api = {
               minute: "2-digit",
               hour12: true,
             }),
+        }),
+      });
+      return handleResponse(response);
+    },
+    undoMarkAsTaken: async (id, date = null) => {
+      const response = await fetch(`${API_URL}/medications/${id}/undo`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          date: date || new Date().toISOString().split('T')[0],
         }),
       });
       return handleResponse(response);

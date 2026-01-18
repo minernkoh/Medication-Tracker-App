@@ -39,7 +39,7 @@
           "warn",
           {
             "selector": "TemplateLiteral[expressions.length=0] > TemplateElement[value.raw=/font-poppins\\s+font-(bold|semibold|normal)\\s+text-(xs|sm|base|lg|xl|2xl|3xl|4xl)/]",
-            "message": "Consider using textStyles from typography.js instead of hardcoded typography classes. See TYPOGRAPHY_GUIDE.md"
+            "message": "Consider using textStyles from typography.js instead of hardcoded typography classes."
           }
         ]
       }

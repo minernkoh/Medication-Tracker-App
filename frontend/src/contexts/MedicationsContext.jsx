@@ -14,6 +14,7 @@ import React, {
 import { api } from "../api";
 import { useError } from "./ErrorContext";
 import { normalizeMedication } from "../utils/normalization";
+import { getStoredUser, isReadOnlyPatientUser } from "../utils";
 
 const MedicationsContext = createContext(null);
 
@@ -21,11 +22,12 @@ export function MedicationsProvider({ children }) {
   const [medications, setMedications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const { showError } = useError();
+  const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
 
-  const loadMedications = useCallback(async () => {
+  const loadMedications = useCallback(async (date = null) => {
     setIsLoading(true);
     try {
-      const meds = await api.medications.getAll();
+      const meds = await api.medications.getAll(date);
       setMedications(
         (Array.isArray(meds) ? meds : []).map(normalizeMedication),
       );
@@ -64,6 +66,9 @@ export function MedicationsProvider({ children }) {
   const createMedication = useCallback(
     async (medicationData) => {
       try {
+        if (isReadOnlyPatient) {
+          throw new Error("Read-only access");
+        }
         // Ensure initialQuantity is set if not provided
         const dataWithInitialQuantity = {
           ...medicationData,
@@ -79,12 +84,15 @@ export function MedicationsProvider({ children }) {
         throw error;
       }
     },
-    [showError],
+    [showError, isReadOnlyPatient],
   );
 
   const updateMedication = useCallback(
     async (id, updates) => {
       try {
+        if (isReadOnlyPatient) {
+          throw new Error("Read-only access");
+        }
         const updated = await api.medications.update(id, updates);
         setMedications((prev) =>
           prev.map((med) =>
@@ -102,12 +110,15 @@ export function MedicationsProvider({ children }) {
         throw error;
       }
     },
-    [showError],
+    [showError, isReadOnlyPatient],
   );
 
   const deleteMedication = useCallback(
     async (id) => {
       try {
+        if (isReadOnlyPatient) {
+          throw new Error("Read-only access");
+        }
         await api.medications.delete(id);
         setMedications((prev) => prev.filter((med) => med.id !== id));
       } catch (error) {
@@ -115,12 +126,17 @@ export function MedicationsProvider({ children }) {
         throw error;
       }
     },
-    [showError],
+    [showError, isReadOnlyPatient],
   );
 
   // Handle marking a medication as taken
   const markMedicationAsTaken = useCallback(
-    (medicationId) => {
+    (medicationId, date = null) => {
+      if (isReadOnlyPatient) {
+        showError("Read-only access");
+        return;
+      }
+      const targetDate = date || new Date().toISOString().split('T')[0];
       const currentTime = new Date().toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
@@ -172,61 +188,54 @@ export function MedicationsProvider({ children }) {
         }),
       );
 
-      const updateData = {
-        status: "taken",
-        taken: true,
-        takenTime: currentTime,
-        ...(updatedQuantity !== undefined ? { quantity: updatedQuantity } : {}),
-        ...(updatedInitialQuantity !== undefined
-          ? { initialQuantity: updatedInitialQuantity }
-          : {}),
-      };
-
-      api.medications.update(medicationId, updateData).catch((error) => {
+      api.medications.markAsTaken(medicationId, currentTime, targetDate).catch((error) => {
         showError(error.message || "Unable to update medication status");
-        loadMedications();
+        loadMedications(targetDate);
       });
     },
-    [parseQuantity, formatQuantity, parseDosage, showError, loadMedications],
+    [parseQuantity, formatQuantity, parseDosage, showError, loadMedications, isReadOnlyPatient],
   );
 
-  // Reset medication status to "supply" - removes from pending/taken cards without deleting
-  // This preserves the medication in the current supply while removing it from today's view
+  // Reset medication status to "pending" - removes from taken cards and restores quantity
   const resetMedicationStatus = useCallback(
-    async (id) => {
+    async (id, date = null) => {
+      const targetDate = date || new Date().toISOString().split('T')[0];
       try {
+        if (isReadOnlyPatient) {
+          throw new Error("Read-only access");
+        }
         // Optimistically update local state
         setMedications((prev) =>
           prev.map((med) =>
             med.id === id
               ? {
                   ...med,
-                  status: "supply",
+                  status: "pending",
                   taken: false,
                   takenTime: null,
+                  // Local quantity update is tricky because we don't know the exact increment here easily,
+                  // but for immediate UI feedback we can try or just wait for loadMedications
                 }
               : med,
           ),
         );
 
         // Update on server
-        await api.medications.update(id, {
-          status: "supply",
-          taken: false,
-          takenTime: null,
-        });
+        await api.medications.undoMarkAsTaken(id, targetDate);
+        // Refresh to get accurate quantity from server
+        await loadMedications(targetDate);
       } catch (error) {
         showError(error.message || "Unable to reset medication status");
-        // Reload on error to sync with server
-        loadMedications();
+        loadMedications(targetDate);
       }
     },
-    [showError, loadMedications],
+    [showError, loadMedications, isReadOnlyPatient],
   );
 
   const value = {
     medications,
     isLoading,
+    isReadOnlyPatient,
     refreshMedications: loadMedications,
     parseQuantity,
     formatQuantity,

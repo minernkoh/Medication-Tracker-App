@@ -23,7 +23,13 @@ import {
 } from "@phosphor-icons/react";
 import { EmptyState } from "../ui";
 import PendingMedicine from "./PendingMedicine";
-import { timeToMinutes, toTimeInput, to12HourDisplay, textStyles } from "../../utils";
+import {
+  timeToMinutes,
+  toTimeInput,
+  to12HourDisplay,
+  textStyles,
+  getTimeGroup,
+} from "../../utils";
 
 function MedicationSection({
   variant = "pending",
@@ -39,31 +45,7 @@ function MedicationSection({
 }) {
   const isPending = variant === "pending";
 
-  // Converts "08:00" -> "Morning", "13:00" -> "Afternoon", "20:00" -> "Night"
-  const getTimeGroup = (timeOfDay) => {
-    if (!timeOfDay) return "Other";
 
-    // Normalize word formats (morning/afternoon/night)
-    if (typeof timeOfDay === "string") {
-      const normalized = timeOfDay.trim().toLowerCase();
-      if (["morning", "afternoon", "night"].includes(normalized)) {
-        return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
-      }
-      if (/^[A-Z]/.test(timeOfDay)) {
-        return timeOfDay;
-      }
-    }
-
-    // Convert 24-hour format (HH:MM) to time groups
-    if (typeof timeOfDay === "string" && timeOfDay.includes(":")) {
-      const hour = parseInt(timeOfDay.split(":")[0]);
-      if (hour >= 5 && hour < 12) return "Morning";
-      if (hour >= 12 && hour < 17) return "Afternoon";
-      if (hour >= 17 || hour < 5) return "Night";
-    }
-
-    return "Other";
-  };
 
   // Group medications by time of day (for pending medications)
   const groupByTime = (meds) => {

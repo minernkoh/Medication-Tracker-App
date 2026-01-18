@@ -5,6 +5,8 @@ require("./config/db");
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 
@@ -22,6 +24,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Security Middleware
+app.use(helmet());
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use(limiter);
+
 // Mount routes at root; Vite dev proxy strips the /api prefix
 // so frontend /api/* calls become backend /* here.
 app.use("/auth", require("./routes/auth"));
@@ -31,5 +45,10 @@ app.use(require("./routes/users"));
 app.use(require("./routes/caregiver"));
 
 const PORT = process.env.PORT || 5000;
+// On some macOS setups, port 5000 may already be bound on wildcard addresses
+// (e.g. AirPlay/AirTunes). Binding explicitly to loopback keeps local dev stable.
+const HOST = process.env.HOST || "127.0.0.1";
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, HOST, () =>
+  console.log(`Server running on http://${HOST}:${PORT}`),
+);

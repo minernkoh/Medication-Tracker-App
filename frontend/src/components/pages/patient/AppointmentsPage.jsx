@@ -28,6 +28,8 @@ import {
   formatDate,
   formatTime,
   textStyles,
+  getStoredUser,
+  isReadOnlyPatientUser,
 } from "../../../utils";
 import { PageHeader, GradientBackground, Button, EmptyState } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
@@ -39,6 +41,7 @@ import { useError } from "../../../contexts/ErrorContext";
 import { normalizeAppointment } from "../../../utils";
 
 function AppointmentsPage({ userName = "", mode = "Personal" }) {
+  const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -167,6 +170,7 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   // Handle add appointment
   const handleAddAppointment = async (newAppointment) => {
     try {
+      if (isReadOnlyPatient) return;
       const created = await api.appointments.create(newAppointment);
       const normalized = normalizeAppointment(created);
       setAppointments((prev) => [...prev, normalized].filter(Boolean));
@@ -179,6 +183,7 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   // Handle edit appointment
   const handleEditAppointment = async (updatedAppointment) => {
     try {
+      if (isReadOnlyPatient) return;
       const updated = await api.appointments.update(
         updatedAppointment.id,
         updatedAppointment
@@ -196,6 +201,7 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
 
   // Handle delete appointment
   const handleDeleteAppointment = (id) => {
+    if (isReadOnlyPatient) return;
     const appointment = appointments.find((apt) => apt.id === id);
     setDeleteConfirm({
       isOpen: true,
@@ -208,6 +214,7 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   const confirmDelete = async () => {
     if (deleteConfirm.appointmentId) {
       try {
+        if (isReadOnlyPatient) return;
         await api.appointments.delete(deleteConfirm.appointmentId);
         setAppointments((prev) =>
           prev.filter((apt) => apt.id !== deleteConfirm.appointmentId)
@@ -225,12 +232,14 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
 
   // Open modal for editing
   const openEditModal = (appointment) => {
+    if (isReadOnlyPatient) return;
     setEditingAppointment(appointment);
     setIsModalOpen(true);
   };
 
   // Open modal for adding
   const openAddModal = () => {
+    if (isReadOnlyPatient) return;
     setEditingAppointment(null);
     setIsModalOpen(true);
   };
@@ -286,14 +295,16 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
               sortedAppointments.length !== 1 ? "s" : ""
             } in ${selectedYear}`}
             action={
-              <Button
-                variant="primary"
-                onClick={openAddModal}
-                icon={<PlusIcon size={18} weight="bold" />}
-                style={{ backgroundColor: primaryColor }}
-              >
-                New Appointment
-              </Button>
+              isReadOnlyPatient ? null : (
+                <Button
+                  variant="primary"
+                  onClick={openAddModal}
+                  icon={<PlusIcon size={18} weight="bold" />}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  New Appointment
+                </Button>
+              )
             }
           />
 
@@ -419,11 +430,13 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                           <SortIndicator columnKey="location" />
                         </div>
                       </th>
-                      <th
-                        className={`px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
-                      >
-                        Actions
-                      </th>
+                      {!isReadOnlyPatient && (
+                        <th
+                          className={`px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
+                        >
+                          Actions
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -496,34 +509,36 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                               </span>
                             </div>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => openEditModal(apt)}
-                                className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/edit relative"
-                                aria-label="Edit appointment"
-                                title="Edit appointment"
-                              >
-                                <PencilSimpleIcon
-                                  size={18}
-                                  weight="regular"
-                                  className="text-icon-primary group-hover/edit:text-blue-500 transition-colors"
-                                />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteAppointment(apt.id)}
-                                className="p-2 rounded-lg hover:bg-red-50 transition-colors group/delete relative"
-                                aria-label="Delete appointment"
-                                title="Delete appointment"
-                              >
-                                <TrashIcon
-                                  size={18}
-                                  weight="regular"
-                                  className="text-icon-primary group-hover/delete:text-red-500 transition-colors"
-                                />
-                              </button>
-                            </div>
-                          </td>
+                          {!isReadOnlyPatient && (
+                            <td className="px-5 py-4">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => openEditModal(apt)}
+                                  className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/edit relative"
+                                  aria-label="Edit appointment"
+                                  title="Edit appointment"
+                                >
+                                  <PencilSimpleIcon
+                                    size={18}
+                                    weight="regular"
+                                    className="text-icon-primary group-hover/edit:text-blue-500 transition-colors"
+                                  />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAppointment(apt.id)}
+                                  className="p-2 rounded-lg hover:bg-red-50 transition-colors group/delete relative"
+                                  aria-label="Delete appointment"
+                                  title="Delete appointment"
+                                >
+                                  <TrashIcon
+                                    size={18}
+                                    weight="regular"
+                                    className="text-icon-primary group-hover/delete:text-red-500 transition-colors"
+                                  />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

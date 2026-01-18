@@ -16,6 +16,15 @@ router.get(
 // Current patient's medications
 router.get("/medications", verifyToken, medsCtrl.getMedications);
 
+// Extra endpoints used by the frontend API helper
+router.get("/medications/today", verifyToken, medsCtrl.getMedicationsDueToday);
+router.get("/medications/supply", verifyToken, medsCtrl.getMedicationSupply);
+router.get(
+  "/medications/date/:date",
+  verifyToken,
+  medsCtrl.getMedicationsForDate
+);
+
 router.post(
   "/patients/:patientId/medications",
   verifyToken,
@@ -39,6 +48,9 @@ router.delete(
   canModifyPatientData,
   medsCtrl.deleteMedication
 );
+
+router.patch("/medications/:id/taken", verifyToken, medsCtrl.markMedicationAsTaken);
+router.patch("/medications/:id/undo", verifyToken, medsCtrl.undoMarkAsTaken);
 
 router.get("/medications/:id", verifyToken, medsCtrl.getMedicationById);
 

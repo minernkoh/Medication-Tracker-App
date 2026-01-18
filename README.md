@@ -61,6 +61,9 @@ A full-stack web application for tracking medications, appointments, and health 
 - **CORS**: Cross-origin resource sharing support
 - **dotenv**: Environment variable management
 - **JWT**: JSON Web Token authentication (via middleware)
+- **Helmet**: Secure HTTP headers
+- **Express Rate Limit**: Brute-force protection
+- **Express Validator**: Input validation and sanitization
 
 ### Design System
 

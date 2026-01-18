@@ -102,13 +102,20 @@ export {
   removeAuthData,
   getAuthField,
   updateAuthField,
+  getStoredUser,
+  isReadOnlyPatientUser,
 } from "./storageUtils";
 
 // Time utilities
 export { toTimeInput, to12HourDisplay, timeToMinutes } from "./timeUtils";
 
-// Medication color utilities
+// Medication utilities
 export { getMedicationColor, getMedicationColorHex } from "./medicationColors";
+export {
+  calculateSupplyStatus,
+  getTimeGroup,
+  filterMedsByStatus,
+} from "./medicationUtils";
 
 // Normalization utilities
 export {
