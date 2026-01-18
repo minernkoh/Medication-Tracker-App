@@ -2,10 +2,32 @@ const mongoose = require("mongoose");
 
 const medicationSchema = new mongoose.Schema(
   {
-    name: { type: String },
-    dosage: { type: String },
-    type: { type: String },
-    frequency: String,
+    name: { type: String, required: true },
+    dosage: { type: String, required: true },
+    type: {
+      type: String,
+      enum: [
+        "pills",
+        "tablets",
+        "capsules",
+        "liquid",
+        "drops",
+        "spray",
+        "injection",
+        "patch",
+        "cream",
+        "ointment",
+        "gel",
+        "powder",
+        "inhaler",
+      ],
+      default: "pills",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "taken", "supply"],
+      default: "supply",
+    },
     timeOfDay: {
       type: String,
       enum: ["morning", "afternoon", "night", null],
@@ -16,23 +38,17 @@ const medicationSchema = new mongoose.Schema(
       enum: ["morning", "afternoon", "night"],
       default: undefined,
     },
-    time: { type: String }, // Time in HH:MM format
-    status: {
-      type: String,
-      enum: ["pending", "taken", "supply"],
-      default: "pending",
-    },
-    taken: { type: Boolean, default: false },
-    takenTime: { type: String }, // Time when medication was taken (e.g., "9:30 AM")
-    quantity: { type: String }, // Medication quantity (e.g., "30 pills")
-    initialQuantity: { type: String }, // Initial quantity when medication was first added (for percentage calculation)
-    refillDate: { type: Date },
-    additionalInfo: String,
-    pillColor: String,
+    takenTime: String, // e.g., "9:00 AM"
+    frequency: String, // e.g., "2 times per day", "Every 4 hours"
+    quantity: String, // e.g., "30 pills"
+    refillDate: String, // e.g., "2026-02-15"
+    additionalInfo: String, // e.g., "Before Meal"
+    pillColor: String, // Hex color code
+    instructions: [String], // Array of instruction strings
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Medication", medicationSchema);

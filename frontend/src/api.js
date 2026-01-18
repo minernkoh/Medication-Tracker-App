@@ -1,5 +1,34 @@
 const API_URL = "/api";
 
+// Helper function to format medication data for API
+const formatMedicationForAPI = (medicationData) => {
+  // Convert frontend frequency fields to single frequency string
+  const formatFrequency = (data) => {
+    if (data.frequencyType === "timesPerDay") {
+      return `${data.frequencyValue} times per day`;
+    } else if (data.frequencyType === "everyHours") {
+      return `Every ${data.frequencyValue} hour${data.frequencyValue !== "1" ? "s" : ""}`;
+    } else if (data.frequencyType === "custom") {
+      return data.frequencyText;
+    }
+    return data.frequency || "";
+  };
+
+  return {
+    name: medicationData.name,
+    dosage: medicationData.dosage,
+    type: medicationData.type || "pills",
+    status: medicationData.status || "supply",
+    timeOfDay: medicationData.timeOfDay || null,
+    frequency: formatFrequency(medicationData),
+    quantity: medicationData.quantity || "",
+    refillDate: medicationData.refillDate || "",
+    additionalInfo: medicationData.additionalInfo || "",
+    pillColor: medicationData.pillColor || "",
+    instructions: medicationData.instructions || [],
+  };
+};
+
 const getHeaders = () => {
   const token = localStorage.getItem("token");
   return {
@@ -65,18 +94,20 @@ export const api = {
       return handleResponse(response);
     },
     create: async (data) => {
+      const formattedData = formatMedicationForAPI(data);
       const response = await fetch(`${API_URL}/medications`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify(data),
+        body: JSON.stringify(formattedData),
       });
       return handleResponse(response);
     },
     update: async (id, data) => {
+      const formattedData = formatMedicationForAPI(data);
       const response = await fetch(`${API_URL}/medications/${id}`, {
         method: "PUT",
         headers: getHeaders(),
-        body: JSON.stringify(data),
+        body: JSON.stringify(formattedData),
       });
       return handleResponse(response);
     },
@@ -92,29 +123,31 @@ export const api = {
         `${API_URL}/patients/${patientId}/medications`,
         {
           headers: getHeaders(),
-        }
+        },
       );
       return handleResponse(response);
     },
     createForPatient: async (patientId, data) => {
+      const formattedData = formatMedicationForAPI(data);
       const response = await fetch(
         `${API_URL}/patients/${patientId}/medications`,
         {
           method: "POST",
           headers: getHeaders(),
-          body: JSON.stringify(data),
-        }
+          body: JSON.stringify(formattedData),
+        },
       );
       return handleResponse(response);
     },
     updateForPatient: async (patientId, id, data) => {
+      const formattedData = formatMedicationForAPI(data);
       const response = await fetch(
         `${API_URL}/patients/${patientId}/medications/${id}`,
         {
           method: "PUT",
           headers: getHeaders(),
-          body: JSON.stringify(data),
-        }
+          body: JSON.stringify(formattedData),
+        },
       );
       return handleResponse(response);
     },
@@ -124,7 +157,7 @@ export const api = {
         {
           method: "DELETE",
           headers: getHeaders(),
-        }
+        },
       );
       return handleResponse(response);
     },
@@ -166,7 +199,7 @@ export const api = {
         `${API_URL}/patients/${patientId}/appointments`,
         {
           headers: getHeaders(),
-        }
+        },
       );
       return handleResponse(response);
     },
@@ -177,7 +210,7 @@ export const api = {
           method: "POST",
           headers: getHeaders(),
           body: JSON.stringify(data),
-        }
+        },
       );
       return handleResponse(response);
     },
@@ -188,7 +221,7 @@ export const api = {
           method: "PUT",
           headers: getHeaders(),
           body: JSON.stringify(data),
-        }
+        },
       );
       return handleResponse(response);
     },
@@ -198,7 +231,7 @@ export const api = {
         {
           method: "DELETE",
           headers: getHeaders(),
-        }
+        },
       );
       return handleResponse(response);
     },
@@ -255,7 +288,7 @@ export const api = {
         {
           method: "DELETE",
           headers: getHeaders(),
-        }
+        },
       );
       return handleResponse(response);
     },
