@@ -217,14 +217,26 @@ function EditMedicationModal({
       <form id="edit-medication-form" onSubmit={handleSubmit} className="p-5">
         <div className="space-y-4">
           {isTakenMode ? (
-            <FormField
-              label="Date Taken"
-              name="takenDate"
-              type="date"
-              value={formData.takenDate}
-              onChange={handleChange}
-              required
-            />
+            <>
+              <FormField
+                label="Date Taken"
+                name="takenDate"
+                type="date"
+                value={formData.takenDate}
+                onChange={handleChange}
+                required
+              />
+
+              <FormField
+                label="Time Taken"
+                name="takenTime"
+                type="time"
+                value={formData.takenTime}
+                onChange={handleChange}
+                step="900"
+                required
+              />
+            </>
           ) : (
             <>
               <FormField
@@ -340,22 +352,26 @@ function EditMedicationModal({
                   Time of Day
                 </label>
                 <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
-                  {["morning", "afternoon", "night"].map((time) => {
-                    const isSelected = formData.timeOfDay.includes(time);
+                  {[
+                    { label: "Morning", sub: "(8:00 AM)", value: "morning" },
+                    { label: "Afternoon", sub: "(1:00 PM)", value: "afternoon" },
+                    { label: "Night", sub: "(9:00 PM)", value: "night" },
+                  ].map(({ label, sub, value }) => {
+                    const isSelected = formData.timeOfDay.includes(value);
                     return (
                       <label
-                        key={time}
+                        key={value}
                         className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => handleTimeOfDayChange(time)}
+                          onChange={() => handleTimeOfDayChange(value)}
                           className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
                           style={{ accentColor: primaryColor }}
                         />
                         <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
-                          {time}
+                          {label} <span className="text-text-secondary text-xs">{sub}</span>
                         </span>
                       </label>
                     );

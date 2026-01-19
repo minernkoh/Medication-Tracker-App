@@ -1,6 +1,6 @@
 # Medication Tracker App
 
-A full-stack web application for tracking medications, appointments, and health progress. Built with the MERN stack (MongoDB, Express, React, Node.js) to help users manage their medication schedules, view upcoming appointments, and monitor their health progress.
+A full-stack web app for tracking medications and appointments, with patient and caregiver modes.
 
 ## 🚀 Features
 
@@ -46,42 +46,23 @@ A full-stack web application for tracking medications, appointments, and health 
 
 ### Frontend
 
-- **React 18**: Modern React with hooks and functional components
-- **React Router**: Client-side routing for SPA navigation
-- **Vite**: Fast build tool and development server
-- **Tailwind CSS**: Utility-first CSS framework with custom design tokens
-- **Phosphor Icons**: `@phosphor-icons/react` v2.1+ (use `Icon` suffix: `UserIcon`, `PillIcon`)
+- React
+- Vite
+- Tailwind CSS
+- React Router
+- Phosphor Icons
 
 ### Backend
 
-- **Node.js**: JavaScript runtime environment
-- **Express 5**: Web application framework
-- **MongoDB**: NoSQL database for data storage
-- **Mongoose**: MongoDB object modeling for Node.js
-- **CORS**: Cross-origin resource sharing support
-- **dotenv**: Environment variable management
-- **JWT**: JSON Web Token authentication (via middleware)
-- **Helmet**: Secure HTTP headers
-- **Express Rate Limit**: Brute-force protection
-- **Express Validator**: Input validation and sanitization
-
-### Design System
-
-The design system is centralized in `frontend/tailwind.config.js` as a **single source of truth**:
-
-- **Typography**: Poppins font family (Regular, SemiBold, Bold)
-- **Color System**: Centralized color tokens exported from `tailwind.config.js`
-  - Personal Mode: Blue (#155dfc)
-  - Caregiver Mode: Rose/Pink (#da7488)
-  - Semantic tokens: text, icon, background, border with variants
-  - Status colors: success, warning, danger with hover/light variants
-  - Patient colors: pink, blue, green, amber, purple (for caregiver mode)
-  - All components import colors directly from the config
-  - Utility functions: `getGradientBackground()`, `getBoxShadow()`, `hexToRgba()`
-- **Spacing**: Consistent rem-based scale (0.25rem to 5rem)
-- **Button Glow Effects**: CSS-only hover states using Tailwind classes
-- **Animations**: fadeIn, slideUp, slideDown, scaleIn
-- **Z-Index Scale**: Organized layering (dropdown: 10, modal: 40, tooltip: 60)
+- Node.js
+- Express
+- MongoDB
+- Mongoose
+- JWT
+- Helmet
+- express-rate-limit
+- express-validator
+- bcrypt
 
 ## 📁 Project Structure
 
@@ -93,6 +74,7 @@ Medication-Tracker-App/
 │   ├── controllers/
 │   │   ├── appointments.js          # Appointment logic
 │   │   ├── auth.js                  # Authentication
+│   │   ├── caregiver.js             # Caregiver mode logic
 │   │   ├── medications.js           # Medication CRUD
 │   │   └── users.js                 # User management
 │   ├── middleware/
@@ -101,10 +83,12 @@ Medication-Tracker-App/
 │   ├── models/
 │   │   ├── Appointments.js          # Appointment model
 │   │   ├── Medication.js            # Medication model
+│   │   ├── MedicationLog.js         # Medication log model
 │   │   └── User.js                  # User model
 │   ├── routes/
 │   │   ├── appointments.js          # Appointment routes
 │   │   ├── auth.js                  # Auth routes
+│   │   ├── caregiver.js             # Caregiver routes
 │   │   ├── medications.js           # Medication routes
 │   │   └── users.js                 # User routes
 │   ├── server.js                    # Express entry point
@@ -195,8 +179,8 @@ Medication-Tracker-App/
 ### Prerequisites
 
 - **Node.js** (v18 or higher)
-- **npm** or **yarn** package manager
-- **MongoDB** (local installation or MongoDB Atlas account)
+- **npm**
+- **MongoDB** (local or Atlas)
 
 ### Installation
 
@@ -228,19 +212,11 @@ Medication-Tracker-App/
    ```bash
    cp backend/env.example backend/.env
    ```
-
-   Or create a `.env` file in the `backend` directory with these variables:
-
+   
+   Optional (frontend): set a custom API target for the Vite dev proxy by creating `frontend/.env`:
+   
    ```env
-   MONGODB_URI=mongodb://localhost:27017/medtrack
-   PORT=5000
-   JWT_SECRET=your-secret-key-here
-   ```
-
-   **Note:** For production, use a strong, randomly generated JWT secret. You can generate one using:
-
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+   VITE_API_TARGET=http://127.0.0.1:5001
    ```
 
 ### Running the Application
@@ -254,7 +230,7 @@ Medication-Tracker-App/
    npm run dev
    ```
 
-   The backend will run on `http://localhost:5000`
+   The backend will run on `http://127.0.0.1:5001` by default
 
 2. **Start the frontend development server**
 
@@ -264,6 +240,8 @@ Medication-Tracker-App/
    ```
 
    The frontend will run on `http://localhost:5173`
+   
+   In development, the frontend calls the API via `/api/*` and Vite proxies requests to the backend (the `/api` prefix is stripped).
 
 #### Production Build
 
@@ -279,6 +257,8 @@ Medication-Tracker-App/
    cd backend
    npm start
    ```
+   
+   Serve the frontend build from `frontend/dist` using any static host.
 
 ## 🎨 Design System
 
@@ -331,7 +311,7 @@ import { colors } from "../../../tailwind.config.js";
 
 ### Button Variants
 
-The `Button` component (`ui/buttons/Button.jsx`) supports these variants:
+The `Button` component (`frontend/src/components/ui/Button.jsx`) supports these variants:
 
 | Variant     | Use Case                      |
 | ----------- | ----------------------------- |
@@ -344,7 +324,7 @@ The `Button` component (`ui/buttons/Button.jsx`) supports these variants:
 
 ### Action Buttons
 
-The `ActionButtons` component (`ui/buttons/ActionButtons.jsx`) provides consistent edit/delete actions:
+The `ActionButtons` component (`frontend/src/components/ui/ActionButtons.jsx`) provides consistent edit/delete actions:
 
 | Size   | Icon Size | Padding | Use Case             |
 | ------ | --------- | ------- | -------------------- |
@@ -482,7 +462,7 @@ Currently, the project does not include automated tests. To add testing:
 Building this Medication Tracker App provided valuable insights and learning experiences:
 
 ### Full-Stack Development
-- **MERN Stack Mastery**: Gained hands-on experience building a complete application with MongoDB, Express, React, and Node.js
+- **Full-Stack Development**: Gained hands-on experience building a complete application with MongoDB, Express, React, and Node.js
 - **RESTful API Design**: Learned to structure REST endpoints with proper HTTP methods, status codes, and error handling
 - **Authentication & Security**: Implemented JWT-based authentication with secure password hashing using bcrypt
 - **Database Modeling**: Designed MongoDB schemas with Mongoose, including relationships between users, medications, and appointments

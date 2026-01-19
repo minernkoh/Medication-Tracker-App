@@ -268,16 +268,21 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     },
     {
       key: "dosage",
-      label: "Dosage",
+      label: "Dose/Frequency",
       render: (value, row) => (
-        <span className="font-poppins text-sm text-text-primary">
-          {formatQuantity(value, row.unit)}
-        </span>
+        <div className="flex flex-col">
+          <span className="font-poppins text-sm text-text-primary">
+            {formatQuantity(value, row.unit)}
+          </span>
+          <span className="font-poppins text-[10px] text-text-secondary uppercase">
+            {row.frequency || "daily"}
+          </span>
+        </div>
       ),
     },
     {
       key: "quantity",
-      label: "Quantity",
+      label: "Total Quantity",
       render: (value, row) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
           {value !== undefined ? formatQuantity(value, row.unit) : "N/A"}
@@ -306,20 +311,29 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
       },
     },
     {
-      key: "refillDate",
-      label: "Refill Date",
+      key: "recommendSupply",
+      label: "Recommend Supply",
       render: (value, row) => {
-        const formattedDate = formatRefillDate(value);
-        if (!formattedDate) {
-          return (
-            <span className="font-poppins text-sm text-text-secondary">
-              Not set
-            </span>
-          );
-        }
+        const status = getSupplyStatus(row);
+        const needsRefill = status && status.percentage < 30;
         return (
           <span className="font-poppins text-sm text-text-primary">
-            {formattedDate}
+            {needsRefill ? formatQuantity(row.initialQuantity || 30, row.unit) : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "refill",
+      label: "Refill?",
+      render: (value, row) => {
+        const status = getSupplyStatus(row);
+        const needsRefill = status && status.percentage < 30;
+        return (
+          <span
+            className={`font-poppins text-sm font-semibold ${needsRefill ? "text-red-600" : "text-emerald-600"}`}
+          >
+            {needsRefill ? "Yes" : "No"}
           </span>
         );
       },

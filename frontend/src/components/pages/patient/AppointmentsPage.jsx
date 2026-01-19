@@ -69,6 +69,18 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
     }
   }, [showError]);
 
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      if (isReadOnlyPatient) return;
+      await api.appointments.update(id, { status: newStatus });
+      setAppointments((prev) =>
+        prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
+      );
+    } catch (error) {
+      showError(error.message || "Unable to update status");
+    }
+  };
+
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
@@ -90,10 +102,10 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
       return multiplier * (new Date(a.date) - new Date(b.date));
     }
     if (key === "status") {
-      const statusOrder = { today: 0, upcoming: 1, past: 2 };
+      const statusOrder = { Today: 0, Scheduled: 1, Completed: 2, Missed: 3, Cancelled: 4 };
       return (
         multiplier *
-        (statusOrder[getStatus(a.date)] - statusOrder[getStatus(b.date)])
+        ((statusOrder[getStatus(a)] ?? 5) - (statusOrder[getStatus(b)] ?? 5))
       );
     }
     if (key === "title") {
@@ -146,25 +158,46 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get appointment status
-  const getStatus = (dateStr) => {
-    const aptDate = new Date(dateStr);
-    aptDate.setHours(0, 0, 0, 0);
+  // Get appointment status with auto-resolution
+  const getStatus = (apt) => {
+    if (apt.status && apt.status !== "Scheduled") return apt.status;
 
-    if (aptDate.getTime() === today.getTime()) return "today";
-    if (aptDate < today) return "past";
-    return "upcoming";
+    // Use local date and time
+    const [year, month, day] = apt.date.split("-").map(Number);
+    const aptDate = new Date(year, month - 1, day);
+    if (apt.time) {
+      const [hours, minutes] = apt.time.split(":");
+      aptDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    }
+
+    const now = new Date();
+
+    // Auto-resolution: toggle to Missed if current time > appointment time by 1 hour
+    if (now - aptDate > 3600000) {
+      return "Missed";
+    }
+
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const compareDate = new Date(year, month - 1, day);
+
+    if (compareDate.getTime() === todayDate.getTime()) return "Today";
+    if (compareDate > todayDate) return "Scheduled";
+    return "Missed";
   };
 
   // Count stats
   const upcomingCount = sortedAppointments.filter(
-    (apt) => getStatus(apt.date) === "upcoming"
+    (apt) => getStatus(apt) === "Scheduled"
   ).length;
   const completedCount = sortedAppointments.filter(
-    (apt) => getStatus(apt.date) === "past"
+    (apt) => (apt.status || getStatus(apt)) === "Completed"
   ).length;
   const todayCount = sortedAppointments.filter(
-    (apt) => getStatus(apt.date) === "today"
+    (apt) => getStatus(apt) === "Today"
+  ).length;
+  const missedCount = sortedAppointments.filter(
+    (apt) => (apt.status || getStatus(apt)) === "Missed"
   ).length;
 
   // Handle add appointment
@@ -441,26 +474,44 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                   </thead>
                   <tbody>
                     {sortedAppointments.map((apt) => {
-                      const status = getStatus(apt.date);
-                      const isPast = status === "past";
-                      const isToday = status === "today";
+                      const currentStatus = getStatus(apt);
+                      const isMissed = currentStatus === "Missed";
+                      const isToday = currentStatus === "Today";
 
                       return (
                         <tr
                           key={apt.id}
                           className={`border-b border-border-default transition-colors hover:bg-background-hover ${
-                            isPast ? "opacity-50" : ""
+                            isMissed ? "opacity-60" : ""
                           } ${isToday ? "bg-amber-50/30" : ""}`}
                         >
                           <td className="px-5 py-4">
-                            <StatusBadge status={status} />
+                            <select
+                              value={apt.status || "Scheduled"}
+                              onChange={(e) => handleUpdateStatus(apt.id, e.target.value)}
+                              disabled={isReadOnlyPatient}
+                              className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
+                                (apt.status || "Scheduled") === "Scheduled" || isToday
+                                  ? "bg-blue-50 text-blue-600"
+                                  : (apt.status || "Scheduled") === "Completed"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : (apt.status || "Scheduled") === "Cancelled"
+                                  ? "bg-gray-100 text-gray-600"
+                                  : "bg-red-50 text-red-600"
+                              }`}
+                            >
+                              <option value="Scheduled">Scheduled</option>
+                              <option value="Completed">Completed</option>
+                              <option value="Missed">Missed</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col">
                               <span
                                 className={`${textStyles.body.small} text-text-primary`}
                               >
-                                {formatDate(apt.date)}
+                                {formatDateNumeric(apt.date)}
                               </span>
                               <span
                                 className={`${textStyles.caption.small} mt-0.5`}

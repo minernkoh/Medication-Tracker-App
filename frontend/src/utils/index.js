@@ -87,6 +87,7 @@ export {
   MONTHS_SHORT,
   DAYS,
   formatDate,
+  formatDateNumeric,
   formatTime,
   formatDateLocale,
   getDaysInMonth,

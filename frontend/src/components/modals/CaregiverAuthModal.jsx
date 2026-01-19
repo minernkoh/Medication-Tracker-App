@@ -149,7 +149,13 @@ function CaregiverAuthModal({
       : "Start managing care for your loved ones";
 
   const customHeader = (
-    <div className="bg-gradient-to-br from-secondary via-pink-400 to-rose-400 p-8 pb-16 relative rounded-t-2xl overflow-hidden w-full">
+    <div
+      className={`bg-gradient-to-br p-8 pb-16 relative rounded-t-2xl overflow-hidden w-full ${
+        role === "patient"
+          ? "from-primary via-blue-400 to-indigo-400"
+          : "from-secondary via-pink-400 to-rose-400"
+      }`}
+    >
       {/* Close button */}
       <button
         onClick={onClose}

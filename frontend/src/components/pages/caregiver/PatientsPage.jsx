@@ -256,7 +256,7 @@ function PatientsPage() {
           )}
         </td>
         <td className="px-5 py-4">
-          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-end gap-1 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -297,12 +297,9 @@ function PatientsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <UsersIcon size={28} weight="fill" color={modeHexColor} />
-              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-                My Patients
-              </h1>
-            </div>
+            <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary mb-1">
+              My Patients
+            </h1>
             <p className="font-poppins text-text-secondary">
               Manage and monitor all your patients in one place
             </p>

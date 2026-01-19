@@ -44,12 +44,22 @@ export const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  * @returns {string} Formatted date string
  */
 export const formatDate = (dateStr) => {
+  return formatDateNumeric(dateStr);
+};
+
+/**
+ * Format date to numeric format (e.g., "13/01/26")
+ * @param {string|Date} dateStr - Date string or Date object
+ * @returns {string} Numeric formatted date string
+ */
+export const formatDateNumeric = (dateStr) => {
   const date = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
   if (isNaN(date.getTime())) return "";
   
-  const dayName = DAYS[date.getDay()];
-  const monthName = MONTHS_SHORT[date.getMonth()];
-  return `${dayName}, ${date.getDate()} ${monthName}`;
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = String(date.getFullYear()).slice(-2);
+  return `${d}/${m}/${y}`;
 };
 
 /**
@@ -118,12 +128,5 @@ export const formatShortMonthYear = (month, year) => {
  * @returns {string} Locale formatted date string
  */
 export const formatDateLocale = (dateStr) => {
-  const date = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
-  if (isNaN(date.getTime())) return "";
-  
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDateNumeric(dateStr);
 };

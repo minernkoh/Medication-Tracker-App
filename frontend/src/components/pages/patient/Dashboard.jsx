@@ -244,6 +244,10 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           <Calendar
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
+            appointments={appointments}
+            adherence={{
+              [selectedDate.toISOString().split("T")[0]]: stats.percentage,
+            }}
           />
 
           {/* Stats and appointment cards */}

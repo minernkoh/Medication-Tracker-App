@@ -244,6 +244,7 @@ function AddAppointmentModal({
               onChange={handleChange}
               error={errors.time}
               required
+              step="900"
             />
           </div>
 

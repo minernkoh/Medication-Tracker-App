@@ -13,7 +13,7 @@
  * @param {function} onDelete - Called when delete button is clicked
  */
 import React from "react";
-import { PillIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { PillIcon, CheckCircleIcon, ArrowUUpLeft, PencilSimple } from "@phosphor-icons/react";
 import ActionButtons from "../ui/ActionButtons";
 import { getMedicationColor } from "../../utils/medicationColors";
 
@@ -119,7 +119,42 @@ function PendingMedicine({
           />
         )}
 
-        {(type === "Taken" || type === "Supply") && (
+        {type === "Taken" && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.();
+              }}
+              className="p-2 rounded-lg hover:bg-primary-light transition-colors group/edit focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Edit taken medication"
+            >
+              <PencilSimple
+                size={18}
+                weight="regular"
+                className="text-icon-primary group-hover/edit:text-primary transition-colors"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(); // This triggers undo
+              }}
+              className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/undo focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              aria-label="Undo taken status"
+            >
+              <ArrowUUpLeft
+                size={18}
+                weight="bold"
+                className="text-icon-primary group-hover/undo:text-blue-600 transition-colors"
+              />
+            </button>
+          </div>
+        )}
+
+        {type === "Supply" && (
           <ActionButtons
             onEdit={onEdit}
             onDelete={onDelete}

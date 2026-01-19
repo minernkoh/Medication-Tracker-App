@@ -18,7 +18,7 @@ import {
 import { colors } from "../../../tailwind.config.js";
 import { textStyles } from "../../utils/typography";
 
-function Calendar({ selectedDate, onDateChange }) {
+function Calendar({ selectedDate, onDateChange, appointments = [], adherence = {} }) {
   const today = new Date();
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(selectedDate || today));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -48,12 +48,16 @@ function Calendar({ selectedDate, onDateChange }) {
     for (let i = 0; i < 7; i++) {
       const date = new Date(currentWeekStart);
       date.setDate(currentWeekStart.getDate() + i);
+      const dateStr = date.toISOString().split("T")[0];
+      
       dates.push({
         day: DAYS[date.getDay()],
         date: date.getDate(),
         fullDate: new Date(date),
         month: date.getMonth(),
         year: date.getFullYear(),
+        hasAppointment: appointments.some(a => a.date === dateStr),
+        hasFullAdherence: adherence[dateStr] === 100,
       });
     }
     return dates;
@@ -223,6 +227,8 @@ function Calendar({ selectedDate, onDateChange }) {
             date={item.date}
             isSelected={isSelected(item)}
             isToday={today.getDate() === item.date && today.getMonth() === item.month && today.getFullYear() === item.year}
+            hasAppointment={item.hasAppointment}
+            hasFullAdherence={item.hasFullAdherence}
             onClick={() => onDateChange(item.fullDate)}
           />
         ))}

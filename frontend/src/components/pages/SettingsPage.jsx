@@ -171,16 +171,13 @@ function SettingsPage({
       <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-6">
         <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
-            <GearIcon size={32} weight="fill" color={modeHexColor} />
-            <div>
-              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-                Settings
-              </h1>
-              <p className="font-poppins text-sm text-text-secondary mt-2">
-                Manage your account and preferences
-              </p>
-            </div>
+          <div className="mb-8">
+            <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
+              Settings
+            </h1>
+            <p className="font-poppins text-sm text-text-secondary mt-2">
+              Manage your account and preferences
+            </p>
           </div>
 
           <div className="flex flex-col gap-6">

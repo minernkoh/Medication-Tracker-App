@@ -14,7 +14,8 @@ import {
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { to12HourDisplay, timeToMinutes } from "../../../utils";
-import { GradientBackground, PieChart } from "../../ui";
+import { GradientBackground, PieChart, PageHeader } from "../../ui";
+import { Calendar } from "../../features";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
@@ -58,16 +59,24 @@ const normalizePatient = (patient, index) => {
   };
 };
 
-function CaregiverDashboard({ userName = "" }) {
+const getTimeGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  return "Evening";
+};
+
+const CaregiverDashboard = ({ userName = "" }) => {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [scheduleItems, setScheduleItems] = useState([]);
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const { showError } = useError();
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = selectedDate.toISOString().split("T")[0];
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -113,16 +122,20 @@ function CaregiverDashboard({ userName = "" }) {
 
   // Calculate totals
   const totalPatients = patients.length;
-  const totalMedicationsToday = patients.reduce(
-    (sum, p) => sum + (p.medicationsTotalToday || 0),
-    0,
-  );
-  const totalMedicationsTaken = patients.reduce(
-    (sum, p) => sum + (p.medicationsTakenToday || 0),
-    0,
-  );
+  
+  // Use scheduleItems for more reactive adherence stats
+  const totalMedicationsDate = scheduleItems.length;
+  const totalMedicationsTakenDate = scheduleItems.filter(i => i.status === "taken").length;
+  
   const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
+  
   const upcomingAppointments = appointments.filter((appt) => {
+    const status = String(appt.status || "").toLowerCase();
+    // Only count active/upcoming ones
+    if (status === "completed" || status === "cancelled" || status === "missed") {
+      return false;
+    }
+    
     const date = new Date(appt.date);
     if (Number.isNaN(date.getTime())) return false;
     const today = new Date();
@@ -155,10 +168,15 @@ function CaregiverDashboard({ userName = "" }) {
     )
     .sort((a, b) => timeSortValue(a.time) - timeSortValue(b.time));
 
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+  };
+
   // Patient card component
   const PatientCard = ({ patient }) => {
-    const total = patient.medicationsTotalToday || 0;
-    const taken = patient.medicationsTakenToday || 0;
+    const pStats = scheduleItems.filter(i => i.patientId === patient.id);
+    const total = pStats.length;
+    const taken = pStats.filter(i => i.status === "taken").length;
     const completionPercent = total > 0 ? Math.round((taken / total) * 100) : 0;
 
     return (
@@ -181,8 +199,8 @@ function CaregiverDashboard({ userName = "" }) {
               </h3>
               <p className="font-poppins text-xs text-text-secondary">
                 {total > 0
-                  ? `${taken}/${total} medications today`
-                  : "No medications scheduled today"}
+                  ? `${taken}/${total} medications`
+                  : "No medications scheduled"}
               </p>
             </div>
           </div>
@@ -200,7 +218,7 @@ function CaregiverDashboard({ userName = "" }) {
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1">
             <span className="font-poppins text-xs text-text-secondary">
-              Today's Progress
+              Adherence Progress
             </span>
             <span
               className="font-poppins text-xs font-semibold"
@@ -282,16 +300,16 @@ function CaregiverDashboard({ userName = "" }) {
       <div className="relative flex flex-col gap-6 items-start pt-10 px-4 md:px-8 w-full z-10 pb-10">
         <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
-            <div>
-              <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
-                Good Morning, {userName}!
-              </h1>
-              <p className="font-poppins text-sm text-text-secondary mt-2">
-                Here's an overview of your patients for today
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            title={`Good ${getTimeGreeting()}, ${userName}!`}
+            description="Here's an overview of your patients"
+          />
+
+          {/* Calendar section */}
+          <Calendar
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+          />
 
           {/* Stats cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -300,31 +318,16 @@ function CaregiverDashboard({ userName = "" }) {
               type="button"
               onClick={() => navigate("/patients")}
               className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
-              aria-label="View today's adherence by patient"
+              aria-label="View adherence by patient"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-poppins text-sm text-text-secondary">
-                    Today's adherence
-                  </p>
-                  <p className="font-poppins font-bold text-2xl text-text-primary mt-1">
-                    {totalMedicationsToday > 0
-                      ? `${Math.round((totalMedicationsTaken / totalMedicationsToday) * 100)}%`
-                      : "—"}
-                  </p>
-                  <p className="font-poppins text-sm text-text-secondary mt-1">
-                    {totalMedicationsToday > 0
-                      ? `${totalMedicationsTaken}/${totalMedicationsToday} taken`
-                      : "No scheduled meds today"}
-                  </p>
-                </div>
+              <div className="flex items-center justify-center gap-4">
                 <PieChart
-                  taken={totalMedicationsTaken}
+                  taken={totalMedicationsTakenDate}
                   notTaken={Math.max(
-                    totalMedicationsToday - totalMedicationsTaken,
+                    totalMedicationsDate - totalMedicationsTakenDate,
                     0,
                   )}
-                  size={96}
+                  size={120}
                 />
               </div>
             </button>
@@ -404,7 +407,7 @@ function CaregiverDashboard({ userName = "" }) {
           {/* Today's schedule section */}
           <div>
             <h2 className="font-poppins font-bold text-xl text-text-primary mb-4">
-              Today's Medication Schedule
+              Medication Schedule
             </h2>
             <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-border-default">

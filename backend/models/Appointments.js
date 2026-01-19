@@ -15,6 +15,11 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
     },
     notes: String,
+    status: {
+      type: String,
+      enum: ["Scheduled", "Completed", "Missed", "Cancelled"],
+      default: "Scheduled",
+    },
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
