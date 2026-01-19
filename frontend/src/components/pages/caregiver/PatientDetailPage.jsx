@@ -262,27 +262,24 @@ function PatientDetailPage() {
     {
       key: "recommendSupply",
       label: "Recommend Supply",
-      render: (value, row) => {
-        const status = getSupplyStatus(row);
-        const needsRefill = status && status.percentage < 30;
-        return (
-          <span className="font-poppins text-sm text-text-primary">
-            {needsRefill ? `${row.initialQuantity || 30} ${row.unit || ""}` : "—"}
-          </span>
-        );
-      },
+      render: (value, row) => (
+        <span className="font-poppins text-sm text-text-primary">
+          {value ? `${value} ${row.unit || ""}` : "—"}
+        </span>
+      ),
     },
     {
       key: "refill",
       label: "Refill?",
       render: (value, row) => {
         const status = getSupplyStatus(row);
-        const needsRefill = status && status.percentage < 30;
+        const refillNeeded =
+          status && (status.label === "Low" || status.label === "Empty");
         return (
           <span
-            className={`font-poppins text-sm font-semibold ${needsRefill ? "text-red-600" : "text-emerald-600"}`}
+            className={`font-poppins text-sm font-semibold ${refillNeeded ? "text-red-600" : "text-emerald-600"}`}
           >
-            {needsRefill ? "Yes" : "No"}
+            {refillNeeded ? "Yes" : "No"}
           </span>
         );
       },

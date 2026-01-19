@@ -19,6 +19,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     frequencyValue: "",
     frequencyText: "",
     quantity: "",
+    recommendSupply: "",
     unit: "pills",
     instructions: [],
     timeOfDay: [],
@@ -39,6 +40,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
         frequencyValue: "",
         frequencyText: "",
         quantity: "",
+        recommendSupply: "",
         unit: "pills",
         instructions: [],
         timeOfDay: [],
@@ -84,27 +86,27 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Medication name is required";
+      newErrors.name = "Field is required";
     }
     if (!formData.dosage.trim()) {
-      newErrors.dosage = "Dosage is required";
+      newErrors.dosage = "Field is required";
     }
     if (!formData.quantity.trim()) {
-      newErrors.quantity = "Quantity is required";
+      newErrors.quantity = "Field is required";
     }
 
     // Validate frequency based on type
     if (formData.frequencyType === "custom") {
       if (!formData.frequencyText.trim()) {
-        newErrors.frequency = "Please enter frequency information";
+        newErrors.frequency = "Field is required";
       }
     } else if (!formData.frequencyValue) {
-      newErrors.frequency = "Please enter frequency information";
+      newErrors.frequency = "Field is required";
     }
 
     // Validate time of day - at least one selection required
     if (formData.timeOfDay.length === 0) {
-      newErrors.timeOfDay = "Please select at least one time of day";
+      newErrors.timeOfDay = "Field is required";
     }
 
     setErrors(newErrors);
@@ -154,6 +156,10 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
       frequency: frequencyString,
       status: "pending",
       quantity: parseFloat(formData.quantity) || 0,
+      recommendSupply:
+        parseFloat(formData.recommendSupply) ||
+        parseFloat(formData.quantity) ||
+        0,
       initialQuantity: parseFloat(formData.quantity) || 0, // Track initial quantity for percentage calculation
       additionalInfo: additionalInfo,
       refillDate: formData.refillDate || "",
@@ -383,9 +389,9 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             </label>
             <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
               {[
-                { label: "Morning", sub: "(8:00 AM)", value: "morning" },
-                { label: "Afternoon", sub: "(1:00 PM)", value: "afternoon" },
-                { label: "Night", sub: "(9:00 PM)", value: "night" },
+                { label: "Morning", sub: "(8:00 AM)", value: "08:00" },
+                { label: "Afternoon", sub: "(12:00 PM)", value: "12:00" },
+                { label: "Night", sub: "(8:00 PM)", value: "20:00" },
               ].map(({ label, sub, value }) => {
                 const isSelected = formData.timeOfDay.includes(value);
 
@@ -404,7 +410,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                       }}
                     />
                     <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
-                      {label} <span className="text-text-secondary text-xs">{sub}</span>
+                      {label}{" "}
+                      <span className="text-text-secondary text-xs">{sub}</span>
                     </span>
                   </label>
                 );

@@ -303,7 +303,9 @@ function MedicationSection({
                           dosage={formatQuantity(med.dosage, med.unit)}
                           additionalInfo={buildPendingInfo(med)}
                           pillColor={med.pillColor}
-                          onCheck={() => onMarkAsTaken?.(med)}
+                          onCheck={
+                            onMarkAsTaken ? () => onMarkAsTaken(med) : undefined
+                          }
                         />
                       ))}
                     </div>
@@ -334,8 +336,8 @@ function MedicationSection({
                             : med.additionalInfo
                         }
                         pillColor={med.pillColor}
-                        onEdit={() => onEdit?.(med)}
-                        onDelete={() => onDelete?.(med)}
+                        onEdit={onEdit ? () => onEdit(med) : undefined}
+                        onDelete={onDelete ? () => onDelete(med) : undefined}
                       />
                     ))}
                   </div>
@@ -359,9 +361,15 @@ function MedicationSection({
                         : med.additionalInfo
                   }
                   pillColor={med.pillColor}
-                  onCheck={isPending ? () => onMarkAsTaken?.(med) : undefined}
-                  onEdit={!isPending ? () => onEdit?.(med) : undefined}
-                  onDelete={!isPending ? () => onDelete?.(med) : undefined}
+                  onCheck={
+                    isPending && onMarkAsTaken
+                      ? () => onMarkAsTaken(med)
+                      : undefined
+                  }
+                  onEdit={!isPending && onEdit ? () => onEdit(med) : undefined}
+                  onDelete={
+                    !isPending && onDelete ? () => onDelete(med) : undefined
+                  }
                 />
               ))}
             </div>

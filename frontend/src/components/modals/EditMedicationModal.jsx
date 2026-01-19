@@ -21,6 +21,7 @@ function EditMedicationModal({
     frequencyValue: "",
     frequencyText: "",
     quantity: "",
+    recommendSupply: "",
     unit: "",
     timeOfDay: [],
     refillDate: "",
@@ -96,6 +97,7 @@ function EditMedicationModal({
         frequencyValue,
         frequencyText,
         quantity: medication.quantity || "",
+        recommendSupply: medication.recommendSupply || "",
         unit: medication.unit || "",
         timeOfDay: timesOfDay,
         refillDate: medication.refillDate || "",
@@ -171,6 +173,7 @@ function EditMedicationModal({
       type: formData.type,
       frequency: frequencyString,
       quantity: parseFloat(formData.quantity) || 0,
+      recommendSupply: parseFloat(formData.recommendSupply) || 0,
       unit: formData.unit,
       timeOfDay: formData.timeOfDay?.[0] || null,
       timesOfDay: formData.timeOfDay,
@@ -353,9 +356,9 @@ function EditMedicationModal({
                 </label>
                 <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
                   {[
-                    { label: "Morning", sub: "(8:00 AM)", value: "morning" },
-                    { label: "Afternoon", sub: "(1:00 PM)", value: "afternoon" },
-                    { label: "Night", sub: "(9:00 PM)", value: "night" },
+                    { label: "Morning", sub: "(8:00 AM)", value: "08:00" },
+                    { label: "Afternoon", sub: "(12:00 PM)", value: "12:00" },
+                    { label: "Night", sub: "(8:00 PM)", value: "20:00" },
                   ].map(({ label, sub, value }) => {
                     const isSelected = formData.timeOfDay.includes(value);
                     return (
@@ -371,7 +374,10 @@ function EditMedicationModal({
                           style={{ accentColor: primaryColor }}
                         />
                         <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
-                          {label} <span className="text-text-secondary text-xs">{sub}</span>
+                          {label}{" "}
+                          <span className="text-text-secondary text-xs">
+                            {sub}
+                          </span>
                         </span>
                       </label>
                     );
@@ -384,6 +390,15 @@ function EditMedicationModal({
                 name="quantity"
                 type="text"
                 value={formData.quantity}
+                onChange={handleChange}
+                placeholder="e.g., 30 pills"
+              />
+
+              <FormField
+                label="Recommend Supply"
+                name="recommendSupply"
+                type="text"
+                value={formData.recommendSupply}
                 onChange={handleChange}
                 placeholder="e.g., 30 pills"
               />

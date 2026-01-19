@@ -13,7 +13,12 @@
  * @param {function} onDelete - Called when delete button is clicked
  */
 import React from "react";
-import { PillIcon, CheckCircleIcon, ArrowUUpLeft, PencilSimple } from "@phosphor-icons/react";
+import {
+  PillIcon,
+  CheckCircleIcon,
+  ArrowUUpLeft,
+  PencilSimple,
+} from "@phosphor-icons/react";
 import ActionButtons from "../ui/ActionButtons";
 import { getMedicationColor } from "../../utils/medicationColors";
 
@@ -30,19 +35,19 @@ function PendingMedicine({
 }) {
   // background classes based on type
   const bgClasses =
-    type === "Due"
+    type === "Due" && onCheck
       ? "bg-background-subtle hover:bg-success-light cursor-pointer"
       : "bg-background-subtle";
 
-  // For "Due" type, make the whole card clickable
-  const CardWrapper = type === "Due" ? "button" : "div";
+  // For "Due" type, make the whole card clickable only if onCheck is provided
+  const CardWrapper = type === "Due" && onCheck ? "button" : "div";
   const cardProps =
-    type === "Due"
+    type === "Due" && onCheck
       ? {
           type: "button",
           onClick: (e) => {
             e.stopPropagation();
-            onCheck?.();
+            onCheck();
           },
           "aria-label": "Mark as taken",
         }
@@ -111,7 +116,7 @@ function PendingMedicine({
 
       {/* Right section: Action buttons */}
       <div className="flex gap-1 items-center justify-end shrink-0">
-        {type === "Due" && (
+        {type === "Due" && onCheck && (
           <CheckCircleIcon
             size={24}
             weight="regular"
@@ -121,36 +126,40 @@ function PendingMedicine({
 
         {type === "Taken" && (
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit?.();
-              }}
-              className="p-2 rounded-lg hover:bg-primary-light transition-colors group/edit focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Edit taken medication"
-            >
-              <PencilSimple
-                size={18}
-                weight="regular"
-                className="text-icon-primary group-hover/edit:text-primary transition-colors"
-              />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.(); // This triggers undo
-              }}
-              className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/undo focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-              aria-label="Undo taken status"
-            >
-              <ArrowUUpLeft
-                size={18}
-                weight="bold"
-                className="text-icon-primary group-hover/undo:text-blue-600 transition-colors"
-              />
-            </button>
+            {onEdit && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                className="p-2 rounded-lg hover:bg-primary-light transition-colors group/edit focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label="Edit taken medication"
+              >
+                <PencilSimple
+                  size={18}
+                  weight="regular"
+                  className="text-icon-primary group-hover/edit:text-primary transition-colors"
+                />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="p-2 rounded-lg hover:bg-blue-50 transition-colors group/undo focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                aria-label="Undo taken status"
+              >
+                <ArrowUUpLeft
+                  size={18}
+                  weight="bold"
+                  className="text-icon-primary group-hover/undo:text-blue-600 transition-colors"
+                />
+              </button>
+            )}
           </div>
         )}
 

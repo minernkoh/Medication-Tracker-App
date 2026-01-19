@@ -12,9 +12,15 @@
  */
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FirstAidKitIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
+import {
+  FirstAidKitIcon,
+  UsersIcon,
+  XIcon,
+  EyeIcon,
+} from "@phosphor-icons/react";
 import { SideMenuButtons } from "../ui";
 import { colors } from "../../../tailwind.config.js";
+import { isReadOnlyPatientUser } from "../../utils/modeUtils";
 
 function Sidebar({
   userName,
@@ -38,7 +44,9 @@ function Sidebar({
 
   const displayName = userName || userData?.name || "User";
   const displayEmail = userEmail || userData?.email || "";
-  const displayMode = mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+  const displayMode =
+    mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+  const isReadOnly = isReadOnlyPatientUser(userData);
 
   // Get first letter of name for avatar
   const userInitial = displayName.charAt(0).toUpperCase();
@@ -50,12 +58,12 @@ function Sidebar({
     (location.pathname.includes("/appointments")
       ? "Appointments"
       : location.pathname.includes("/patients")
-      ? "Patients"
-      : location.pathname.includes("/medication")
-      ? "Medications"
-      : location.pathname.includes("/settings")
-      ? "Settings"
-      : "Dashboard");
+        ? "Patients"
+        : location.pathname.includes("/medication")
+          ? "Medications"
+          : location.pathname.includes("/settings")
+            ? "Settings"
+            : "Dashboard");
 
   return (
     <div
@@ -100,11 +108,25 @@ function Sidebar({
               {userInitial}
             </p>
           </div>
-          <div className="flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary w-[9.9375rem]">
-            <p className="font-poppins font-semibold text-sm w-full">
-              {displayName}
-            </p>
-            <p className="font-poppins font-normal text-xs w-full">
+          <div className="flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary flex-1">
+            <div className="flex items-center gap-2">
+              <p className="font-poppins font-semibold text-sm">
+                {displayName}
+              </p>
+              {isReadOnly && (
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-full">
+                  <EyeIcon
+                    size={12}
+                    weight="bold"
+                    color={colors.icon.primary}
+                  />
+                  <p className="font-poppins font-semibold text-xs text-blue-700">
+                    View Only
+                  </p>
+                </div>
+              )}
+            </div>
+            <p className="font-poppins font-normal text-xs w-full text-text-secondary">
               {displayEmail}
             </p>
           </div>
@@ -247,7 +269,9 @@ function Sidebar({
                       : colors.secondary.DEFAULT,
                 }}
               >
-                {displayMode === "Personal" ? "Caregiver Mode" : "Personal Mode"}
+                {displayMode === "Personal"
+                  ? "Caregiver Mode"
+                  : "Personal Mode"}
               </p>
             </div>
           </div>

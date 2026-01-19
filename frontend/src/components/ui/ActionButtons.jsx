@@ -9,11 +9,16 @@
  * @param {string} size - "sm" | "base" | "lg" - Icon size variant
  * @param {string} editLabel - Accessible label for edit button
  * @param {string} deleteLabel - Accessible label for delete button
+ * @param {string} deleteIconType - "delete" or "undo" (default: "delete")
  * @param {boolean} showEdit - Whether to show edit button (default: true)
  * @param {boolean} showDelete - Whether to show delete button (default: true)
  */
 import React from "react";
-import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
+import {
+  PencilSimpleIcon,
+  TrashIcon,
+  ArrowCounterClockwise,
+} from "@phosphor-icons/react";
 
 const SIZES = {
   sm: { icon: 16, padding: "p-1.5" },
@@ -27,10 +32,20 @@ function ActionButtons({
   size = "base",
   editLabel = "Edit",
   deleteLabel = "Delete",
+  deleteIconType = "delete",
   showEdit = true,
   showDelete = true,
 }) {
   const sizeConfig = SIZES[size] || SIZES.base;
+  const isUndo = deleteIconType === "undo";
+  const DeleteIcon = isUndo ? ArrowCounterClockwise : TrashIcon;
+  const hoverBgClass = isUndo ? "hover:bg-blue-50" : "hover:bg-danger-light";
+  const ringColor = isUndo
+    ? "focus-visible:ring-blue-500"
+    : "focus-visible:ring-danger";
+  const hoverIconColor = isUndo
+    ? "group-hover/delete:text-blue-600"
+    : "group-hover/delete:text-danger";
 
   if (!showEdit && !showDelete) return null;
 
@@ -60,13 +75,13 @@ function ActionButtons({
             e.stopPropagation();
             onDelete();
           }}
-          className={`${sizeConfig.padding} rounded-lg hover:bg-danger-light transition-colors group/delete focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2`}
+          className={`${sizeConfig.padding} rounded-lg ${hoverBgClass} transition-colors group/delete focus:outline-none focus-visible:ring-2 ${ringColor} focus-visible:ring-offset-2`}
           aria-label={deleteLabel}
         >
-          <TrashIcon
+          <DeleteIcon
             size={sizeConfig.icon}
             weight="regular"
-            className="text-icon-primary group-hover/delete:text-danger transition-colors"
+            className={`text-icon-primary ${hoverIconColor} transition-colors`}
           />
         </button>
       )}

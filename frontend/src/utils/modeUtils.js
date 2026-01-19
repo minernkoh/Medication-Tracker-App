@@ -36,9 +36,20 @@ export const getModeClasses = (mode = "Personal") => {
 /**
  * Get hex color value for cases where inline color is absolutely needed
  * (e.g., SVG fill, chart colors)
- * @param {'Personal' | 'Caregiver'} mode - The current app mode  
+ * @param {'Personal' | 'Caregiver'} mode - The current app mode
  * @returns {string} The hex color value
  */
 export const getModeHexColor = (mode = "Personal") => {
   return mode === "Personal" ? "#155dfc" : "#da7488";
+};
+
+/**
+ * Check if a user is a read-only patient
+ * @param {object} userData - User data object from localStorage
+ * @returns {boolean} True if user is a patient with read-only access
+ */
+export const isReadOnlyPatientUser = (userData) => {
+  if (!userData) return false;
+  // Patient accounts (role = "patient") are read-only in personal mode
+  return userData.role === "patient" || userData.isReadOnly === true;
 };
