@@ -6,9 +6,20 @@
  * @param {function} onSave - Save medication callback
  * @param {string} mode - "Personal" or "Caregiver"
  */
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Modal, Button } from "../ui";
-import { getModeHexColor } from "../../utils/modeUtils";
+import { buildTimeOptions, getModeHexColor, to12HourDisplay } from "../../utils";
+
+const getUnitForType = (rawType) => {
+  const t = String(rawType || "")
+    .trim()
+    .toLowerCase();
+  if (!t) return "";
+  // Common mappings used across the app (see normalization defaults)
+  if (t === "liquid") return "ml";
+  // Default: use the type string as the unit label
+  return t;
+};
 
 function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
   const [formData, setFormData] = useState({
@@ -55,7 +66,15 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "type") {
+      setFormData((prev) => ({
+        ...prev,
+        type: value,
+        unit: getUnitForType(value),
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -74,13 +93,22 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
 
   const handleTimeOfDayChange = (time) => {
     setFormData((prev) => {
-      const isSelected = prev.timeOfDay.includes(time);
-      const newTimes = isSelected
-        ? prev.timeOfDay.filter((t) => t !== time)
-        : [...prev.timeOfDay, time];
-      return { ...prev, timeOfDay: newTimes };
+      const normalized = String(time || "").trim();
+      if (!normalized) return prev;
+      const next = Array.isArray(prev.timeOfDay) ? [...prev.timeOfDay] : [];
+      if (!next.includes(normalized)) next.push(normalized);
+      return { ...prev, timeOfDay: next };
     });
   };
+
+  const handleRemoveTimeOfDay = (time) => {
+    setFormData((prev) => ({
+      ...prev,
+      timeOfDay: (prev.timeOfDay || []).filter((t) => t !== time),
+    }));
+  };
+
+  const timeOptions = useMemo(() => buildTimeOptions(15), []);
 
   const validate = () => {
     const newErrors = {};
@@ -279,30 +307,6 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             </datalist>
           </div>
 
-          {/* Unit */}
-          <div>
-            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Unit
-            </label>
-            <input
-              type="text"
-              name="unit"
-              value={formData.unit}
-              onChange={handleChange}
-              placeholder="e.g., pills, ml, mg, drops"
-              list="medication-units"
-              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-            />
-            <datalist id="medication-units">
-              <option value="pills">pills</option>
-              <option value="ml">ml</option>
-              <option value="mg">mg</option>
-              <option value="drops">drops</option>
-              <option value="sprays">sprays</option>
-              <option value="patches">patches</option>
-            </datalist>
-          </div>
-
           {/* Frequency */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
@@ -382,49 +386,53 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             )}
           </div>
 
-          {/* Time of Day - Always visible */}
+          {/* Schedule Times */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Time of Day *
+              Schedule Time(s) *
             </label>
-            <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
-              {[
-                { label: "Morning", sub: "(8:00 AM)", value: "08:00" },
-                { label: "Afternoon", sub: "(12:00 PM)", value: "12:00" },
-                { label: "Night", sub: "(8:00 PM)", value: "20:00" },
-              ].map(({ label, sub, value }) => {
-                const isSelected = formData.timeOfDay.includes(value);
+            <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
+              <select
+                value=""
+                onChange={(e) => {
+                  handleTimeOfDayChange(e.target.value);
+                }}
+                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="" disabled>
+                  Select a time (15-minute intervals)
+                </option>
+                {timeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
 
-                return (
-                  <label
-                    key={value}
-                    className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleTimeOfDayChange(value)}
-                      className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
-                      style={{
-                        accentColor: primaryColor,
-                      }}
-                    />
-                    <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary capitalize">
-                      {label}{" "}
-                      <span className="text-text-secondary text-xs">{sub}</span>
-                    </span>
-                  </label>
-                );
-              })}
+              {Array.isArray(formData.timeOfDay) && formData.timeOfDay.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {[...formData.timeOfDay]
+                    .slice()
+                    .sort()
+                    .map((t) => (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-poppins font-semibold bg-background-hover text-text-primary border border-border-default"
+                      >
+                        {to12HourDisplay(t)}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTimeOfDay(t)}
+                          className="text-text-secondary hover:text-danger transition-colors"
+                          aria-label={`Remove ${to12HourDisplay(t)}`}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
-            {formData.timeOfDay.length > 0 && (
-              <p className="font-poppins text-xs text-text-secondary mt-2">
-                Selected:{" "}
-                {formData.timeOfDay
-                  .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
-                  .join(", ")}
-              </p>
-            )}
             {errors.timeOfDay && (
               <p className="font-poppins text-xs text-red-500 mt-1">
                 {errors.timeOfDay}
@@ -432,27 +440,63 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             )}
           </div>
 
-          {/* Quantity */}
+          {/* Total Quantity */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Total Quantity *
+              </label>
+              <input
+                type="text"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleChange}
+                placeholder="e.g., 30"
+                className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
+                  errors.quantity ? "border-red-500" : "border-border-default"
+                }`}
+                required
+              />
+              {errors.quantity && (
+                <p className="font-poppins text-xs text-red-500 mt-1">
+                  {errors.quantity}
+                </p>
+              )}
+            </div>
+            <div className="col-span-1">
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Unit
+              </label>
+              <input
+                type="text"
+                name="unit"
+                value={formData.unit}
+                readOnly
+                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-hover focus:outline-none"
+                aria-label="Unit (auto-filled from Type)"
+              />
+              <p className="font-poppins text-[10px] text-text-secondary mt-1">
+                Auto-filled from Type
+              </p>
+            </div>
+          </div>
+
+          {/* Recommended Supply */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Quantity *
+              Recommended Supply
             </label>
             <input
               type="text"
-              name="quantity"
-              value={formData.quantity}
+              name="recommendSupply"
+              value={formData.recommendSupply}
               onChange={handleChange}
               placeholder="e.g., 30 pills"
-              className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                errors.quantity ? "border-red-500" : "border-border-default"
-              }`}
-              required
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
             />
-            {errors.quantity && (
-              <p className="font-poppins text-xs text-red-500 mt-1">
-                {errors.quantity}
-              </p>
-            )}
+            <p className="font-poppins text-xs text-text-secondary mt-2">
+              Used to calculate supply status and refill reminders. If left blank, we’ll use Total Quantity.
+            </p>
           </div>
 
           {/* Refill Date */}
@@ -493,10 +537,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                     type="checkbox"
                     checked={formData.instructions.includes(instruction)}
                     onChange={() => handleInstructionChange(instruction)}
-                    className="w-4 h-4 rounded border-2 border-border-default cursor-pointer transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-0"
-                    style={{
-                      accentColor: primaryColor,
-                    }}
+                    className="app-checkbox"
+                    style={{ "--checkbox-accent": primaryColor }}
                   />
                   <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary">
                     {instruction}

@@ -79,9 +79,10 @@ const getPatients = async (req, res) => {
 
           // Only include if the appointment is in the future
           if (aptDateTime > now) {
+            const isoDate = aptDate.toISOString().split("T")[0];
             nextAppointment = {
               title: apt.title,
-              date: aptDate.toLocaleDateString(),
+              date: isoDate,
               time: apt.time,
             };
             break; // Found the next appointment, stop searching
@@ -199,8 +200,13 @@ const addPatient = async (req, res) => {
     for (const appt of allAppointments) {
       const apptDate = new Date(`${appt.date}T${appt.time || "00:00"}`);
       if (apptDate >= now) {
+        const baseDate = new Date(appt.date);
+        const isoDate = !Number.isNaN(baseDate.getTime())
+          ? baseDate.toISOString().split("T")[0]
+          : null;
         nextAppointment = {
-          date: appt.date,
+          title: appt.title,
+          date: isoDate,
           time: appt.time,
         };
         break;

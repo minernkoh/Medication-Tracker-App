@@ -15,12 +15,14 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
-import { formatDateLocale } from "../../../utils/dateUtils";
+import { formatDateLocale, formatDateNumeric } from "../../../utils/dateUtils";
 import {
   calculateSupplyStatus,
   filterMedsByStatus,
+  getNowTimeInputRounded,
   normalizeMedication,
   normalizeAppointment,
+  to12HourDisplay,
 } from "../../../utils";
 import { MedicationSection } from "../../features";
 import { DataTable, SectionHeader, StatCard, Button } from "../../ui";
@@ -142,16 +144,8 @@ function PatientDetailPage() {
 
   const formatRefillDate = (dateStr) => {
     if (!dateStr) return null;
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return null;
-    }
+    const formatted = formatDateNumeric(dateStr);
+    return formatted || null;
   };
 
   const getSupplyStatus = (medication) => {
@@ -190,7 +184,7 @@ function PatientDetailPage() {
   const supplyColumns = [
     {
       key: "name",
-      label: "Medication",
+      label: "Name",
       render: (value) => {
         const medicationColor = getMedicationColor(value);
         return (
@@ -229,6 +223,48 @@ function PatientDetailPage() {
       ),
     },
     {
+      key: "instructions",
+      label: "Instructions",
+      sortable: false,
+      render: (value, row) => {
+        const instructionsList = Array.isArray(value)
+          ? value
+          : typeof value === "string"
+            ? value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+
+        if (instructionsList.length > 0) {
+          return (
+            <div className="flex flex-wrap gap-1 max-w-[240px]">
+              {instructionsList.map((instruction) => (
+                <span
+                  key={instruction}
+                  title={instruction}
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-poppins font-semibold bg-background-hover text-text-secondary border border-border-subtle max-w-[220px] truncate"
+                >
+                  {instruction}
+                </span>
+              ))}
+            </div>
+          );
+        }
+
+        const notes = String(row?.additionalInfo || "").trim();
+        if (notes) {
+          return (
+            <span className="font-poppins text-sm text-text-primary max-w-[260px] whitespace-normal break-words">
+              {notes}
+            </span>
+          );
+        }
+
+        return <span className="font-poppins text-sm text-text-secondary">—</span>;
+      },
+    },
+    {
       key: "quantity",
       label: "Total Quantity",
       render: (value, row) => (
@@ -261,7 +297,7 @@ function PatientDetailPage() {
     },
     {
       key: "recommendSupply",
-      label: "Recommend Supply",
+      label: "Recommended Supply",
       render: (value, row) => (
         <span className="font-poppins text-sm text-text-primary">
           {value ? `${value} ${row.unit || ""}` : "—"}
@@ -277,7 +313,9 @@ function PatientDetailPage() {
           status && (status.label === "Low" || status.label === "Empty");
         return (
           <span
-            className={`font-poppins text-sm font-semibold ${refillNeeded ? "text-red-600" : "text-emerald-600"}`}
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${
+              refillNeeded ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+            }`}
           >
             {refillNeeded ? "Yes" : "No"}
           </span>
@@ -311,11 +349,7 @@ function PatientDetailPage() {
 
   // Mark medication as taken (uses daily log + quantity updates)
   const handleMarkAsTaken = async (med) => {
-    const currentTime = new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const currentTime = to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
     try {
       const timeSlot = med?.timeOfDay || med?.timesOfDay?.[0];

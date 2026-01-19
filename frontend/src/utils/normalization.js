@@ -50,6 +50,7 @@ export const normalizeMedication = (medication) => {
   // Ensure dosage and quantity are numbers
   const dosage = typeof medication.dosage === 'string' ? parseFloat(medication.dosage) : (medication.dosage || 0);
   const quantity = typeof medication.quantity === 'string' ? parseFloat(medication.quantity) : (medication.quantity || 0);
+  const recommendSupply = typeof medication.recommendSupply === 'string' ? parseFloat(medication.recommendSupply) : (medication.recommendSupply ?? null);
   const initialQuantity = typeof medication.initialQuantity === 'string' ? parseFloat(medication.initialQuantity) : (medication.initialQuantity ?? quantity);
 
   const normalized = {
@@ -57,6 +58,7 @@ export const normalizeMedication = (medication) => {
     id: normalizeId(medication),
     dosage,
     quantity,
+    recommendSupply,
     initialQuantity,
     unit: medication.unit || (medication.type === 'pills' ? 'pills' : (medication.type === 'liquid' ? 'ml' : '')),
     status: medication.status || (medication.taken ? "taken" : "pending"),

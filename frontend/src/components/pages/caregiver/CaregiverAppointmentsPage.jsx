@@ -54,13 +54,26 @@ const getPatientColor = (patient, index) => {
   return PATIENT_COLORS[index % PATIENT_COLORS.length];
 };
 
-const getStatus = (dateStr, timeStr) => {
-  if (!dateStr) return "upcoming";
-  const dateTime = timeStr
-    ? new Date(`${dateStr}T${timeStr}`)
-    : new Date(dateStr);
-  if (Number.isNaN(dateTime.getTime())) return "upcoming";
-  return dateTime < new Date() ? "completed" : "upcoming";
+const deriveStatus = (apt) => {
+  const base = apt?.status || "Scheduled";
+  if (base !== "Scheduled") return base;
+
+  const dateStr = apt?.date;
+  if (!dateStr || typeof dateStr !== "string") return base;
+
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return base;
+
+  const apptDate = new Date(year, month - 1, day);
+  if (apt?.time) {
+    const [hours, minutes] = String(apt.time).split(":");
+    apptDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+  }
+
+  const now = new Date();
+  // Display-only auto-resolution: Missed if > 1 hour past scheduled time
+  if (now - apptDate > 60 * 60 * 1000) return "Missed";
+  return "Scheduled";
 };
 
 const normalizeAppointment = (appointment, index) => {
@@ -84,7 +97,7 @@ const normalizeAppointment = (appointment, index) => {
     location: appointment.location,
     date: normalizedDate,
     time: appointment.time,
-    status: appointment.status || getStatus(normalizedDate, appointment.time),
+    status: appointment.status || "Scheduled",
     notes: appointment.notes,
   };
 };
@@ -151,7 +164,7 @@ function CaregiverAppointmentsPage() {
   // Filter appointments
   const filteredAppointments = appointments.filter((apt) => {
     const matchesPatient = filterPatient === "all" || apt.patientName === filterPatient;
-    const matchesStatus = filterStatus === "all" || apt.status === filterStatus;
+    const matchesStatus = filterStatus === "all" || deriveStatus(apt) === filterStatus;
     return matchesPatient && matchesStatus;
   });
 
@@ -202,6 +215,20 @@ function CaregiverAppointmentsPage() {
     setEditingAppointment(apt);
     setSelectedPatientId(apt.patientId || "");
     setIsModalOpen(true);
+  };
+
+  const handleUpdateStatus = async (apt, newStatus) => {
+    try {
+      if (!apt?.id || !apt?.patientId) return;
+      await api.appointments.updateForPatient(apt.patientId, apt.id, {
+        status: newStatus,
+      });
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === apt.id ? { ...a, status: newStatus } : a)),
+      );
+    } catch (error) {
+      showError(error.message || "Unable to update status");
+    }
   };
 
   const handleSave = async (appointmentData) => {
@@ -310,9 +337,10 @@ function CaregiverAppointmentsPage() {
             className="px-4 py-2 rounded-xl border border-border-default bg-white font-poppins text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary/20"
           >
             <option value="all">All Status</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Completed">Completed</option>
+            <option value="Missed">Missed</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
         </div>
 
@@ -401,24 +429,28 @@ function CaregiverAppointmentsPage() {
                       </p>
                     </td>
                     <td className="px-5 py-4">
-                      {apt.status === "upcoming" && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 font-poppins text-xs font-semibold">
-                          <ClockIcon size={12} weight="fill" />
-                          Upcoming
-                        </span>
-                      )}
-                      {apt.status === "completed" && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-poppins text-xs font-semibold">
-                          <CheckCircleIcon size={12} weight="fill" />
-                          Completed
-                        </span>
-                      )}
-                      {apt.status === "cancelled" && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-poppins text-xs font-semibold">
-                          <XCircleIcon size={12} weight="fill" />
-                          Cancelled
-                        </span>
-                      )}
+                      <select
+                        value={deriveStatus(apt)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleUpdateStatus(apt, e.target.value);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
+                          deriveStatus(apt) === "Scheduled"
+                            ? "bg-blue-50 text-blue-600"
+                            : deriveStatus(apt) === "Completed"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : deriveStatus(apt) === "Cancelled"
+                                ? "bg-gray-100 text-gray-600"
+                                : "bg-red-50 text-red-600"
+                        }`}
+                      >
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Missed">Missed</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end">
@@ -488,34 +520,30 @@ function CaregiverAppointmentsPage() {
 
           {/* Stats summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {appointments.filter((a) => a.status === "upcoming").length}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">Upcoming</p>
-          </div>
-          <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {appointments.filter((a) => a.status === "completed").length}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">Completed</p>
-          </div>
-          <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {patients.length}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">Patients</p>
-          </div>
-          <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {appointments.filter(
-                (a) =>
-                  a.status === "upcoming" &&
-                  new Date(a.date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-              ).length}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">This Week            </p>
-          </div>
+            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
+              <p className="font-poppins font-bold text-2xl text-text-primary">
+                {appointments.filter((a) => deriveStatus(a) === "Scheduled").length}
+              </p>
+              <p className="font-poppins text-sm text-text-secondary">Scheduled</p>
+            </div>
+            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
+              <p className="font-poppins font-bold text-2xl text-text-primary">
+                {appointments.filter((a) => deriveStatus(a) === "Completed").length}
+              </p>
+              <p className="font-poppins text-sm text-text-secondary">Completed</p>
+            </div>
+            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
+              <p className="font-poppins font-bold text-2xl text-text-primary">
+                {appointments.filter((a) => deriveStatus(a) === "Missed").length}
+              </p>
+              <p className="font-poppins text-sm text-text-secondary">Missed</p>
+            </div>
+            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
+              <p className="font-poppins font-bold text-2xl text-text-primary">
+                {appointments.filter((a) => deriveStatus(a) === "Cancelled").length}
+              </p>
+              <p className="font-poppins text-sm text-text-secondary">Cancelled</p>
+            </div>
           </div>
         </div>
       </div>

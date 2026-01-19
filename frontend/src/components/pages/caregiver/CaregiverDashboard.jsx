@@ -2,7 +2,7 @@
  * CaregiverDashboard Component - Overview dashboard for caregivers
  * Shows all patients at a glance with their medication status and upcoming appointments
  */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   PillIcon,
@@ -13,7 +13,14 @@ import {
   CaretRightIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
-import { to12HourDisplay, timeToMinutes } from "../../../utils";
+import {
+  getStartOfWeek,
+  formatDateNumeric,
+  normalizeDateInput,
+  TIME_BUCKET_TO_24H,
+  to12HourDisplay,
+  timeToMinutes,
+} from "../../../utils";
 import { GradientBackground, PieChart, PageHeader } from "../../ui";
 import { Calendar } from "../../features";
 import { colors } from "../../../../tailwind.config.js";
@@ -70,8 +77,12 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [visibleWeekStart, setVisibleWeekStart] = useState(() =>
+    getStartOfWeek(new Date()),
+  );
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
+  const [weekAdherence, setWeekAdherence] = useState({});
   const [scheduleItems, setScheduleItems] = useState([]);
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
@@ -120,6 +131,60 @@ const CaregiverDashboard = ({ userName = "" }) => {
     buildSchedule();
   }, [patients.length, showError, todayStr]);
 
+  // Calendar: compute adherence across the visible week (combined schedule)
+  useEffect(() => {
+    if (!visibleWeekStart) return;
+    let isActive = true;
+
+    const buildWeekAdherence = async () => {
+      const days = Array.from({ length: 7 }, (_, idx) => {
+        const d = new Date(visibleWeekStart);
+        d.setDate(d.getDate() + idx);
+        return d.toISOString().split("T")[0];
+      });
+
+      const results = await Promise.all(
+        days.map(async (dateStr) => {
+          try {
+            const items = await api.caregiver.getSchedule(dateStr);
+            return [dateStr, Array.isArray(items) ? items : []];
+          } catch {
+            return [dateStr, []];
+          }
+        }),
+      );
+
+      const map = {};
+      for (const [dateStr, items] of results) {
+        const total = items.length;
+        const taken = items.filter((i) => i?.status === "taken").length;
+        map[dateStr] = total > 0 ? Math.round((taken / total) * 100) : 0;
+      }
+
+      if (!isActive) return;
+      setWeekAdherence(map);
+    };
+
+    buildWeekAdherence();
+    return () => {
+      isActive = false;
+    };
+  }, [visibleWeekStart]);
+
+  const calendarAppointments = useMemo(() => {
+    const list = Array.isArray(appointments) ? appointments : [];
+    return list
+      .map((appt) => ({
+        ...appt,
+        date: normalizeDateInput(appt?.date),
+      }))
+      .filter((appt) => {
+        const status = String(appt?.status || "").toLowerCase();
+        return status !== "completed" && status !== "cancelled" && status !== "missed";
+      })
+      .filter((appt) => Boolean(appt?.date));
+  }, [appointments]);
+
   // Calculate totals
   const totalPatients = patients.length;
   
@@ -146,18 +211,14 @@ const CaregiverDashboard = ({ userName = "" }) => {
 
   const timeSortValue = (time) => {
     const key = String(time || "").toLowerCase();
-    if (key === "morning") return 8 * 60;
-    if (key === "afternoon") return 13 * 60;
-    if (key === "night") return 20 * 60;
+    if (TIME_BUCKET_TO_24H[key]) return timeToMinutes(TIME_BUCKET_TO_24H[key]);
     if (/^\d{2}:\d{2}$/.test(key)) return timeToMinutes(key);
     return Number.MAX_SAFE_INTEGER;
   };
 
   const formatScheduleTime = (time) => {
     const key = String(time || "").toLowerCase();
-    if (key === "morning" || key === "afternoon" || key === "night") {
-      return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-    }
+    if (TIME_BUCKET_TO_24H[key]) return to12HourDisplay(TIME_BUCKET_TO_24H[key]);
     if (/^\d{2}:\d{2}$/.test(key)) return to12HourDisplay(key);
     return "Unscheduled";
   };
@@ -277,7 +338,9 @@ const CaregiverDashboard = ({ userName = "" }) => {
                 color={colors.text.secondary}
               />
               <span className="font-poppins text-xs text-text-secondary">
-                {patient.nextAppointment.title} • {patient.nextAppointment.date}
+                {patient.nextAppointment.title} •{" "}
+                {formatDateNumeric(patient.nextAppointment.date) ||
+                  patient.nextAppointment.date}
               </span>
             </div>
             <CaretRightIcon
@@ -309,6 +372,9 @@ const CaregiverDashboard = ({ userName = "" }) => {
           <Calendar
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
+            onWeekChange={setVisibleWeekStart}
+            appointments={calendarAppointments}
+            adherence={weekAdherence}
           />
 
           {/* Stats cards */}

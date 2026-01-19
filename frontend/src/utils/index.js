@@ -108,7 +108,15 @@ export {
 } from "./storageUtils";
 
 // Time utilities
-export { toTimeInput, to12HourDisplay, timeToMinutes } from "./timeUtils";
+export {
+  toTimeInput,
+  to12HourDisplay,
+  buildTimeOptions,
+  TIME_BUCKET_TO_24H,
+  roundTimeToInterval,
+  getNowTimeInputRounded,
+  timeToMinutes,
+} from "./timeUtils";
 
 // Medication utilities
 export { getMedicationColor, getMedicationColorHex } from "./medicationColors";

@@ -18,7 +18,13 @@ import {
 import { colors } from "../../../tailwind.config.js";
 import { textStyles } from "../../utils/typography";
 
-function Calendar({ selectedDate, onDateChange, appointments = [], adherence = {} }) {
+function Calendar({
+  selectedDate,
+  onDateChange,
+  appointments = [],
+  adherence = {},
+  onWeekChange,
+}) {
   const today = new Date();
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(selectedDate || today));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -42,6 +48,11 @@ function Calendar({ selectedDate, onDateChange, appointments = [], adherence = {
   useEffect(() => {
     setCurrentWeekStart(getStartOfWeek(selectedDate));
   }, [selectedDate]);
+
+  // Emit visible week start to parent (for dashboard-level data fetching)
+  useEffect(() => {
+    onWeekChange?.(currentWeekStart);
+  }, [currentWeekStart, onWeekChange]);
 
   const getWeekDates = () => {
     const dates = [];

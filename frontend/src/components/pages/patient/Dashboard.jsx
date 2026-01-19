@@ -60,13 +60,12 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   } = useMedications();
   const { showError } = useError();
   const [appointments, setAppointments] = useState([]);
+  const [weekAdherence, setWeekAdherence] = useState({});
 
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
-  const [currentWeekStart, setCurrentWeekStart] = useState(
-    getStartOfWeek(today),
-  );
+  const [visibleWeekStart, setVisibleWeekStart] = useState(getStartOfWeek(today));
 
   // Modal state for editing taken-time entries
   const [editingMedication, setEditingMedication] = useState(null);
@@ -103,6 +102,54 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     refreshMedications(dateStr);
   }, [selectedDate, refreshMedications]);
 
+  // Compute adherence across the visible week (calendar indicators)
+  useEffect(() => {
+    if (!visibleWeekStart) return;
+    let isActive = true;
+
+    const buildWeekAdherence = async () => {
+      const days = Array.from({ length: 7 }, (_, idx) => {
+        const d = new Date(visibleWeekStart);
+        d.setDate(d.getDate() + idx);
+        return d.toISOString().split("T")[0];
+      });
+
+      const results = await Promise.all(
+        days.map(async (dateStr) => {
+          try {
+            const meds = await api.medications.getForDate(dateStr);
+            return [dateStr, Array.isArray(meds) ? meds : []];
+          } catch {
+            return [dateStr, []];
+          }
+        }),
+      );
+
+      const map = {};
+      for (const [dateStr, meds] of results) {
+        const taken = meds.filter((m) => m?.status === "taken").length;
+        const notTaken = meds.filter((med) => {
+          const isPending = med?.status === "pending";
+          const isSupplyWithSchedule =
+            med?.status === "supply" &&
+            (med?.timeOfDay ||
+              (Array.isArray(med?.timesOfDay) && med.timesOfDay.length > 0));
+          return isPending || isSupplyWithSchedule;
+        }).length;
+        const total = taken + notTaken;
+        map[dateStr] = total > 0 ? Math.round((taken / total) * 100) : 0;
+      }
+
+      if (!isActive) return;
+      setWeekAdherence(map);
+    };
+
+    buildWeekAdherence();
+    return () => {
+      isActive = false;
+    };
+  }, [visibleWeekStart]);
+
   const upcomingAppointment = useMemo(() => {
     const now = new Date();
     const parsed = appointments
@@ -117,6 +164,14 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
 
     const next = parsed.find((apt) => apt.dateTime >= now);
     return next || parsed[parsed.length - 1] || null;
+  }, [appointments]);
+
+  const calendarAppointments = useMemo(() => {
+    // Calendar dots should only indicate scheduled appointments
+    return appointments.filter((apt) => {
+      const status = String(apt?.status || "Scheduled");
+      return status === "Scheduled";
+    });
   }, [appointments]);
 
   // Handle date selection
@@ -244,16 +299,15 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           <Calendar
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
-            appointments={appointments}
-            adherence={{
-              [selectedDate.toISOString().split("T")[0]]: stats.percentage,
-            }}
+            appointments={calendarAppointments}
+            onWeekChange={setVisibleWeekStart}
+            adherence={weekAdherence}
           />
 
           {/* Stats and appointment cards */}
           <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
             {/* Today's Progress card */}
-            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl">
+            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl h-full">
               <div className="flex items-center justify-between w-full">
                 <p className={`${textStyles.heading.small} text-text-primary`}>
                   {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
@@ -268,66 +322,68 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
               </div>
 
               {/* Pie chart and stats */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center gap-6 w-full">
-                {/* Pie Chart */}
-                <div className="flex-shrink-0">
-                  <PieChart
-                    taken={stats.taken}
-                    notTaken={stats.notTaken}
-                    size={140}
-                  />
-                </div>
-
-                {/* Stats */}
-                <div className="flex flex-col gap-4 items-start flex-1 sm:max-w-[200px]">
-                  <div className="flex items-center gap-3 w-full">
-                    <div className="w-4 h-4 rounded-full bg-success flex-shrink-0" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <p
-                        className={`${textStyles.heading.medium} text-text-primary leading-none`}
-                      >
-                        {stats.taken}
-                      </p>
-                      <p
-                        className={`${textStyles.body.small} text-text-secondary mt-0.5`}
-                      >
-                        Taken
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 w-full">
-                    <div
-                      className="w-4 h-4 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: "rgba(100,100,100,0.1)" }}
+              <div className="flex-1 flex items-center justify-center w-full">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
+                  {/* Pie Chart */}
+                  <div className="flex-shrink-0">
+                    <PieChart
+                      taken={stats.taken}
+                      notTaken={stats.notTaken}
+                      size={140}
                     />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <p
-                        className={`${textStyles.heading.medium} text-text-primary leading-none`}
-                      >
-                        {stats.notTaken}
-                      </p>
-                      <p
-                        className={`${textStyles.body.small} text-text-secondary mt-0.5`}
-                      >
-                        Pending
-                      </p>
-                    </div>
                   </div>
 
-                  <div className="flex items-center gap-3 w-full pt-3 border-t border-border-subtle">
-                    <div className="w-4 h-4 flex-shrink-0" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <p
-                        className={`${textStyles.heading.medium} text-text-primary leading-none`}
-                      >
-                        {stats.total}
-                      </p>
-                      <p
-                        className={`${textStyles.body.small} text-text-secondary mt-0.5`}
-                      >
-                        Total Medications
-                      </p>
+                  {/* Stats */}
+                  <div className="flex flex-col gap-4 items-start flex-1 sm:max-w-[200px]">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-4 h-4 rounded-full bg-success flex-shrink-0" />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <p
+                          className={`${textStyles.heading.medium} text-text-primary leading-none`}
+                        >
+                          {stats.taken}
+                        </p>
+                        <p
+                          className={`${textStyles.body.small} text-text-secondary mt-0.5`}
+                        >
+                          Taken
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full">
+                      <div
+                        className="w-4 h-4 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: "rgba(100,100,100,0.1)" }}
+                      />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <p
+                          className={`${textStyles.heading.medium} text-text-primary leading-none`}
+                        >
+                          {stats.notTaken}
+                        </p>
+                        <p
+                          className={`${textStyles.body.small} text-text-secondary mt-0.5`}
+                        >
+                          Pending
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full pt-3 border-t border-border-subtle">
+                      <div className="w-4 h-4 flex-shrink-0" />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <p
+                          className={`${textStyles.heading.medium} text-text-primary leading-none`}
+                        >
+                          {stats.total}
+                        </p>
+                        <p
+                          className={`${textStyles.body.small} text-text-secondary mt-0.5`}
+                        >
+                          Total Medications
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -335,7 +391,10 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
             </div>
 
             {/* Upcoming Appointment card */}
-            <AppointmentCard {...appointmentCardProps} />
+            <AppointmentCard
+              {...appointmentCardProps}
+              isReadOnly={isReadOnlyPatient}
+            />
           </div>
 
           {/* Medications section */}

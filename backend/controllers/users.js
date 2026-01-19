@@ -3,7 +3,9 @@ const Medication = require("../models/Medication");
 const Appointment = require("../models/Appointments");
 
 const getCurrentUser = async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
+  const user = await User.findById(req.user.id)
+    .select("-password")
+    .populate("caregivers", "name email role");
   res.json(user);
 };
 

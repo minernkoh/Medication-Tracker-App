@@ -20,6 +20,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
+import { formatDateNumeric } from "../../../utils";
 import { colors } from "../../../../tailwind.config.js";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import { api } from "../../../api";
@@ -233,7 +234,8 @@ function PatientsPage() {
                 color={colors.text.secondary}
               />
               <span className="font-poppins text-sm text-text-primary">
-                {patient.nextAppointment.date}
+                {formatDateNumeric(patient.nextAppointment.date) ||
+                  patient.nextAppointment.date}
               </span>
             </div>
           ) : (

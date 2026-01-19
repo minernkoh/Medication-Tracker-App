@@ -28,8 +28,10 @@ import {
   setAuthData,
   removeAuthData,
   getAuthField,
+  updateAuthField,
 } from "./utils/storageUtils";
 import { normalizeUser } from "./utils/normalization";
+import { Modal, Button } from "./components/ui";
 
 // Lazy load SettingsPage
 const SettingsPage = React.lazy(
@@ -49,6 +51,7 @@ function AppLayout({
   showPatientModal,
   setShowPatientModal,
   onPatientLogin,
+  onPatientSignup,
   onShowOnboarding,
   onDeleteAccount,
 }) {
@@ -209,7 +212,7 @@ function AppLayout({
         isOpen={showPatientModal}
         onClose={() => setShowPatientModal(false)}
         onLogin={onPatientLogin}
-        allowSignup={false}
+        onSignup={onPatientSignup}
         role="patient"
       />
     </div>
@@ -226,6 +229,8 @@ function App() {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingUser, setPendingUser] = useState(null);
+  const [showCaregiverAssignedModal, setShowCaregiverAssignedModal] =
+    useState(false);
 
   // User state
   const [user, setUser] = useState(() => {
@@ -287,6 +292,20 @@ function App() {
     };
   }, [isAuthenticated]);
 
+  // Patient "View Only" notification (shown once when caregiver is assigned)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const notified = Boolean(getAuthField("caregiverAssignmentNotified", false));
+    const caregivers = user?.caregivers;
+    const hasCaregiver =
+      Boolean(user?.caregiver) ||
+      (Array.isArray(caregivers) && caregivers.length > 0);
+    const shouldNotify = user?.role === "patient" && hasCaregiver && !notified;
+    if (shouldNotify) {
+      setShowCaregiverAssignedModal(true);
+    }
+  }, [isAuthenticated, user]);
+
   // Handle login from auth page
   const handleLogin = async (credentials) => {
     const data = await api.auth.signin(credentials);
@@ -300,15 +319,18 @@ function App() {
   };
 
   const handleSignup = async (signupData) => {
+    const normalizedRole =
+      signupData.role === "caregiver" ? "caregiver" : "patient";
     await api.auth.signup({
       name: signupData.name,
       email: signupData.email,
       password: signupData.password,
-      role: signupData.role === "caregiver" ? "caregiver" : "patient",
+      role: normalizedRole,
     });
     const loginData = await api.auth.signin({
       email: signupData.email,
       password: signupData.password,
+      role: normalizedRole,
     });
     const normalizedUser = normalizeUser(loginData.user || {});
     const userMode =
@@ -407,6 +429,12 @@ function App() {
     return data;
   };
 
+  const handlePatientSignup = async (userData) => {
+    const data = await handleSignup({ ...userData, role: "patient" });
+    setShowPatientModal(false);
+    return data;
+  };
+
   // Handle logout
   const handleLogout = () => {
     // Clear localStorage first
@@ -462,21 +490,54 @@ function App() {
   return (
     <ErrorProvider>
       <MedicationsProvider>
-        <AppLayout
-          user={user}
-          mode={mode}
-          onSwitchMode={handleSwitchMode}
-          onLogout={handleLogout}
-          showCaregiverModal={showCaregiverModal}
-          setShowCaregiverModal={setShowCaregiverModal}
-          onCaregiverLogin={handleCaregiverLogin}
-          onCaregiverSignup={handleCaregiverSignup}
-          showPatientModal={showPatientModal}
-          setShowPatientModal={setShowPatientModal}
-          onPatientLogin={handlePatientLogin}
-          onShowOnboarding={handleShowOnboardingFromSettings}
-          onDeleteAccount={handleDeleteAccount}
-        />
+        <>
+          <AppLayout
+            user={user}
+            mode={mode}
+            onSwitchMode={handleSwitchMode}
+            onLogout={handleLogout}
+            showCaregiverModal={showCaregiverModal}
+            setShowCaregiverModal={setShowCaregiverModal}
+            onCaregiverLogin={handleCaregiverLogin}
+            onCaregiverSignup={handleCaregiverSignup}
+            showPatientModal={showPatientModal}
+            setShowPatientModal={setShowPatientModal}
+            onPatientLogin={handlePatientLogin}
+            onPatientSignup={handlePatientSignup}
+            onShowOnboarding={handleShowOnboardingFromSettings}
+            onDeleteAccount={handleDeleteAccount}
+          />
+
+          <Modal
+            isOpen={showCaregiverAssignedModal}
+            onClose={() => {
+              setShowCaregiverAssignedModal(false);
+              updateAuthField("caregiverAssignmentNotified", true);
+            }}
+            title="Caregiver assigned"
+            size="sm"
+            footerContent={
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setShowCaregiverAssignedModal(false);
+                  updateAuthField("caregiverAssignmentNotified", true);
+                }}
+                fullWidth
+              >
+                Got it
+              </Button>
+            }
+          >
+            <div className="p-5">
+              <p className="font-poppins text-sm text-text-secondary">
+                {Array.isArray(user?.caregivers) && user.caregivers[0]?.name
+                  ? `You’ve been assigned a caregiver: ${user.caregivers[0].name}. Your account is now in View Only mode.`
+                  : "You’ve been assigned a caregiver. Your account is now in View Only mode."}
+              </p>
+            </div>
+          </Modal>
+        </>
       </MedicationsProvider>
     </ErrorProvider>
   );

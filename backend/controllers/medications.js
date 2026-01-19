@@ -188,14 +188,20 @@ const undoMarkAsTaken = async (req, res) => {
     const date = req.body?.date || new Date().toISOString().split("T")[0];
     const timeSlot = req.body?.timeSlot || req.body?.timeOfDay || null;
 
-    // Delete the log entry
-    const log = await MedicationLog.findOneAndDelete({
+    // Undo semantics in the UI are "undo taken for this medication on this date".
+    // Our "taken" status is derived from whether ANY log exists for med+date,
+    // so we must remove all logs for that day (not just one timeSlot), otherwise
+    // the medication will still appear as taken.
+    //
+    // We still accept a timeSlot for backward compatibility, but we treat it as
+    // a hint only (i.e., we do not restrict deletion to a single timeSlot).
+    const deleteResult = await MedicationLog.deleteMany({
       medication: med._id,
       date,
-      ...(timeSlot ? { timeSlot } : {}),
     });
 
-    if (!log) {
+    const deletedCount = deleteResult?.deletedCount || 0;
+    if (!deletedCount) {
       return res
         .status(404)
         .json({ message: "No intake record found for this date" });
@@ -209,7 +215,9 @@ const undoMarkAsTaken = async (req, res) => {
     };
 
     if (med.quantity) {
-      update.quantity = incrementQuantity(med.quantity, med.dosage);
+      // Restore quantity for however many dose logs were removed.
+      const restoreAmount = Number(med.dosage) * deletedCount;
+      update.quantity = incrementQuantity(med.quantity, restoreAmount);
     }
 
     const updated = await Medication.findByIdAndUpdate(req.params.id, update, {

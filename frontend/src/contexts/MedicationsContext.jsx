@@ -14,7 +14,12 @@ import React, {
 import { api } from "../api";
 import { useError } from "./ErrorContext";
 import { normalizeMedication } from "../utils/normalization";
-import { getStoredUser, isReadOnlyPatientUser } from "../utils";
+import {
+  getNowTimeInputRounded,
+  getStoredUser,
+  isReadOnlyPatientUser,
+  to12HourDisplay,
+} from "../utils";
 
 const MedicationsContext = createContext(null);
 
@@ -157,12 +162,7 @@ export function MedicationsProvider({ children }) {
 
       const targetDate = date || new Date().toISOString().split("T")[0];
       const currentTime =
-        takenTime ||
-        new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
+        takenTime || to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
       let updatedQuantity;
       let updatedInitialQuantity;

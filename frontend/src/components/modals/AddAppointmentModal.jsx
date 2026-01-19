@@ -9,7 +9,12 @@
  */
 import React, { useState, useEffect } from "react";
 import { Modal, FormField, Button } from "../ui";
-import { getModeHexColor } from "../../utils/modeUtils";
+import {
+  getModeHexColor,
+  getNowTimeInputRounded,
+  roundTimeToInterval,
+  toTimeInput,
+} from "../../utils";
 
 function AddAppointmentModal({
   isOpen,
@@ -46,18 +51,23 @@ function AddAppointmentModal({
 
   useEffect(() => {
     if (appointment) {
+      const timeForInput = roundTimeToInterval(
+        toTimeInput(appointment.time || ""),
+        15,
+        "nearest",
+      );
       setFormData({
         title: appointment.title || "",
         doctorName: appointment.doctorName || "",
         location: appointment.location || "",
         date: normalizeDateInput(appointment.date),
-        time: appointment.time || "",
+        time: timeForInput || "",
         notes: appointment.notes || "",
       });
     } else {
       const now = new Date();
       const defaultDate = now.toISOString().split("T")[0];
-      const defaultTime = now.toTimeString().slice(0, 5);
+      const defaultTime = getNowTimeInputRounded(15, "ceil");
       setFormData({
         title: "",
         doctorName: "",

@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const TIME_OF_DAY_WORDS = ["morning", "afternoon", "night"];
 const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const isValidTimeOfDay = (v) => {
+  if (v === null || v === undefined || v === "") return true;
+  if (typeof v !== "string") return false;
+  const normalized = v.trim().toLowerCase();
+  return TIME_OF_DAY_WORDS.includes(normalized) || TIME_24H_RE.test(v);
+};
 
 const medicationSchema = new mongoose.Schema(
   {
@@ -39,10 +45,7 @@ const medicationSchema = new mongoose.Schema(
       default: null,
       validate: {
         validator: function (v) {
-          if (v === null || v === undefined || v === "") return true;
-          if (typeof v !== "string") return false;
-          const normalized = v.trim().toLowerCase();
-          return TIME_OF_DAY_WORDS.includes(normalized) || TIME_24H_RE.test(v);
+          return isValidTimeOfDay(v);
         },
         message:
           "timeOfDay must be one of morning/afternoon/night or a HH:MM 24-hour time",
@@ -50,14 +53,23 @@ const medicationSchema = new mongoose.Schema(
     },
     timesOfDay: {
       type: [String],
-      enum: ["morning", "afternoon", "night"],
       default: undefined,
+      validate: {
+        validator: function (arr) {
+          if (arr === null || arr === undefined) return true;
+          if (!Array.isArray(arr)) return false;
+          return arr.every(isValidTimeOfDay);
+        },
+        message:
+          "timesOfDay entries must be one of morning/afternoon/night or a HH:MM 24-hour time",
+      },
     },
     // Frontend supply tracking expects these fields to persist.
     taken: { type: Boolean, default: false },
     takenTime: String, // e.g., "9:00 AM"
     frequency: String, // e.g., "2 times per day", "Every 4 hours"
     quantity: { type: Number }, // Current amount remaining
+    recommendSupply: { type: Number }, // Baseline for supply ratio calculations
     initialQuantity: { type: Number }, // Baseline for supply %
     refillDate: String, // e.g., "2026-02-15"
     additionalInfo: String, // e.g., "Before Meal"

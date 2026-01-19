@@ -1,0 +1,99 @@
+[
+  {
+    "_id": { "$oid": "65aa00000000000000003001" },
+    "title": "Primary care follow-up",
+    "doctorName": "Dr. Patel",
+    "location": "Downtown Clinic",
+    "date": { "$date": "2026-01-29T09:30:00.000Z" },
+    "time": "09:30",
+    "notes": "Bring medication list",
+    "status": "Scheduled",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000003002" },
+    "title": "Lab work",
+    "doctorName": "Lab Services",
+    "location": "Building B",
+    "date": { "$date": "2026-01-22T14:15:00.000Z" },
+    "time": "14:15",
+    "notes": "Fasting required",
+    "status": "Scheduled",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000003003" },
+    "title": "Dental cleaning",
+    "doctorName": "Dr. Nguyen",
+    "location": "Smile Dental",
+    "date": { "$date": "2025-12-25T11:00:00.000Z" },
+    "time": "11:00",
+    "notes": "Routine visit",
+    "status": "Completed",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000003004" },
+    "title": "Eye exam",
+    "doctorName": "Dr. Kim",
+    "location": "Vision Center",
+    "date": { "$date": "2025-11-20T16:45:00.000Z" },
+    "time": "16:45",
+    "notes": "Bring glasses",
+    "status": "Missed",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000004001" },
+    "title": "Primary care follow-up",
+    "doctorName": "Dr. Patel",
+    "location": "Downtown Clinic",
+    "date": { "$date": "2026-01-30T09:30:00.000Z" },
+    "time": "09:30",
+    "notes": "Bring medication list",
+    "status": "Scheduled",
+    "patient": { "$oid": "65aa00000000000000000003" },
+    "createdBy": { "$oid": "65aa00000000000000000001" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000004002" },
+    "title": "Lab work",
+    "doctorName": "Lab Services",
+    "location": "Building B",
+    "date": { "$date": "2026-01-23T14:15:00.000Z" },
+    "time": "14:15",
+    "notes": "Fasting required",
+    "status": "Scheduled",
+    "patient": { "$oid": "65aa00000000000000000003" },
+    "createdBy": { "$oid": "65aa00000000000000000001" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000004003" },
+    "title": "Dental cleaning",
+    "doctorName": "Dr. Nguyen",
+    "location": "Smile Dental",
+    "date": { "$date": "2025-12-24T11:00:00.000Z" },
+    "time": "11:00",
+    "notes": "Routine visit",
+    "status": "Completed",
+    "patient": { "$oid": "65aa00000000000000000003" },
+    "createdBy": { "$oid": "65aa00000000000000000001" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000004004" },
+    "title": "Eye exam",
+    "doctorName": "Dr. Kim",
+    "location": "Vision Center",
+    "date": { "$date": "2025-11-19T16:45:00.000Z" },
+    "time": "16:45",
+    "notes": "Bring glasses",
+    "status": "Cancelled",
+    "patient": { "$oid": "65aa00000000000000000003" },
+    "createdBy": { "$oid": "65aa00000000000000000001" }
+  }
+]
+

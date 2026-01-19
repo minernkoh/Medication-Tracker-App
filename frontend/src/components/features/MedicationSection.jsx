@@ -7,7 +7,7 @@
  * @param {function} onMarkAsTaken - Callback when marking medication as taken (for pending)
  * @param {function} onEdit - Callback when editing a medication (for taken)
  * @param {function} onDelete - Callback when deleting a medication (for taken)
- * @param {boolean} showTimeGroups - Whether to show time-based grouping (Morning/Afternoon/Night)
+ * @param {boolean} showTimeGroups - Deprecated (pending meds are no longer grouped by Morning/Afternoon/Night)
  * @param {boolean} compact - Use compact styling (for Dashboard)
  * @param {string} dateLabel - Optional date label to replace "Today" (e.g., "Mon, Jan 13")
  */
@@ -16,10 +16,6 @@ import {
   ClockIcon,
   CheckCircleIcon,
   PlusIcon,
-  ArrowRightIcon,
-  SunIcon,
-  SunDimIcon,
-  MoonIcon,
 } from "@phosphor-icons/react";
 import { EmptyState } from "../ui";
 import PendingMedicine from "./PendingMedicine";
@@ -28,7 +24,8 @@ import {
   toTimeInput,
   to12HourDisplay,
   textStyles,
-  getTimeGroup,
+  getStoredUser,
+  isReadOnlyPatientUser,
 } from "../../utils";
 import { useMedications } from "../../contexts/MedicationsContext";
 
@@ -46,29 +43,26 @@ function MedicationSection({
 }) {
   const { formatQuantity } = useMedications();
   const isPending = variant === "pending";
+  const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
 
-  // Group medications by time of day (for pending medications)
-  const groupByTime = (meds) => {
-    const groups = {};
+  const getScheduledTimes24 = (med) => {
+    const rawTimes =
+      Array.isArray(med?.timesOfDay) && med.timesOfDay.length > 0
+        ? med.timesOfDay
+        : med?.timeOfDay
+          ? [med.timeOfDay]
+          : [];
 
-    meds.forEach((med) => {
-      // Use getTimeGroup helper to properly convert timeOfDay to group
-      const time = getTimeGroup(med.timeOfDay);
-      if (!groups[time]) {
-        groups[time] = [];
-      }
-      groups[time].push(med);
-    });
+    return rawTimes
+      .map((t) => toTimeInput(String(t || "")))
+      .filter(Boolean)
+      .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+  };
 
-    // Sort groups by time order
-    const sortedGroups = {};
-    ["Morning", "Afternoon", "Night", "Other"].forEach((time) => {
-      if (groups[time]) {
-        sortedGroups[time] = groups[time];
-      }
-    });
-
-    return sortedGroups;
+  const getPrimaryScheduleMinutes = (med) => {
+    const times = getScheduledTimes24(med);
+    if (!times.length) return Number.MAX_SAFE_INTEGER;
+    return timeToMinutes(times[0]);
   };
 
   // Convert takenTime (e.g., "9:00 AM") to minutes for sorting
@@ -150,36 +144,16 @@ function MedicationSection({
 
   // For pending: group by time if showTimeGroups is true
   // For taken: group by hour if medications exist
-  const groupedMeds =
-    showTimeGroups && isPending ? groupByTime(medications) : null;
   const groupedTakenMeds =
     !isPending && medications.length > 0 ? groupTakenByHour(medications) : null;
   const sortedTakenMeds =
     !isPending && !groupedTakenMeds ? sortTakenByTime(medications) : null;
 
-  // Time group colors
-  const timeColors = {
-    Morning: "bg-blue-500",
-    Afternoon: "bg-amber-500",
-    Night: "bg-purple-500",
-    Other: "bg-gray-500",
-  };
-
-  // Time group icons
-  const timeIcons = {
-    Morning: SunIcon,
-    Afternoon: SunDimIcon,
-    Night: MoonIcon,
-    Other: ClockIcon,
-  };
-
-  // Time group icon colors
-  const timeIconColors = {
-    Morning: "text-blue-500",
-    Afternoon: "text-amber-500",
-    Night: "text-purple-500",
-    Other: "text-gray-500",
-  };
+  const sortedPendingMeds = isPending
+    ? [...medications].sort(
+        (a, b) => getPrimaryScheduleMinutes(a) - getPrimaryScheduleMinutes(b),
+      )
+    : null;
 
   // Determine the date text to use
   const dateText = dateLabel || "Today";
@@ -192,7 +166,6 @@ function MedicationSection({
       iconWeight: "regular",
       title: `Pending ${dateText}`,
       compactTitle: dateLabel ? `Pending · ${dateLabel}` : "Pending",
-      subtitle: `Medications scheduled for ${dateText.toLowerCase()}`,
       countLabel: "pending",
       emptyMessage: `No pending medications${
         isToday ? "" : ` for ${dateLabel}`
@@ -203,7 +176,6 @@ function MedicationSection({
       iconWeight: "fill",
       title: `Taken ${dateText}`,
       compactTitle: dateLabel ? `Taken · ${dateLabel}` : "Taken",
-      subtitle: `Medications already taken ${dateText.toLowerCase()}`,
       countLabel: "taken",
       emptyMessage: `No medications taken${
         isToday ? " yet today" : ` on ${dateLabel}`
@@ -216,6 +188,29 @@ function MedicationSection({
 
   const buildPendingInfo = (med) => {
     return med.additionalInfo || null;
+  };
+
+  const buildPendingScheduleGroups = (med) => {
+    const times24 = getScheduledTimes24(med);
+    if (!times24.length) return null;
+
+    // Group times into hour buckets (e.g. 9:15 AM + 9:30 AM under 9:00 AM),
+    // but keep and display the original times within each group.
+    const groups = new Map();
+    times24.forEach((time24) => {
+      const [hour] = String(time24).split(":");
+      const hourLabel = to12HourDisplay(`${hour}:00`);
+      const timeLabel = to12HourDisplay(time24);
+      if (!hourLabel || !timeLabel) return;
+      if (!groups.has(hourLabel)) groups.set(hourLabel, []);
+      const arr = groups.get(hourLabel);
+      if (!arr.includes(timeLabel)) arr.push(timeLabel);
+    });
+
+    return Array.from(groups.entries()).map(([hourLabel, times]) => ({
+      hourLabel,
+      times,
+    }));
   };
 
   // Handle card click - navigate to medications page unless clicking on interactive elements
@@ -236,7 +231,7 @@ function MedicationSection({
       className={`bg-background-default border border-border-default rounded-2xl flex flex-col ${
         compact ? "p-4 md:p-5" : "p-6"
       } ${onCardClick ? "cursor-pointer hover:border-primary transition-all" : ""} ${
-        compact ? "h-full min-h-0" : ""
+        "h-full min-h-0"
       }`}
       onClick={onCardClick ? handleCardClick : undefined}
     >
@@ -258,13 +253,6 @@ function MedicationSection({
             >
               {compact ? config.compactTitle : config.title}
             </h2>
-            {!compact && (
-              <p
-                className={`${textStyles.body.small} text-text-secondary mt-1`}
-              >
-                {config.subtitle}
-              </p>
-            )}
           </div>
         </div>
         <span
@@ -277,43 +265,7 @@ function MedicationSection({
       {/* Medications Content */}
       {medications.length > 0 ? (
         <div className={`flex-1 ${compact ? "overflow-y-auto min-h-0" : ""}`}>
-          {isPending && showTimeGroups && groupedMeds ? (
-            // Pending: Grouped by time (Morning/Afternoon/Night)
-            <div className="space-y-6">
-              {Object.entries(groupedMeds).map(([time, meds]) => {
-                const IconComponent = timeIcons[time] || timeIcons.Other;
-                return (
-                  <div key={time}>
-                    <h3
-                      className={`${textStyles.heading.small} text-text-primary mb-3 flex items-center gap-2`}
-                    >
-                      <IconComponent
-                        size={16}
-                        weight="regular"
-                        className={timeIconColors[time] || timeIconColors.Other}
-                      />
-                      {time}
-                    </h3>
-                    <div className="space-y-3">
-                      {meds.map((med) => (
-                        <PendingMedicine
-                          key={med.id}
-                          type="Due"
-                          medicationName={med.name}
-                          dosage={formatQuantity(med.dosage, med.unit)}
-                          additionalInfo={buildPendingInfo(med)}
-                          pillColor={med.pillColor}
-                          onCheck={
-                            onMarkAsTaken ? () => onMarkAsTaken(med) : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : !isPending && groupedTakenMeds ? (
+          {!isPending && groupedTakenMeds ? (
             // Taken: Grouped by hour with time subheaders
             <div className="space-y-6">
               {Object.entries(groupedTakenMeds).map(([hourGroup, meds]) => (
@@ -347,31 +299,41 @@ function MedicationSection({
           ) : (
             // Fallback: Simple list sorted by takenTime, or Pending without time groups
             <div className="space-y-3">
-              {(sortedTakenMeds || medications).map((med) => (
-                <PendingMedicine
-                  key={med.id}
-                  type={isPending ? "Due" : "Taken"}
-                  medicationName={med.name}
-                  dosage={formatQuantity(med.dosage, med.unit)}
-                  additionalInfo={
-                    isPending
-                      ? buildPendingInfo(med)
-                      : med.takenTime
-                        ? `Taken at ${med.takenTime}`
-                        : med.additionalInfo
-                  }
-                  pillColor={med.pillColor}
-                  onCheck={
-                    isPending && onMarkAsTaken
-                      ? () => onMarkAsTaken(med)
-                      : undefined
-                  }
-                  onEdit={!isPending && onEdit ? () => onEdit(med) : undefined}
-                  onDelete={
-                    !isPending && onDelete ? () => onDelete(med) : undefined
-                  }
-                />
-              ))}
+              {(isPending ? sortedPendingMeds : sortedTakenMeds || medications).map(
+                (med) => (
+                  <PendingMedicine
+                    key={med.id}
+                    type={isPending ? "Due" : "Taken"}
+                    medicationName={med.name}
+                    dosage={formatQuantity(med.dosage, med.unit)}
+                    scheduleGroups={
+                      isPending ? buildPendingScheduleGroups(med) : undefined
+                    }
+                    frequency={
+                      isPending && !getScheduledTimes24(med).length
+                        ? "Unscheduled"
+                        : undefined
+                    }
+                    additionalInfo={
+                      isPending
+                        ? buildPendingInfo(med)
+                        : med.takenTime
+                          ? `Taken at ${med.takenTime}`
+                          : med.additionalInfo
+                    }
+                    pillColor={med.pillColor}
+                    onCheck={
+                      isPending && onMarkAsTaken
+                        ? () => onMarkAsTaken(med)
+                        : undefined
+                    }
+                    onEdit={!isPending && onEdit ? () => onEdit(med) : undefined}
+                    onDelete={
+                      !isPending && onDelete ? () => onDelete(med) : undefined
+                    }
+                  />
+                ),
+              )}
             </div>
           )}
         </div>
@@ -386,7 +348,9 @@ function MedicationSection({
           }
           title={config.emptyMessage}
           description={
-            variant === "pending" && onAddMedication
+            isReadOnlyPatient
+              ? null
+              : variant === "pending" && onAddMedication
               ? "Add medications to start tracking your daily doses"
               : variant === "taken"
                 ? "Medications you've taken will appear here"
@@ -395,7 +359,7 @@ function MedicationSection({
           size="sm"
           className={compact ? "py-4" : ""}
           action={
-            variant === "pending" && onAddMedication ? (
+            isReadOnlyPatient ? null : variant === "pending" && onAddMedication ? (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -405,7 +369,6 @@ function MedicationSection({
               >
                 <PlusIcon size={16} weight="bold" />
                 <span>Add Medication</span>
-                <ArrowRightIcon size={16} weight="bold" />
               </button>
             ) : undefined
           }

@@ -32,6 +32,7 @@ const formatMedicationForAPI = (medicationData) => {
     "status",
     "timeOfDay",
     "quantity",
+    "recommendSupply",
     "initialQuantity",
     "refillDate",
     "additionalInfo",

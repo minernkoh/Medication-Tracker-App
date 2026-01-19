@@ -213,8 +213,8 @@ function OnboardingTutorial({ onComplete, user }) {
       title: isCaregiver ? "Manage Daily Medications" : "Track Daily Medications",
       subtitle: isCaregiver ? "Support your patient’s schedule" : "Never miss a dose again",
       description: isCaregiver
-        ? "Add and review a patient’s medications, organized by time of day. You can mark medications as taken to keep adherence accurate."
-        : "Add your medications with dosage and timing. Medications are organized by time of day (Morning, Afternoon, Night) to help you stay on schedule.",
+        ? "Add and review a patient’s medications, scheduled by specific times. You can mark medications as taken to keep adherence accurate."
+        : "Add your medications with dosage and timing. Medications are scheduled by specific times to help you stay on track.",
       illustration: (
         <div className="relative w-full h-full rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-100/50 rounded-3xl" />
@@ -223,7 +223,7 @@ function OnboardingTutorial({ onComplete, user }) {
             <div>
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-3 flex items-center gap-2">
                 <SunIcon size={16} weight="regular" className="text-blue-500" />
-                Morning
+                8:00 AM
               </h3>
               <div className="space-y-3">
                 <div className="bg-background-subtle hover:bg-success-light rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 w-full transition-colors">

@@ -15,8 +15,6 @@ import {
   EyeSlashIcon,
   ArrowRightIcon,
   HeartIcon,
-  ShieldCheckIcon,
-  ArrowsClockwiseIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { Modal, FormField, Button } from "../ui";
@@ -118,6 +116,9 @@ function CaregiverAuthModal({
 
   if (!isOpen) return null;
 
+  const isPatient = role === "patient";
+  const ctaVariant = isPatient ? "primary" : "secondary";
+
   // Helper function for box shadow (if needed)
   const getBoxShadow = (color, opacity, size) => {
     const shadows = {
@@ -197,50 +198,6 @@ function CaregiverAuthModal({
       className="overflow-hidden"
       showCloseButton={false}
     >
-      {/* Features (shown only for signup) */}
-      {!isLogin && allowSignup && (
-        <div className="px-6 -mt-8 relative z-10">
-          <div className="bg-white rounded-2xl shadow-lg p-4 flex gap-4">
-            <div className="flex-1 text-center p-3">
-              <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <HeartIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.secondary.DEFAULT}
-                />
-              </div>
-              <p className="font-poppins text-xs text-text-primary font-semibold">
-                Care
-              </p>
-            </div>
-            <div className="flex-1 text-center p-3">
-              <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <ShieldCheckIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.secondary.DEFAULT}
-                />
-              </div>
-              <p className="font-poppins text-xs text-text-primary font-semibold">
-                Protect
-              </p>
-            </div>
-            <div className="flex-1 text-center p-3">
-              <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
-                <ArrowsClockwiseIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.secondary.DEFAULT}
-                />
-              </div>
-              <p className="font-poppins text-xs text-text-primary font-semibold">
-                Manage
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Form - Scrollable Content */}
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {/* Name field (signup only) */}
@@ -277,36 +234,31 @@ function CaregiverAuthModal({
         />
 
         {/* Password field */}
-        <div className="relative">
-          <FormField
-            label="Password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            value={formData.password}
-            onChange={handleInputChange}
-            placeholder="Enter your password"
-            error={errors.password}
-            icon={
-              <LockIcon
-                size={18}
-                weight="regular"
-                color={colors.icon.secondary}
-              />
-            }
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-[2.75rem] text-text-secondary hover:text-text-primary transition-colors z-10"
-          >
-            {showPassword ? (
-              <EyeSlashIcon size={20} weight="regular" />
-            ) : (
-              <EyeIcon size={20} weight="regular" />
-            )}
-          </button>
-        </div>
+        <FormField
+          label="Password"
+          name="password"
+          type={showPassword ? "text" : "password"}
+          value={formData.password}
+          onChange={handleInputChange}
+          placeholder="Enter your password"
+          error={errors.password}
+          icon={<LockIcon size={18} weight="regular" color={colors.icon.secondary} />}
+          rightElement={
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="h-9 w-9 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeSlashIcon size={20} weight="regular" />
+              ) : (
+                <EyeIcon size={20} weight="regular" />
+              )}
+            </button>
+          }
+          required
+        />
 
         {/* Confirm Password (signup only) */}
         {!isLogin && allowSignup && (
@@ -325,7 +277,7 @@ function CaregiverAuthModal({
         {/* Submit button */}
         <Button
           type="submit"
-          variant="secondary"
+          variant={ctaVariant}
           fullWidth
           iconRight={<ArrowRightIcon size={18} weight="bold" />}
           className="mt-6"

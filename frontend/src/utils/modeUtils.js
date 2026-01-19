@@ -50,6 +50,9 @@ export const getModeHexColor = (mode = "Personal") => {
  */
 export const isReadOnlyPatientUser = (userData) => {
   if (!userData) return false;
-  // Patient accounts (role = "patient") are read-only in personal mode
-  return userData.role === "patient" || userData.isReadOnly === true;
+  const hasCaregiver =
+    Boolean(userData?.caregiver) ||
+    (Array.isArray(userData?.caregivers) && userData.caregivers.length > 0);
+  // Patient accounts are read-only only when a caregiver is assigned (or explicitly flagged)
+  return (userData.role === "patient" && hasCaregiver) || userData.isReadOnly === true;
 };

@@ -20,7 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { SideMenuButtons } from "../ui";
 import { colors } from "../../../tailwind.config.js";
-import { isReadOnlyPatientUser } from "../../utils/modeUtils";
+import { getModeHexColor, isReadOnlyPatientUser } from "../../utils/modeUtils";
 
 function Sidebar({
   userName,
@@ -46,7 +46,16 @@ function Sidebar({
   const displayEmail = userEmail || userData?.email || "";
   const displayMode =
     mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
+  const modeHexColor = getModeHexColor(displayMode);
   const isReadOnly = isReadOnlyPatientUser(userData);
+  const caregiverName = (() => {
+    if (!isReadOnly) return null;
+    const caregivers = userData?.caregivers;
+    if (!Array.isArray(caregivers) || caregivers.length === 0) return null;
+    const first = caregivers[0];
+    if (first && typeof first === "object") return first.name || null;
+    return null;
+  })();
 
   // Get first letter of name for avatar
   const userInitial = displayName.charAt(0).toUpperCase();
@@ -95,9 +104,15 @@ function Sidebar({
             <p className="font-poppins font-bold leading-none text-xl text-text-primary">
               MedTracker
             </p>
-            <p className="font-poppins font-normal leading-6 text-sm text-text-secondary">
+            <span
+              className="mt-1 px-3 py-1 rounded-full text-xs font-poppins font-semibold"
+              style={{
+                backgroundColor: `${modeHexColor}15`,
+                color: modeHexColor,
+              }}
+            >
               {displayMode}
-            </p>
+            </span>
           </div>
         </div>
 
@@ -129,6 +144,11 @@ function Sidebar({
             <p className="font-poppins font-normal text-xs w-full text-text-secondary">
               {displayEmail}
             </p>
+            {isReadOnly && caregiverName && (
+              <p className="font-poppins font-normal text-[11px] w-full text-text-secondary mt-1">
+                Caregiver: {caregiverName}
+              </p>
+            )}
           </div>
         </div>
 

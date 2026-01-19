@@ -7,6 +7,7 @@
  * @param {function} onMenuClick - Navigation callback
  */
 import React, { useState, useEffect, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   PlusIcon,
   CalendarBlankIcon,
@@ -41,6 +42,8 @@ import { useError } from "../../../contexts/ErrorContext";
 import { normalizeAppointment } from "../../../utils";
 
 function AppointmentsPage({ userName = "", mode = "Personal" }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
@@ -276,6 +279,14 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
     setEditingAppointment(null);
     setIsModalOpen(true);
   };
+
+  // Allow navigation from Dashboard to open the "Add appointment" modal.
+  useEffect(() => {
+    if (isReadOnlyPatient) return;
+    if (!location?.state?.openAddModal) return;
+    openAddModal();
+    navigate(`${location.pathname}${location.search || ""}`, { replace: true });
+  }, [isReadOnlyPatient, location, navigate]);
 
   // Navigate years
   const goToPreviousYear = () => setSelectedYear(selectedYear - 1);
@@ -605,17 +616,23 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                   />
                 }
                 title={`No appointments in ${selectedYear}`}
-                description="Schedule your medical appointments to keep track of your healthcare"
+                description={
+                  isReadOnlyPatient
+                    ? null
+                    : "Schedule your medical appointments to keep track of your healthcare"
+                }
                 size="md"
                 action={
-                  <button
-                    onClick={openAddModal}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm`}
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    <PlusIcon size={18} weight="bold" />
-                    <span>Schedule Appointment</span>
-                  </button>
+                  isReadOnlyPatient ? null : (
+                    <button
+                      onClick={openAddModal}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm`}
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <PlusIcon size={18} weight="bold" />
+                      <span>Schedule Appointment</span>
+                    </button>
+                  )
                 }
               />
             )}

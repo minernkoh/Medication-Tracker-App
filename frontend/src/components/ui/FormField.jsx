@@ -11,6 +11,7 @@
  * @param {boolean} required - Whether field is required
  * @param {string} placeholder - Input placeholder
  * @param {React.ReactNode} icon - Optional icon to display before input
+ * @param {React.ReactNode} rightElement - Optional element to display after input (e.g., toggle button)
  * @param {string} className - Additional CSS classes
  * @param {object} inputProps - Additional props to pass to input element
  */
@@ -27,6 +28,7 @@ function FormField({
   required = false,
   placeholder,
   icon,
+  rightElement,
   className = "",
   ...inputProps
 }) {
@@ -35,6 +37,7 @@ function FormField({
     "w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none transition-colors";
   const inputNormalClass = `${inputBaseClass} border-border-default focus:border-primary focus:ring-2 focus:ring-primary/20`;
   const inputErrorClass = `${inputBaseClass} border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
+  const inputClass = `${error ? inputErrorClass : inputNormalClass} ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
 
   return (
     <div className={className}>
@@ -53,6 +56,11 @@ function FormField({
             {icon}
           </div>
         )}
+        {rightElement && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {rightElement}
+          </div>
+        )}
         <input
           type={type}
           id={name}
@@ -61,7 +69,7 @@ function FormField({
           onChange={onChange}
           placeholder={placeholder}
           required={required}
-          className={icon ? `${error ? inputErrorClass : inputNormalClass} pl-10` : (error ? inputErrorClass : inputNormalClass)}
+          className={inputClass}
           aria-invalid={!!error}
           aria-describedby={error ? `${name}-error` : undefined}
           {...inputProps}

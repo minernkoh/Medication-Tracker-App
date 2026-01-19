@@ -1,6 +1,6 @@
 /**
  * MedicationPage Component - Comprehensive medication management page
- * Shows: Pending Today (with Morning/Afternoon/Night sections), Taken Today, Current Supply
+ * Shows: Pending Today (sorted by scheduled time), Taken Today, Current Supply
  *
  * @param {string} userName - User's name
  * @param {string} mode - "Personal" or "Caregiver"
@@ -22,9 +22,11 @@ import { useMedications } from "../../../contexts/MedicationsContext";
 import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
 import {
+  formatDateNumeric,
   timeToMinutes,
   calculateSupplyStatus,
   filterMedsByStatus,
+  toTimeInput,
 } from "../../../utils";
 
 const MedicationPage = ({ userName = "", mode = "Personal" }) => {
@@ -72,16 +74,8 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   // Helper: format date for display
   const formatRefillDate = (dateStr) => {
     if (!dateStr) return null;
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return null;
-    }
+    const formatted = formatDateNumeric(dateStr);
+    return formatted || null;
   };
 
   /**
@@ -189,9 +183,17 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const supplyMeds = filterMedsByStatus(medications, "supply");
 
   // Sort pending medications by time of day
-  const pendingMedsSorted = [...pendingMeds].sort(
-    (a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay),
-  );
+  const pendingMedsSorted = [...pendingMeds].sort((a, b) => {
+    const aSlot =
+      (Array.isArray(a.timesOfDay) && a.timesOfDay.length > 0
+        ? a.timesOfDay[0]
+        : a.timeOfDay) || "";
+    const bSlot =
+      (Array.isArray(b.timesOfDay) && b.timesOfDay.length > 0
+        ? b.timesOfDay[0]
+        : b.timeOfDay) || "";
+    return timeToMinutes(toTimeInput(aSlot)) - timeToMinutes(toTimeInput(bSlot));
+  });
 
   // Sort supply medications
   const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
@@ -242,7 +244,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const supplyColumns = [
     {
       key: "name",
-      label: "Medication",
+      label: "Name",
       render: (value, row) => {
         const medicationColor = getMedicationColor(value);
         return (
@@ -281,6 +283,48 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
       ),
     },
     {
+      key: "instructions",
+      label: "Instructions",
+      sortable: false,
+      render: (value, row) => {
+        const instructionsList = Array.isArray(value)
+          ? value
+          : typeof value === "string"
+            ? value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+
+        if (instructionsList.length > 0) {
+          return (
+            <div className="flex flex-wrap gap-1 max-w-[240px]">
+              {instructionsList.map((instruction) => (
+                <span
+                  key={instruction}
+                  title={instruction}
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-poppins font-semibold bg-background-hover text-text-secondary border border-border-subtle max-w-[220px] truncate"
+                >
+                  {instruction}
+                </span>
+              ))}
+            </div>
+          );
+        }
+
+        const notes = String(row?.additionalInfo || "").trim();
+        if (notes) {
+          return (
+            <span className="font-poppins text-sm text-text-primary max-w-[260px] whitespace-normal break-words">
+              {notes}
+            </span>
+          );
+        }
+
+        return <span className="font-poppins text-sm text-text-secondary">—</span>;
+      },
+    },
+    {
       key: "quantity",
       label: "Total Quantity",
       render: (value, row) => (
@@ -312,7 +356,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     },
     {
       key: "recommendSupply",
-      label: "Recommend Supply",
+      label: "Recommended Supply",
       render: (value, row) => (
         <span className="font-poppins text-sm text-text-primary">
           {value ? formatQuantity(value, row.unit) : "—"}
@@ -328,7 +372,9 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
           status && (status.label === "Low" || status.label === "Empty");
         return (
           <span
-            className={`font-poppins text-sm font-semibold ${refillNeeded ? "text-red-600" : "text-emerald-600"}`}
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${
+              refillNeeded ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+            }`}
           >
             {refillNeeded ? "Yes" : "No"}
           </span>
@@ -422,7 +468,6 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
                 />
               }
               title="Current Supply"
-              description="Your current medication inventory"
               action={
                 <span className="font-poppins font-semibold text-sm text-text-secondary bg-background-hover px-3 py-1 rounded-full">
                   {supplyMeds.length} in supply

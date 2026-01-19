@@ -14,6 +14,7 @@
  */
 
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { XIcon } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
 
@@ -62,8 +63,9 @@ function Modal({
   };
 
   if (!isOpen) return null;
+  if (typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={handleBackdropClick}
@@ -118,6 +120,8 @@ function Modal({
         )}
       </div>
     </div>
+    ,
+    document.body,
   );
 }
 

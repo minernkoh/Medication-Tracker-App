@@ -70,7 +70,7 @@ function Toast({
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 rounded-xl border-l-4 ${config.borderColor} ${config.bgColor} shadow-lg animate-slide-up min-w-[300px] max-w-[500px]`}
+      className={`flex items-center gap-3 p-4 rounded-xl border-l-4 ${config.borderColor} ${config.bgColor} shadow-lg animate-slide-up min-w-[300px] max-w-[500px]`}
       role="alert"
       aria-live={type === "error" ? "assertive" : "polite"}
     >
@@ -78,10 +78,10 @@ function Toast({
         size={24}
         weight="fill"
         color={config.color}
-        className="flex-shrink-0 mt-0.5"
+        className="flex-shrink-0"
       />
-      <div className="flex-1">
-        <p className="font-poppins font-semibold text-sm text-text-primary">
+      <div className="flex-1 min-w-0">
+        <p className="font-poppins font-semibold text-sm text-text-primary leading-snug text-left">
           {message}
         </p>
       </div>

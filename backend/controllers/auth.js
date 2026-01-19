@@ -18,7 +18,7 @@ const signup = async (req, res) => {
     if (existing) {
       return res
         .status(400)
-        .json({ message: "Account already exists for this role" });
+        .json({ message: "Account already exists" });
     }
 
     const user = await User.create(req.body);
@@ -29,7 +29,7 @@ const signup = async (req, res) => {
     if (error.code === 11000) {
       return res
         .status(400)
-        .json({ message: "Account already exists for this role" });
+        .json({ message: "Account already exists" });
     }
     res.status(400).json({ message: error.message });
   }
