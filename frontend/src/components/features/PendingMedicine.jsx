@@ -160,7 +160,8 @@ function PendingMedicine({
             onDelete={onDelete}
             size="base"
             editLabel="Edit medication"
-            deleteLabel="Delete medication"
+            deleteLabel={type === "Taken" ? "Undo taken" : "Delete medication"}
+            deleteIconType={type === "Taken" ? "undo" : "delete"}
           />
         )}
       </div>

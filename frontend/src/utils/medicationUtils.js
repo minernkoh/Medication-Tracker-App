@@ -4,31 +4,50 @@
  */
 
 /**
- * Calculate supply status as percentage and determine visual style
+ * Calculate supply status based on ratio of Total Quantity vs Recommend Supply
  * @param {object} med - Normalized medication object
- * @returns {object|null} { label, className } or null
+ * @returns {object|null} { label, className, ratio } or null
  */
 export const calculateSupplyStatus = (med) => {
-  // We need both current and initial quantity for the calculation
-  if (med.quantity === undefined || med.initialQuantity === undefined) return null;
+  const totalQuantity = parseFloat(med.quantity) || 0;
+  const recommendSupply = parseFloat(med.recommendSupply || med.quantity) || 0;
 
-  const currentQ = Number(med.quantity);
-  const initialQ = Number(med.initialQuantity);
-
-  if (isNaN(currentQ) || isNaN(initialQ) || initialQ === 0) return null;
-
-  const percentage = Math.round((currentQ / initialQ) * 100);
-
-  let className;
-  if (percentage < 30) {
-    className = "bg-red-100 text-red-700";
-  } else if (percentage <= 60) {
-    className = "bg-amber-100 text-amber-700";
-  } else {
-    className = "bg-green-100 text-green-700";
+  if (!recommendSupply || recommendSupply === 0) {
+    return null; // No status if recommend supply not set
   }
 
-  return { label: `${percentage}%`, className, percentage };
+  const ratio = (totalQuantity / recommendSupply) * 100;
+
+  let label, className;
+  if (ratio === 0) {
+    label = "Empty";
+    className = "bg-gray-100 text-gray-700";
+  } else if (ratio > 100) {
+    label = "Over";
+    className = "bg-blue-100 text-blue-700";
+  } else if (ratio > 70) {
+    label = "High";
+    className = "bg-green-100 text-green-700";
+  } else if (ratio > 30) {
+    label = "Med";
+    className = "bg-amber-100 text-amber-700";
+  } else {
+    label = "Low";
+    className = "bg-red-100 text-red-700";
+  }
+
+  return { label, className, ratio };
+};
+
+/**
+ * Determine if medication needs refill based on supply status
+ * @param {object} med - Normalized medication object
+ * @returns {boolean}
+ */
+export const needsRefill = (med) => {
+  const status = calculateSupplyStatus(med);
+  if (!status) return false;
+  return status.label === "Low" || status.label === "Empty";
 };
 
 /**
@@ -64,7 +83,12 @@ export const getTimeGroup = (timeOfDay) => {
  */
 export const filterMedsByStatus = (meds, targetStatus) => {
   if (targetStatus === "supply") {
-    return meds.filter(m => m.quantity !== undefined && m.quantity !== null && String(m.quantity).trim() !== "");
+    return meds.filter(
+      (m) =>
+        m.quantity !== undefined &&
+        m.quantity !== null &&
+        String(m.quantity).trim() !== "",
+    );
   }
-  return meds.filter(m => m.status === targetStatus);
+  return meds.filter((m) => m.status === targetStatus);
 };
