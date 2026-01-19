@@ -15,7 +15,6 @@ app.use(express.json());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`[${req.method}] ${req.path}`);
   if (
     req.method === "POST" &&
     (req.path.includes("/medications") || req.path.includes("/appointments"))
@@ -31,24 +30,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security Middleware
-// Temporarily disabled to debug - will re-enable after fixing
-// app.use(helmet());
+// Security Middleware - Configure helmet for development
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable CSP in development
+    crossOriginEmbedderPolicy: false, // Allow embedding
+  }),
+);
 
-// Rate Limiting - Temporarily disabled to debug
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 1000, // Lenient limit for development
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   handler: (req, res) => {
-//     console.log("Rate limit exceeded for:", req.path);
-//     res
-//       .status(429)
-//       .json({ message: "Too many requests, please try again later." });
-//   },
-// });
-// app.use(limiter);
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Lenient for development
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
 
 // Mount routes at root; Vite dev proxy strips the /api prefix
 // so frontend /api/* calls become backend /* here.

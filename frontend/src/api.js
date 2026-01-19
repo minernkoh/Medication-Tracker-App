@@ -96,25 +96,17 @@ export const api = {
       return handleResponse(response);
     },
     signin: async (credentials) => {
-      console.log("🔐 Signin attempt:", credentials);
-      try {
-        const response = await fetch(`${API_URL}/auth/signin`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(credentials),
-        });
-        console.log("📡 Signin response status:", response.status);
-        const data = await handleResponse(response);
-        console.log("✅ Signin successful:", data);
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
-        return data;
-      } catch (error) {
-        console.error("❌ Signin error:", error);
-        throw error;
+      const response = await fetch(`${API_URL}/auth/signin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
+      const data = await handleResponse(response);
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
       }
+      return data;
     },
     logout: () => {
       localStorage.removeItem("token");
