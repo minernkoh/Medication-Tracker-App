@@ -226,7 +226,7 @@ Medication-Tracker-App/
    Create a `.env` file in the `backend` directory:
 
    ```env
-   MONGODB_URI=mongodb://localhost:27017/medication-tracker
+   MONGODB_URI=mongodb://localhost:27017/medtrack
    PORT=5000
    JWT_SECRET=your-secret-key-here
    ```
