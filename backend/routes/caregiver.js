@@ -9,13 +9,15 @@ router.get("/caregiver/patients", verifyToken, caregiverCtrl.getPatients);
 router.get(
   "/caregiver/appointments",
   verifyToken,
-  caregiverCtrl.getAllAppointments
+  caregiverCtrl.getAllAppointments,
 );
+
+router.get("/caregiver/schedule", verifyToken, caregiverCtrl.getSchedule);
 
 router.get(
   "/caregiver/patients/:id",
   verifyToken,
-  caregiverCtrl.getPatientById
+  caregiverCtrl.getPatientById,
 );
 
 router.post("/caregiver/patients", verifyToken, caregiverCtrl.addPatient);
@@ -23,7 +25,7 @@ router.post("/caregiver/patients", verifyToken, caregiverCtrl.addPatient);
 router.delete(
   "/caregiver/patients/:id",
   verifyToken,
-  caregiverCtrl.deletePatient
+  caregiverCtrl.deletePatient,
 );
 
 module.exports = router;

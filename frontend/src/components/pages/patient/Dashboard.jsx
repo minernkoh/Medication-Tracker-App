@@ -65,7 +65,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentWeekStart, setCurrentWeekStart] = useState(
-    getStartOfWeek(today)
+    getStartOfWeek(today),
   );
 
   // Modal state for editing taken-time entries
@@ -81,7 +81,9 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
         const data = await api.appointments.getAll();
         if (!isMounted) return;
         setAppointments(
-          (Array.isArray(data) ? data : []).map(normalizeAppointment).filter(Boolean)
+          (Array.isArray(data) ? data : [])
+            .map(normalizeAppointment)
+            .filter(Boolean),
         );
       } catch (error) {
         if (isMounted) {
@@ -201,7 +203,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
     ? {
         title: upcomingAppointment.title,
         date: `${formatDate(upcomingAppointment.date)}, ${formatTime(
-          upcomingAppointment.time
+          upcomingAppointment.time,
         )}`,
         doctor: upcomingAppointment.doctorName,
         location: upcomingAppointment.location,
@@ -239,20 +241,23 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           />
 
           {/* Calendar section */}
-          <Calendar selectedDate={selectedDate} onDateChange={handleDateChange} />
+          <Calendar
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+          />
 
           {/* Stats and appointment cards */}
           <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
             {/* Today's Progress card */}
             <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl">
               <div className="flex items-center justify-between w-full">
-                <p
-                  className={`${textStyles.heading.small} text-text-primary`}
-                >
+                <p className={`${textStyles.heading.small} text-text-primary`}>
                   {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}
                 </p>
                 {stats.total > 0 && (
-                  <span className={`${textStyles.label.small} text-text-secondary bg-background-hover px-3 py-1 rounded-full`}>
+                  <span
+                    className={`${textStyles.label.small} text-text-secondary bg-background-hover px-3 py-1 rounded-full`}
+                  >
                     {stats.percentage}% complete
                   </span>
                 )}
@@ -279,7 +284,11 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                       >
                         {stats.taken}
                       </p>
-                      <p className={`${textStyles.body.small} text-text-secondary mt-0.5`}>Taken</p>
+                      <p
+                        className={`${textStyles.body.small} text-text-secondary mt-0.5`}
+                      >
+                        Taken
+                      </p>
                     </div>
                   </div>
 
@@ -294,7 +303,11 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                       >
                         {stats.notTaken}
                       </p>
-                      <p className={`${textStyles.body.small} text-text-secondary mt-0.5`}>Pending</p>
+                      <p
+                        className={`${textStyles.body.small} text-text-secondary mt-0.5`}
+                      >
+                        Pending
+                      </p>
                     </div>
                   </div>
 
@@ -306,7 +319,11 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                       >
                         {stats.total}
                       </p>
-                      <p className={`${textStyles.body.small} text-text-secondary mt-0.5`}>Total Medications</p>
+                      <p
+                        className={`${textStyles.body.small} text-text-secondary mt-0.5`}
+                      >
+                        Total Medications
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -328,17 +345,22 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                   onMarkAsTaken={
                     isReadOnlyPatient
                       ? undefined
-                      : (id) =>
+                      : (med) =>
                           markMedicationAsTaken(
-                            id,
+                            med,
+                            null,
                             selectedDate.toISOString().split("T")[0],
                           )
                   }
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}
-                  onAddMedication={isReadOnlyPatient ? undefined : handleAddMedication}
-                  onCardClick={isReadOnlyPatient ? undefined : handleAddMedication}
+                  onAddMedication={
+                    isReadOnlyPatient ? undefined : handleAddMedication
+                  }
+                  onCardClick={
+                    isReadOnlyPatient ? undefined : handleAddMedication
+                  }
                 />
               </div>
 
@@ -351,16 +373,18 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                   onDelete={
                     isReadOnlyPatient
                       ? undefined
-                      : (id) =>
+                      : (med) =>
                           resetMedicationStatus(
-                            id,
+                            med,
                             selectedDate.toISOString().split("T")[0],
                           )
                   }
                   showTimeGroups={true}
                   compact={true}
                   dateLabel={dateLabel}
-                  onCardClick={isReadOnlyPatient ? undefined : handleAddMedication}
+                  onCardClick={
+                    isReadOnlyPatient ? undefined : handleAddMedication
+                  }
                 />
               </div>
             </div>
@@ -388,7 +412,9 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                         <span>Add Your First Medication</span>
                         <ArrowRightIcon size={20} weight="bold" />
                       </button>
-                      <p className={`${textStyles.caption.small} max-w-md text-text-secondary`}>
+                      <p
+                        className={`${textStyles.caption.small} max-w-md text-text-secondary`}
+                      >
                         💡 <strong>Tip:</strong> You can also access the full
                         medication management page from the sidebar menu
                       </p>

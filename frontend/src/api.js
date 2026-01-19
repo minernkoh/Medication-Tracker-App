@@ -44,7 +44,10 @@ const formatMedicationForAPI = (medicationData) => {
     if (hasOwn(medicationData, key)) out[key] = medicationData[key];
   }
 
-  if (hasOwn(medicationData, "timesOfDay") && Array.isArray(medicationData.timesOfDay)) {
+  if (
+    hasOwn(medicationData, "timesOfDay") &&
+    Array.isArray(medicationData.timesOfDay)
+  ) {
     out.timesOfDay = medicationData.timesOfDay;
   }
 
@@ -113,7 +116,9 @@ export const api = {
   // Medications
   medications: {
     getAll: async (date = null) => {
-      const url = date ? `${API_URL}/medications?date=${date}` : `${API_URL}/medications`;
+      const url = date
+        ? `${API_URL}/medications?date=${date}`
+        : `${API_URL}/medications`;
       const response = await fetch(url, {
         headers: getHeaders(),
       });
@@ -208,13 +213,13 @@ export const api = {
       return api.medications.getAll(date);
     },
 
-    markAsTaken: async (id, takenTime = null, date = null) => {
+    markAsTaken: async (id, takenTime = null, date = null, timeSlot = null) => {
       const response = await fetch(`${API_URL}/medications/${id}/taken`, {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify({
           status: "taken",
-          date: date || new Date().toISOString().split('T')[0],
+          date: date || new Date().toISOString().split("T")[0],
           takenTime:
             takenTime ||
             new Date().toLocaleTimeString("en-US", {
@@ -222,16 +227,18 @@ export const api = {
               minute: "2-digit",
               hour12: true,
             }),
+          ...(timeSlot ? { timeSlot } : {}),
         }),
       });
       return handleResponse(response);
     },
-    undoMarkAsTaken: async (id, date = null) => {
+    undoMarkAsTaken: async (id, date = null, timeSlot = null) => {
       const response = await fetch(`${API_URL}/medications/${id}/undo`, {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify({
-          date: date || new Date().toISOString().split('T')[0],
+          date: date || new Date().toISOString().split("T")[0],
+          ...(timeSlot ? { timeSlot } : {}),
         }),
       });
       return handleResponse(response);
@@ -334,6 +341,14 @@ export const api = {
       });
       return handleResponse(response);
     },
+    changePassword: async (currentPassword, newPassword) => {
+      const response = await fetch(`${API_URL}/users/me/change-password`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      return handleResponse(response);
+    },
     delete: async (userId) => {
       const response = await fetch(`${API_URL}/users/${userId}`, {
         method: "DELETE",
@@ -353,6 +368,13 @@ export const api = {
     },
     getAppointments: async () => {
       const response = await fetch(`${API_URL}/caregiver/appointments`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    getSchedule: async (date = null) => {
+      const query = date ? `?date=${date}` : "";
+      const response = await fetch(`${API_URL}/caregiver/schedule${query}`, {
         headers: getHeaders(),
       });
       return handleResponse(response);

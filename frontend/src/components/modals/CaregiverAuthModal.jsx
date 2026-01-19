@@ -23,7 +23,14 @@ import { Modal, FormField, Button } from "../ui";
 import { colors } from "../../../tailwind.config.js";
 import { useError } from "../../contexts/ErrorContext";
 
-function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
+function CaregiverAuthModal({
+  isOpen,
+  onClose,
+  onLogin,
+  onSignup,
+  role = "caregiver",
+  allowSignup = true,
+}) {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -44,6 +51,11 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!allowSignup) {
+      setIsLogin(true);
+    }
+  }, [allowSignup]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -88,13 +100,14 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
           await onLogin?.({
             email: formData.email,
             password: formData.password,
+            role,
           });
         } else {
           await onSignup?.({
             name: formData.name,
             email: formData.email,
             password: formData.password,
-            role: "caregiver",
+            role,
           });
         }
       } catch (error) {
@@ -108,12 +121,32 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
   // Helper function for box shadow (if needed)
   const getBoxShadow = (color, opacity, size) => {
     const shadows = {
-      sm: `0 1px 2px 0 ${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-      md: `0 4px 6px -1px ${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}, 0 2px 4px -1px ${color}${Math.round(opacity * 200).toString(16).padStart(2, '0')}`,
-      lg: `0 10px 15px -3px ${color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}, 0 4px 6px -2px ${color}${Math.round(opacity * 200).toString(16).padStart(2, '0')}`,
+      sm: `0 1px 2px 0 ${color}${Math.round(opacity * 255)
+        .toString(16)
+        .padStart(2, "0")}`,
+      md: `0 4px 6px -1px ${color}${Math.round(opacity * 255)
+        .toString(16)
+        .padStart(2, "0")}, 0 2px 4px -1px ${color}${Math.round(opacity * 200)
+        .toString(16)
+        .padStart(2, "0")}`,
+      lg: `0 10px 15px -3px ${color}${Math.round(opacity * 255)
+        .toString(16)
+        .padStart(2, "0")}, 0 4px 6px -2px ${color}${Math.round(opacity * 200)
+        .toString(16)
+        .padStart(2, "0")}`,
     };
     return shadows[size] || shadows.md;
   };
+
+  const roleLabel = role === "patient" ? "Patient" : "Caregiver";
+  const headerIcon = role === "patient" ? HeartIcon : UsersIcon;
+  const headerSubtitle = isLogin
+    ? role === "patient"
+      ? "Sign in to manage your own health"
+      : "Sign in to manage care for your loved ones"
+    : role === "patient"
+      ? "Create a personal account to track your health"
+      : "Start managing care for your loved ones";
 
   const customHeader = (
     <div className="bg-gradient-to-br from-secondary via-pink-400 to-rose-400 p-8 pb-16 relative rounded-t-2xl overflow-hidden w-full">
@@ -135,16 +168,16 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
       {/* Icon and title */}
       <div className="relative text-center">
         <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <UsersIcon size={32} weight="fill" color={colors.text.onPrimary} />
+          {React.createElement(headerIcon, {
+            size: 32,
+            weight: "fill",
+            color: colors.text.onPrimary,
+          })}
         </div>
         <h2 className="font-poppins font-bold text-2xl text-white mb-1">
-          {isLogin ? "Caregiver Login" : "Create Caregiver Account"}
+          {isLogin ? `${roleLabel} Login` : `Create ${roleLabel} Account`}
         </h2>
-        <p className="font-poppins text-white/80 text-sm">
-          {isLogin
-            ? "Sign in to manage care for your loved ones"
-            : "Start managing care for your loved ones"}
-        </p>
+        <p className="font-poppins text-white/80 text-sm">{headerSubtitle}</p>
       </div>
     </div>
   );
@@ -159,7 +192,7 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
       showCloseButton={false}
     >
       {/* Features (shown only for signup) */}
-      {!isLogin && (
+      {!isLogin && allowSignup && (
         <div className="px-6 -mt-8 relative z-10">
           <div className="bg-white rounded-2xl shadow-lg p-4 flex gap-4">
             <div className="flex-1 text-center p-3">
@@ -205,7 +238,7 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
       {/* Form - Scrollable Content */}
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {/* Name field (signup only) */}
-        {!isLogin && (
+        {!isLogin && allowSignup && (
           <FormField
             label="Full Name"
             name="name"
@@ -227,7 +260,13 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
           onChange={handleInputChange}
           placeholder="Enter your email"
           error={errors.email}
-          icon={<EnvelopeIcon size={18} weight="regular" color={colors.icon.secondary} />}
+          icon={
+            <EnvelopeIcon
+              size={18}
+              weight="regular"
+              color={colors.icon.secondary}
+            />
+          }
           required
         />
 
@@ -241,7 +280,13 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
             onChange={handleInputChange}
             placeholder="Enter your password"
             error={errors.password}
-            icon={<LockIcon size={18} weight="regular" color={colors.icon.secondary} />}
+            icon={
+              <LockIcon
+                size={18}
+                weight="regular"
+                color={colors.icon.secondary}
+              />
+            }
             required
           />
           <button
@@ -258,7 +303,7 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
         </div>
 
         {/* Confirm Password (signup only) */}
-        {!isLogin && (
+        {!isLogin && allowSignup && (
           <FormField
             label="Confirm Password"
             name="confirmPassword"
@@ -279,29 +324,30 @@ function CaregiverAuthModal({ isOpen, onClose, onLogin, onSignup }) {
           iconRight={<ArrowRightIcon size={18} weight="bold" />}
           className="mt-6"
         >
-          {isLogin ? "Sign In as Caregiver" : "Create Caregiver Account"}
+          {isLogin ? `Sign In as ${roleLabel}` : `Create ${roleLabel} Account`}
         </Button>
       </form>
 
       {/* Switch between login/signup */}
-      <div className="px-6 pb-6">
-        <p className="text-center font-poppins text-text-secondary text-sm">
-          {isLogin
-            ? "Don't have a caregiver account? "
-            : "Already have an account? "}
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setErrors({});
-            }}
-            className="font-semibold hover:underline"
-            style={{ color: colors.secondary.DEFAULT }}
-          >
-            {isLogin ? "Sign Up" : "Sign In"}
-          </button>
-        </p>
-      </div>
+      {allowSignup && (
+        <div className="px-6 pb-6">
+          <p className="text-center font-poppins text-text-secondary text-sm">
+            {isLogin
+              ? `Don't have a ${roleLabel.toLowerCase()} account? `
+              : "Already have an account? "}
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+              }}
+              className="font-semibold hover:underline"
+            >
+              {isLogin ? "Sign up" : "Sign in"}
+            </button>
+          </p>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -24,19 +24,22 @@ export function MedicationsProvider({ children }) {
   const { showError } = useError();
   const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
 
-  const loadMedications = useCallback(async (date = null) => {
-    setIsLoading(true);
-    try {
-      const meds = await api.medications.getAll(date);
-      setMedications(
-        (Array.isArray(meds) ? meds : []).map(normalizeMedication),
-      );
-    } catch (error) {
-      showError(error.message || "Unable to load medications");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [showError]);
+  const loadMedications = useCallback(
+    async (date = null) => {
+      setIsLoading(true);
+      try {
+        const meds = await api.medications.getAll(date);
+        setMedications(
+          (Array.isArray(meds) ? meds : []).map(normalizeMedication),
+        );
+      } catch (error) {
+        showError(error.message || "Unable to load medications");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [showError],
+  );
 
   useEffect(() => {
     loadMedications();
@@ -53,7 +56,7 @@ export function MedicationsProvider({ children }) {
 
   // Helper: Extract numeric value from any input (preserving backward compatibility if needed)
   const parseQuantity = useCallback((val) => {
-    if (typeof val === 'number') return { value: val, unit: "" };
+    if (typeof val === "number") return { value: val, unit: "" };
     const str = String(val || "");
     const match = str.match(/^\s*(\d+(\.\d+)?)\s*(.*)\s*$/);
     const value = match ? parseFloat(match[1]) || 0 : 0;
@@ -63,7 +66,7 @@ export function MedicationsProvider({ children }) {
 
   // Helper: Extract dosage numeric value
   const parseDosage = useCallback((val) => {
-    if (typeof val === 'number') return val;
+    if (typeof val === "number") return val;
     const str = String(val || "");
     const match = str.match(/^(\d+(\.\d+)?)/);
     return match ? parseFloat(match[1]) : 1;
@@ -137,17 +140,29 @@ export function MedicationsProvider({ children }) {
 
   // Handle marking a medication as taken
   const markMedicationAsTaken = useCallback(
-    (medicationId, date = null) => {
+    (medicationOrId, takenTime = null, date = null, timeSlot = null) => {
       if (isReadOnlyPatient) {
         showError("Read-only access");
         return;
       }
-      const targetDate = date || new Date().toISOString().split('T')[0];
-      const currentTime = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
+      const medicationId =
+        typeof medicationOrId === "object" && medicationOrId
+          ? medicationOrId.id
+          : medicationOrId;
+      const resolvedTimeSlot =
+        timeSlot ||
+        (typeof medicationOrId === "object" && medicationOrId
+          ? medicationOrId.timeOfDay || medicationOrId.timesOfDay?.[0]
+          : null);
+
+      const targetDate = date || new Date().toISOString().split("T")[0];
+      const currentTime =
+        takenTime ||
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
 
       let updatedQuantity;
       let updatedInitialQuantity;
@@ -160,17 +175,23 @@ export function MedicationsProvider({ children }) {
             med.quantity !== undefined &&
             med.quantity !== null &&
             med.quantity !== "";
-          
+
           if (hasQuantity) {
-            const quantityValue = typeof med.quantity === 'number' ? med.quantity : parseQuantity(med.quantity).value;
-            const dosageAmount = typeof med.dosage === 'number' ? med.dosage : parseDosage(med.dosage);
+            const quantityValue =
+              typeof med.quantity === "number"
+                ? med.quantity
+                : parseQuantity(med.quantity).value;
+            const dosageAmount =
+              typeof med.dosage === "number"
+                ? med.dosage
+                : parseDosage(med.dosage);
             const shouldDecrement = med.status !== "taken" && !med.taken;
             const decrementAmount = shouldDecrement ? dosageAmount : 0;
             const updatedQuantityValue =
               quantityValue > 0
                 ? Math.max(quantityValue - decrementAmount, 0)
                 : 0;
-            
+
             updatedQuantity = updatedQuantityValue;
             lastQuantityDelta = shouldDecrement ? -dosageAmount : 0;
 
@@ -191,18 +212,36 @@ export function MedicationsProvider({ children }) {
         }),
       );
 
-      api.medications.markAsTaken(medicationId, currentTime, targetDate).catch((error) => {
-        showError(error.message || "Unable to update medication status");
-        loadMedications(targetDate);
-      });
+      api.medications
+        .markAsTaken(medicationId, currentTime, targetDate, resolvedTimeSlot)
+        .catch((error) => {
+          showError(error.message || "Unable to update medication status");
+          loadMedications(targetDate);
+        });
     },
-    [parseQuantity, formatQuantity, parseDosage, showError, loadMedications, isReadOnlyPatient],
+    [
+      parseQuantity,
+      formatQuantity,
+      parseDosage,
+      showError,
+      loadMedications,
+      isReadOnlyPatient,
+    ],
   );
 
   // Reset medication status to "pending" - removes from taken cards and restores quantity
   const resetMedicationStatus = useCallback(
-    async (id, date = null) => {
-      const targetDate = date || new Date().toISOString().split('T')[0];
+    async (medicationOrId, date = null, timeSlot = null) => {
+      const targetDate = date || new Date().toISOString().split("T")[0];
+      const medicationId =
+        typeof medicationOrId === "object" && medicationOrId
+          ? medicationOrId.id
+          : medicationOrId;
+      const resolvedTimeSlot =
+        timeSlot ||
+        (typeof medicationOrId === "object" && medicationOrId
+          ? medicationOrId.timeOfDay || medicationOrId.timesOfDay?.[0]
+          : null);
       try {
         if (isReadOnlyPatient) {
           throw new Error("Read-only access");
@@ -210,7 +249,7 @@ export function MedicationsProvider({ children }) {
         // Optimistically update local state
         setMedications((prev) =>
           prev.map((med) =>
-            med.id === id
+            med.id === medicationId
               ? {
                   ...med,
                   status: "pending",
@@ -224,7 +263,11 @@ export function MedicationsProvider({ children }) {
         );
 
         // Update on server
-        await api.medications.undoMarkAsTaken(id, targetDate);
+        await api.medications.undoMarkAsTaken(
+          medicationId,
+          targetDate,
+          resolvedTimeSlot,
+        );
         // Refresh to get accurate quantity from server
         await loadMedications(targetDate);
       } catch (error) {

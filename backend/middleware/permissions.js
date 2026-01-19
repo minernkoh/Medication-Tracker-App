@@ -1,4 +1,8 @@
 const User = require("../models/User");
+const {
+  canModifyPatientData: canModifyPatientDataAuth,
+  canViewPatientData: canViewPatientDataAuth,
+} = require("../utils/auth");
 
 const canModifyPatientData = async (req, res, next) => {
   const patient = await User.findById(req.params.patientId || req.body.patient);
@@ -7,21 +11,12 @@ const canModifyPatientData = async (req, res, next) => {
     return res.status(404).json({ message: "Patient not found" });
   }
 
-  if (req.user.id === patient.id) {
-    if (patient.caregiver) {
-      return res.status(403).json({ message: "Patient has read only access" });
-    }
-    return next();
+  const access = canModifyPatientDataAuth(req.user, patient);
+  if (!access.authorized) {
+    return res.status(403).json({ message: access.message });
   }
 
-  if (
-    req.user.role === "caregiver" &&
-    patient.caregiver?.toString() === req.user.id
-  ) {
-    return next();
-  }
-
-  return res.status(403).json({ message: "Not authorized" });
+  return next();
 };
 
 const canViewPatientData = async (req, res, next) => {
@@ -31,18 +26,11 @@ const canViewPatientData = async (req, res, next) => {
     return res.status(404).json({ message: "Patient not found" });
   }
 
-  if (req.user.id === patient.id) {
-    return next();
+  const access = canViewPatientDataAuth(req.user, patient);
+  if (!access.authorized) {
+    return res.status(403).json({ message: access.message });
   }
 
-  if (
-    req.user.role === "caregiver" &&
-    patient.caregiver?.toString() === req.user.id
-  ) {
-    return next();
-  }
-
-  return res.status(403).json({ message: "Not authorized" });
+  return next();
 };
-
 module.exports = { canModifyPatientData, canViewPatientData };

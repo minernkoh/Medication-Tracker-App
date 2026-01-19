@@ -9,13 +9,27 @@ const signup = async (req, res) => {
   }
 
   try {
+    const { email, role } = req.body;
+    if (!email || !role) {
+      return res.status(400).json({ message: "Email and role are required" });
+    }
+
+    const existing = await User.findOne({ email, role });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ message: "Account already exists for this role" });
+    }
+
     const user = await User.create(req.body);
     const userObj = user.toObject();
     delete userObj.password;
     res.status(201).json(userObj);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(400).json({ message: "Email already exists" });
+      return res
+        .status(400)
+        .json({ message: "Account already exists for this role" });
     }
     res.status(400).json({ message: error.message });
   }
@@ -34,8 +48,20 @@ const signin = async (req, res) => {
         .json({ message: "Email and password are required" });
     }
 
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { email, password, role } = req.body;
+    let user = null;
+
+    if (role) {
+      user = await User.findOne({ email, role });
+    } else {
+      const matches = await User.find({ email }).limit(2);
+      if (matches.length > 1) {
+        return res.status(400).json({
+          message: "Multiple accounts found. Please select an account type.",
+        });
+      }
+      user = matches[0] || null;
+    }
 
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: "Invalid credentials" });

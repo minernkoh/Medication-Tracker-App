@@ -125,7 +125,26 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const handleSaveEditedMedication = async (updatedMedication) => {
     try {
       if (isReadOnlyPatient) return;
-      await updateMedication(updatedMedication.id, updatedMedication);
+      if (
+        updatedMedication?.takenDate &&
+        updatedMedication?.status === "taken"
+      ) {
+        const todayStr = new Date().toISOString().split("T")[0];
+        const targetDate = updatedMedication.takenDate;
+        const timeSlot =
+          updatedMedication.timeOfDay || updatedMedication.timesOfDay?.[0];
+        if (targetDate !== todayStr) {
+          await resetMedicationStatus(updatedMedication.id, todayStr, timeSlot);
+        }
+        await markMedicationAsTaken(
+          updatedMedication.id,
+          updatedMedication.takenTime,
+          targetDate,
+          timeSlot,
+        );
+      } else {
+        await updateMedication(updatedMedication.id, updatedMedication);
+      }
       setShowEditModal(false);
       setEditingMedication(null);
     } catch {
@@ -152,7 +171,8 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const handleResetMedicationStatus = async (medication) => {
     try {
       if (isReadOnlyPatient) return;
-      await resetMedicationStatus(medication.id);
+      const timeSlot = medication?.timeOfDay || medication?.timesOfDay?.[0];
+      await resetMedicationStatus(medication?.id, null, timeSlot);
     } catch (error) {
       // Errors are surfaced via global error handler
     }
@@ -357,7 +377,9 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               <MedicationSection
                 variant="pending"
                 medications={pendingMedsSorted}
-                onMarkAsTaken={isReadOnlyPatient ? undefined : markMedicationAsTaken}
+                onMarkAsTaken={
+                  isReadOnlyPatient ? undefined : markMedicationAsTaken
+                }
                 showTimeGroups={true}
                 compact={false}
               />
@@ -369,7 +391,9 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
                 variant="taken"
                 medications={takenMeds}
                 onEdit={isReadOnlyPatient ? undefined : handleEditMedication}
-                onDelete={isReadOnlyPatient ? undefined : handleResetMedicationStatus}
+                onDelete={
+                  isReadOnlyPatient ? undefined : handleResetMedicationStatus
+                }
                 showTimeGroups={true}
                 compact={false}
               />
@@ -400,8 +424,16 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               data={sortedSupplyMeds}
               sortConfig={supplySortConfig}
               onSort={setSupplySortConfig}
-              onEdit={isReadOnlyPatient ? undefined : (row) => handleEditMedication(row)}
-              onDelete={isReadOnlyPatient ? undefined : (row) => handleDeleteMedication(row.id)}
+              onEdit={
+                isReadOnlyPatient
+                  ? undefined
+                  : (row) => handleEditMedication(row)
+              }
+              onDelete={
+                isReadOnlyPatient
+                  ? undefined
+                  : (row) => handleDeleteMedication(row.id)
+              }
               showActions={!isReadOnlyPatient}
               emptyMessage="No medications in supply"
               emptySubMessage="Click 'Add Medication' to get started"

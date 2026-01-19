@@ -55,12 +55,15 @@ function AddAppointmentModal({
         notes: appointment.notes || "",
       });
     } else {
+      const now = new Date();
+      const defaultDate = now.toISOString().split("T")[0];
+      const defaultTime = now.toTimeString().slice(0, 5);
       setFormData({
         title: "",
         doctorName: "",
         location: "",
-        date: "",
-        time: "",
+        date: defaultDate,
+        time: defaultTime,
         notes: "",
       });
     }

@@ -47,8 +47,6 @@ function MedicationSection({
   const { formatQuantity } = useMedications();
   const isPending = variant === "pending";
 
-
-
   // Group medications by time of day (for pending medications)
   const groupByTime = (meds) => {
     const groups = {};
@@ -95,7 +93,7 @@ function MedicationSection({
   // Group taken medications by hour
   const groupTakenByHour = (meds) => {
     const groups = {};
-    
+
     meds.forEach((med) => {
       const hourGroup = getHourGroup(med.takenTime);
       if (!hourGroup) {
@@ -106,7 +104,7 @@ function MedicationSection({
         groups["Other"].push(med);
         return;
       }
-      
+
       if (!groups[hourGroup]) {
         groups[hourGroup] = [];
       }
@@ -128,7 +126,7 @@ function MedicationSection({
       // Handle "Other" group - put it at the end
       if (a === "Other") return 1;
       if (b === "Other") return -1;
-      
+
       const timeA = takenTimeToMinutes(toTimeInput(a));
       const timeB = takenTimeToMinutes(toTimeInput(b));
       return timeA - timeB;
@@ -152,9 +150,12 @@ function MedicationSection({
 
   // For pending: group by time if showTimeGroups is true
   // For taken: group by hour if medications exist
-  const groupedMeds = showTimeGroups && isPending ? groupByTime(medications) : null;
-  const groupedTakenMeds = !isPending && medications.length > 0 ? groupTakenByHour(medications) : null;
-  const sortedTakenMeds = !isPending && !groupedTakenMeds ? sortTakenByTime(medications) : null;
+  const groupedMeds =
+    showTimeGroups && isPending ? groupByTime(medications) : null;
+  const groupedTakenMeds =
+    !isPending && medications.length > 0 ? groupTakenByHour(medications) : null;
+  const sortedTakenMeds =
+    !isPending && !groupedTakenMeds ? sortTakenByTime(medications) : null;
 
   // Time group colors
   const timeColors = {
@@ -258,13 +259,17 @@ function MedicationSection({
               {compact ? config.compactTitle : config.title}
             </h2>
             {!compact && (
-              <p className={`${textStyles.body.small} text-text-secondary mt-1`}>
+              <p
+                className={`${textStyles.body.small} text-text-secondary mt-1`}
+              >
                 {config.subtitle}
               </p>
             )}
           </div>
         </div>
-        <span className={`${textStyles.label.medium} text-text-secondary bg-background-hover px-3 py-1 rounded-full`}>
+        <span
+          className={`${textStyles.label.medium} text-text-secondary bg-background-hover px-3 py-1 rounded-full`}
+        >
           {medications.length} {config.countLabel}
         </span>
       </div>
@@ -275,64 +280,68 @@ function MedicationSection({
           {isPending && showTimeGroups && groupedMeds ? (
             // Pending: Grouped by time (Morning/Afternoon/Night)
             <div className="space-y-6">
-            {Object.entries(groupedMeds).map(([time, meds]) => {
-              const IconComponent = timeIcons[time] || timeIcons.Other;
-              return (
-                <div key={time}>
-                  <h3 className={`${textStyles.heading.small} text-text-primary mb-3 flex items-center gap-2`}>
-                    <IconComponent
-                      size={16}
-                      weight="regular"
-                      className={timeIconColors[time] || timeIconColors.Other}
-                    />
-                    {time}
+              {Object.entries(groupedMeds).map(([time, meds]) => {
+                const IconComponent = timeIcons[time] || timeIcons.Other;
+                return (
+                  <div key={time}>
+                    <h3
+                      className={`${textStyles.heading.small} text-text-primary mb-3 flex items-center gap-2`}
+                    >
+                      <IconComponent
+                        size={16}
+                        weight="regular"
+                        className={timeIconColors[time] || timeIconColors.Other}
+                      />
+                      {time}
+                    </h3>
+                    <div className="space-y-3">
+                      {meds.map((med) => (
+                        <PendingMedicine
+                          key={med.id}
+                          type="Due"
+                          medicationName={med.name}
+                          dosage={formatQuantity(med.dosage, med.unit)}
+                          additionalInfo={buildPendingInfo(med)}
+                          pillColor={med.pillColor}
+                          onCheck={() => onMarkAsTaken?.(med)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : !isPending && groupedTakenMeds ? (
+            // Taken: Grouped by hour with time subheaders
+            <div className="space-y-6">
+              {Object.entries(groupedTakenMeds).map(([hourGroup, meds]) => (
+                <div key={hourGroup}>
+                  <h3
+                    className={`${textStyles.heading.small} text-text-primary mb-3`}
+                  >
+                    {hourGroup}
                   </h3>
-                <div className="space-y-3">
-                  {meds.map((med) => (
-                    <PendingMedicine
-                      key={med.id}
-                      type="Due"
-                      medicationName={med.name}
-                      dosage={formatQuantity(med.dosage, med.unit)}
-                      additionalInfo={buildPendingInfo(med)}
-                      pillColor={med.pillColor}
-                      onCheck={() => onMarkAsTaken?.(med.id)}
-                    />
-                  ))}
+                  <div className="space-y-3">
+                    {meds.map((med) => (
+                      <PendingMedicine
+                        key={med.id}
+                        type="Taken"
+                        medicationName={med.name}
+                        dosage={formatQuantity(med.dosage, med.unit)}
+                        additionalInfo={
+                          med.takenTime
+                            ? `Taken at ${med.takenTime}`
+                            : med.additionalInfo
+                        }
+                        pillColor={med.pillColor}
+                        onEdit={() => onEdit?.(med)}
+                        onDelete={() => onDelete?.(med)}
+                      />
+                    ))}
+                  </div>
                 </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : !isPending && groupedTakenMeds ? (
-          // Taken: Grouped by hour with time subheaders
-          <div className="space-y-6">
-            {Object.entries(groupedTakenMeds).map(([hourGroup, meds]) => (
-              <div key={hourGroup}>
-                <h3 className={`${textStyles.heading.small} text-text-primary mb-3`}>
-                  {hourGroup}
-                </h3>
-                <div className="space-y-3">
-                  {meds.map((med) => (
-                    <PendingMedicine
-                      key={med.id}
-                      type="Taken"
-                      medicationName={med.name}
-                      dosage={formatQuantity(med.dosage, med.unit)}
-                      additionalInfo={
-                        med.takenTime
-                          ? `Taken at ${med.takenTime}`
-                          : med.additionalInfo
-                      }
-                      pillColor={med.pillColor}
-                      onEdit={() => onEdit?.(med)}
-                      onDelete={() => onDelete?.(med.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
           ) : (
             // Fallback: Simple list sorted by takenTime, or Pending without time groups
             <div className="space-y-3">
@@ -346,13 +355,13 @@ function MedicationSection({
                     isPending
                       ? buildPendingInfo(med)
                       : med.takenTime
-                      ? `Taken at ${med.takenTime}`
-                      : med.additionalInfo
+                        ? `Taken at ${med.takenTime}`
+                        : med.additionalInfo
                   }
                   pillColor={med.pillColor}
-                  onCheck={isPending ? () => onMarkAsTaken?.(med.id) : undefined}
+                  onCheck={isPending ? () => onMarkAsTaken?.(med) : undefined}
                   onEdit={!isPending ? () => onEdit?.(med) : undefined}
-                  onDelete={!isPending ? () => onDelete?.(med.id) : undefined}
+                  onDelete={!isPending ? () => onDelete?.(med) : undefined}
                 />
               ))}
             </div>
@@ -372,8 +381,8 @@ function MedicationSection({
             variant === "pending" && onAddMedication
               ? "Add medications to start tracking your daily doses"
               : variant === "taken"
-              ? "Medications you've taken will appear here"
-              : undefined
+                ? "Medications you've taken will appear here"
+                : undefined
           }
           size="sm"
           className={compact ? "py-4" : ""}

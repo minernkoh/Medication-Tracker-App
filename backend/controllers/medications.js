@@ -7,23 +7,36 @@ const { decrementQuantity, incrementQuantity } = require("../utils/medication");
 const getMedications = async (req, res) => {
   try {
     const patientId = req.params.patientId || req.user.id;
+
+    // If a caregiver is accessing a specific patient's medications, verify access
+    if (req.params.patientId) {
+      const patient = await User.findById(patientId);
+      if (!patient)
+        return res.status(404).json({ message: "Patient not found" });
+      const access = checkPatientAccess(req.user, patient, false);
+      if (!access.authorized)
+        return res.status(403).json({ message: access.message });
+    }
+
     const query = { patient: patientId };
-    
+
     // Get date from query (YYYY-MM-DD), default to today if status filter is applied
     // but allow returning all meds (supply) if no date/status is provided
-    const date = req.query.date || (req.query.status ? new Date().toISOString().split('T')[0] : null);
+    const date =
+      req.query.date ||
+      (req.query.status ? new Date().toISOString().split("T")[0] : null);
 
     const meds = await Medication.find(query);
-    
+
     if (date) {
       // Fetch logs for this date to determine daily status
       const logs = await MedicationLog.find({ patient: patientId, date });
-      const loggedMedIds = new Set(logs.map(l => l.medication.toString()));
+      const loggedMedIds = new Set(logs.map((l) => l.medication.toString()));
 
-      const medsWithStatus = meds.map(med => {
+      const medsWithStatus = meds.map((med) => {
         const medObj = med.toObject({ virtuals: true });
         const isTakenToday = loggedMedIds.has(med._id.toString());
-        
+
         // Dynamic status based on log
         if (isTakenToday) {
           medObj.status = "taken";
@@ -40,7 +53,9 @@ const getMedications = async (req, res) => {
 
       // Apply filter if requested
       if (req.query.status) {
-        return res.json(medsWithStatus.filter(m => m.status === req.query.status));
+        return res.json(
+          medsWithStatus.filter((m) => m.status === req.query.status),
+        );
       }
       return res.json(medsWithStatus);
     }
@@ -68,7 +83,10 @@ const getMedicationSupply = async (req, res) => {
     const patientId = req.params.patientId || req.user.id;
     const meds = await Medication.find({ patient: patientId });
     const supply = meds.filter(
-      (m) => m.quantity !== undefined && m.quantity !== null && String(m.quantity).trim() !== "",
+      (m) =>
+        m.quantity !== undefined &&
+        m.quantity !== null &&
+        String(m.quantity).trim() !== "",
     );
     res.json(supply);
   } catch (err) {
@@ -108,18 +126,22 @@ const markMedicationAsTaken = async (req, res) => {
       return res.status(403).json({ message: access.message });
     }
 
-    const date = req.body?.date || new Date().toISOString().split('T')[0];
-    const takenTime = req.body?.takenTime || new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const date = req.body?.date || new Date().toISOString().split("T")[0];
+    const takenTime =
+      req.body?.takenTime ||
+      new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    const timeSlot =
+      req.body?.timeSlot || req.body?.timeOfDay || med.timeOfDay || "scheduled";
 
     // Create a log entry for this day
     await MedicationLog.findOneAndUpdate(
-      { medication: med._id, date, timeSlot: med.timeOfDay || "scheduled" },
+      { medication: med._id, date, timeSlot },
       { patient: patient._id, takenAt: new Date() },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     // Update the medication's global quantity and last taken status
@@ -148,26 +170,35 @@ const markMedicationAsTaken = async (req, res) => {
 
 const undoMarkAsTaken = async (req, res) => {
   try {
+    const mongoose = require("mongoose");
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid medication id" });
+    }
+
     const med = await Medication.findById(req.params.id);
     if (!med) return res.status(404).json({ message: "Medication not found" });
 
     const patient = await User.findById(med.patient);
+    if (!patient) return res.status(404).json({ message: "Patient not found" });
     const access = checkPatientAccess(req.user, patient, true);
     if (!access.authorized) {
       return res.status(403).json({ message: access.message });
     }
 
-    const date = req.body?.date || new Date().toISOString().split('T')[0];
+    const date = req.body?.date || new Date().toISOString().split("T")[0];
+    const timeSlot = req.body?.timeSlot || req.body?.timeOfDay || null;
 
     // Delete the log entry
     const log = await MedicationLog.findOneAndDelete({
       medication: med._id,
       date,
-      timeSlot: med.timeOfDay || "scheduled"
+      ...(timeSlot ? { timeSlot } : {}),
     });
 
     if (!log) {
-      return res.status(404).json({ message: "No intake record found for this date" });
+      return res
+        .status(404)
+        .json({ message: "No intake record found for this date" });
     }
 
     // Restore quantity
@@ -188,6 +219,7 @@ const undoMarkAsTaken = async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    console.error("undoMarkAsTaken error:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -196,19 +228,23 @@ const createMedication = async (req, res) => {
   try {
     const mongoose = require("mongoose");
     if (mongoose.connection.readyState !== 1) {
-      console.error("MongoDB not connected. Connection state:", mongoose.connection.readyState);
+      console.error(
+        "MongoDB not connected. Connection state:",
+        mongoose.connection.readyState,
+      );
       return res.status(503).json({ message: "Database not connected" });
     }
-
-    const patientId = req.params.patientId || req.user.id;
+    // Ensure patientId is declared only once
+    const patientId = req.params.patientId || req.body.patient || req.user.id;
     const patient = await User.findById(patientId);
     if (!patient) {
       console.error("Patient not found:", patientId);
       return res.status(404).json({ message: "Patient not found" });
     }
-    
-    if (patient && patient.caregiver && req.user.id === patient.id) {
-      return res.status(403).json({ message: "Patient has read only access" });
+
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
     }
 
     console.log("Creating medication with data:", {
@@ -222,7 +258,7 @@ const createMedication = async (req, res) => {
       patient: patientId,
       createdBy: req.user.id,
     });
-    
+
     console.log("Medication created successfully:", med._id);
     res.status(201).json(med);
   } catch (err) {
@@ -256,7 +292,7 @@ const updateMedication = async (req, res) => {
     const updatedMed = await Medication.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     res.json(updatedMed);
   } catch (err) {
@@ -270,17 +306,10 @@ const deleteMedication = async (req, res) => {
     if (!med) return res.status(404).json({ message: "Medication not found" });
 
     const patient = await User.findById(med.patient);
-    const isPatient = req.user.id === patient.id;
-    const isCaregiver =
-      req.user.role === "caregiver" &&
-      patient.caregiver?.toString() === req.user.id;
 
-    if (isPatient && patient.caregiver) {
-      return res.status(403).json({ message: "Patient has read only access" });
-    }
-
-    if (!isPatient && !isCaregiver) {
-      return res.status(403).json({ message: "Not authorized" });
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
     }
 
     await Medication.findByIdAndDelete(req.params.id);

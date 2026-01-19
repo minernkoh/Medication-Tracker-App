@@ -32,8 +32,8 @@ import {
 import { normalizeUser } from "./utils/normalization";
 
 // Lazy load SettingsPage
-const SettingsPage = React.lazy(() =>
-  import("./components/pages/SettingsPage")
+const SettingsPage = React.lazy(
+  () => import("./components/pages/SettingsPage"),
 );
 
 // Wrapper component to handle routes with sidebar
@@ -46,6 +46,9 @@ function AppLayout({
   setShowCaregiverModal,
   onCaregiverLogin,
   onCaregiverSignup,
+  showPatientModal,
+  setShowPatientModal,
+  onPatientLogin,
   onShowOnboarding,
   onDeleteAccount,
 }) {
@@ -162,10 +165,7 @@ function AppLayout({
               mode === "Caregiver" ? (
                 <CaregiverAppointmentsPage />
               ) : (
-                <AppointmentsPage
-                  userName={firstName}
-                  mode={mode}
-                />
+                <AppointmentsPage userName={firstName} mode={mode} />
               )
             }
           />
@@ -204,6 +204,14 @@ function AppLayout({
         onLogin={onCaregiverLogin}
         onSignup={onCaregiverSignup}
       />
+
+      <CaregiverAuthModal
+        isOpen={showPatientModal}
+        onClose={() => setShowPatientModal(false)}
+        onLogin={onPatientLogin}
+        allowSignup={false}
+        role="patient"
+      />
     </div>
   );
 }
@@ -240,6 +248,7 @@ function App() {
 
   // Caregiver modal state
   const [showCaregiverModal, setShowCaregiverModal] = useState(false);
+  const [showPatientModal, setShowPatientModal] = useState(false);
 
   // Save auth state to localStorage
   useEffect(() => {
@@ -255,6 +264,28 @@ function App() {
     }
   }, [isAuthenticated, user, mode]);
 
+  // Refresh current user to keep caregiver links in sync
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let isActive = true;
+
+    const refreshUser = async () => {
+      try {
+        const currentUser = await api.users.getCurrent();
+        const normalizedUser = normalizeUser(currentUser || null);
+        if (!normalizedUser || !isActive) return;
+        setUser(normalizedUser);
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
+      } catch (error) {
+        // Keep existing session if refresh fails
+      }
+    };
+
+    refreshUser();
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthenticated]);
 
   // Handle login from auth page
   const handleLogin = async (credentials) => {
@@ -349,8 +380,8 @@ function App() {
       // Show caregiver login/signup modal
       setShowCaregiverModal(true);
     } else {
-      // Switch back to personal mode
-      setMode("Personal");
+      // Switch back to personal mode via patient login
+      setShowPatientModal(true);
     }
   };
 
@@ -359,6 +390,13 @@ function App() {
     const data = await handleLogin(credentials);
     setMode("Caregiver");
     setShowCaregiverModal(false);
+    return data;
+  };
+
+  const handlePatientLogin = async (credentials) => {
+    const data = await handleLogin(credentials);
+    setMode("Personal");
+    setShowPatientModal(false);
     return data;
   };
 
@@ -374,14 +412,14 @@ function App() {
     // Clear localStorage first
     api.auth.logout();
     removeAuthData();
-    
+
     // Reset state - use functional updates to ensure they process
     setIsAuthenticated(false);
     setUser({ name: "", email: "" });
     setMode("Personal");
     setShowOnboarding(false);
     setPendingUser(null);
-    
+
     // Force navigation to root to ensure clean state
     // Use setTimeout to ensure state updates process first
     setTimeout(() => {
@@ -433,6 +471,9 @@ function App() {
           setShowCaregiverModal={setShowCaregiverModal}
           onCaregiverLogin={handleCaregiverLogin}
           onCaregiverSignup={handleCaregiverSignup}
+          showPatientModal={showPatientModal}
+          setShowPatientModal={setShowPatientModal}
+          onPatientLogin={handlePatientLogin}
           onShowOnboarding={handleShowOnboardingFromSettings}
           onDeleteAccount={handleDeleteAccount}
         />

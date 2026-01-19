@@ -38,7 +38,6 @@ function AuthPage({ onLogin, onSignup }) {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user types
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -67,7 +66,7 @@ function AuthPage({ onLogin, onSignup }) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    if (!isLogin && !accountType) {
+    if (!accountType) {
       newErrors.accountType = "Please select an account type";
     }
 
@@ -91,6 +90,7 @@ function AuthPage({ onLogin, onSignup }) {
           await onLogin?.({
             email: formData.email,
             password: formData.password,
+            role: accountType,
           });
         }
       } catch (error) {
@@ -155,7 +155,10 @@ function AuthPage({ onLogin, onSignup }) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex" style={{ overflowY: 'auto', height: '100vh' }}>
+    <div
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex"
+      style={{ overflowY: "auto", height: "100vh" }}
+    >
       {/* Left side - Decorative */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background pattern */}
@@ -286,35 +289,33 @@ function AuthPage({ onLogin, onSignup }) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Account type selection (signup only) */}
-            {!isLogin && (
-              <div className="space-y-3">
-                <label className="font-poppins font-semibold text-sm text-text-primary">
-                  I am a...
-                </label>
-                <div className="flex gap-4">
-                  <AccountTypeCard
-                    type="patient"
-                    icon={UserIcon}
-                    title="Patient"
-                    description="Track my own medications and appointments"
-                    selected={accountType === "patient"}
-                  />
-                  <AccountTypeCard
-                    type="caregiver"
-                    icon={UsersIcon}
-                    title="Caregiver"
-                    description="Help manage care for someone else"
-                    selected={accountType === "caregiver"}
-                  />
-                </div>
-                {errors.accountType && (
-                  <p className="text-red-500 text-sm font-poppins">
-                    {errors.accountType}
-                  </p>
-                )}
+            {/* Account type selection */}
+            <div className="space-y-3">
+              <label className="font-poppins font-semibold text-sm text-text-primary">
+                I am a...
+              </label>
+              <div className="flex gap-4">
+                <AccountTypeCard
+                  type="patient"
+                  icon={UserIcon}
+                  title="Patient"
+                  description="Track my own medications and appointments"
+                  selected={accountType === "patient"}
+                />
+                <AccountTypeCard
+                  type="caregiver"
+                  icon={UsersIcon}
+                  title="Caregiver"
+                  description="Help manage care for someone else"
+                  selected={accountType === "caregiver"}
+                />
               </div>
-            )}
+              {errors.accountType && (
+                <p className="text-red-500 text-sm font-poppins">
+                  {errors.accountType}
+                </p>
+              )}
+            </div>
 
             {/* Name field (signup only) */}
             {!isLogin && (

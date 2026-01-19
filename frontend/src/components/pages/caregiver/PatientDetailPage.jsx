@@ -11,11 +11,7 @@ import {
   ClockIcon,
   CheckCircleIcon,
   PlusIcon,
-  PencilSimpleIcon,
   TrashIcon,
-  PhoneIcon,
-  HeartIcon,
-  TrendUpIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
@@ -102,7 +98,8 @@ function PatientDetailPage() {
       const normalized = {
         ...data,
         id: data.id || data._id,
-        initials: data.initials || getInitials(data.nickname || data.name || ""),
+        initials:
+          data.initials || getInitials(data.nickname || data.name || ""),
         color: getPatientColor(data),
         medications: (Array.isArray(medsForToday) ? medsForToday : [])
           .map(normalizeMedication)
@@ -127,8 +124,10 @@ function PatientDetailPage() {
   const patient = patientData;
 
   // Separate medications by status
-  const pendingMeds = patient?.medications?.filter((m) => m.status === "pending") || [];
-  const takenMeds = patient?.medications?.filter((m) => m.status === "taken") || [];
+  const pendingMeds =
+    patient?.medications?.filter((m) => m.status === "pending") || [];
+  const takenMeds =
+    patient?.medications?.filter((m) => m.status === "taken") || [];
   const supplyMeds = filterMedsByStatus(patient?.medications || [], "supply");
 
   const [supplySortConfig, setSupplySortConfig] = useState({
@@ -229,7 +228,8 @@ function PatientDetailPage() {
       label: "Quantity",
       render: (value, row) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
-          {value ?? "N/A"} {value !== undefined && value !== null ? (row?.unit || "") : ""}
+          {value ?? "N/A"}{" "}
+          {value !== undefined && value !== null ? row?.unit || "" : ""}
         </span>
       ),
     },
@@ -269,9 +269,10 @@ function PatientDetailPage() {
   ];
 
   // Calculate stats - only count medications with pending or taken status
-  const activeMedications = patient?.medications?.filter(
-    (m) => m.status === "pending" || m.status === "taken"
-  ) || [];
+  const activeMedications =
+    patient?.medications?.filter(
+      (m) => m.status === "pending" || m.status === "taken",
+    ) || [];
   const adherenceRate =
     activeMedications.length > 0
       ? Math.round((takenMeds.length / activeMedications.length) * 100)
@@ -279,12 +280,6 @@ function PatientDetailPage() {
   const adherenceHistory = Array.isArray(patient?.adherenceHistory)
     ? patient.adherenceHistory
     : [];
-  const avgAdherence =
-    adherenceHistory.length > 0
-      ? Math.round(
-          adherenceHistory.reduce((a, b) => a + b, 0) / adherenceHistory.length
-        )
-      : patient?.adherenceRate || 0;
 
   const handleAddMedication = async (medicationData) => {
     try {
@@ -297,7 +292,7 @@ function PatientDetailPage() {
   };
 
   // Mark medication as taken (uses daily log + quantity updates)
-  const handleMarkAsTaken = async (medId) => {
+  const handleMarkAsTaken = async (med) => {
     const currentTime = new Date().toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -305,7 +300,13 @@ function PatientDetailPage() {
     });
 
     try {
-      await api.medications.markAsTaken(medId, currentTime, todayStr);
+      const timeSlot = med?.timeOfDay || med?.timesOfDay?.[0];
+      await api.medications.markAsTaken(
+        med.id,
+        currentTime,
+        todayStr,
+        timeSlot,
+      );
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to update medication status");
@@ -321,18 +322,34 @@ function PatientDetailPage() {
 
   const handleSaveEditedMedication = async (updatedMedication) => {
     try {
-      const updated = await api.medications.updateForPatient(
-        patientId,
-        updatedMedication.id,
-        updatedMedication
-      );
-      const normalized = normalizeMedication(updated);
-      setPatientData((prevData) => ({
-        ...prevData,
-        medications: prevData.medications.map((med) =>
-          med.id === updatedMedication.id ? normalized : med
-        ),
-      }));
+      if (
+        updatedMedication?.takenDate &&
+        updatedMedication?.status === "taken"
+      ) {
+        const todayStr = new Date().toISOString().split("T")[0];
+        const targetDate = updatedMedication.takenDate;
+        if (targetDate !== todayStr) {
+          await api.medications.undoMarkAsTaken(updatedMedication.id, todayStr);
+        }
+        await api.medications.markAsTaken(
+          updatedMedication.id,
+          updatedMedication.takenTime,
+          targetDate,
+        );
+      } else {
+        const updated = await api.medications.updateForPatient(
+          patientId,
+          updatedMedication.id,
+          updatedMedication,
+        );
+        const normalized = normalizeMedication(updated);
+        setPatientData((prevData) => ({
+          ...prevData,
+          medications: prevData.medications.map((med) =>
+            med.id === updatedMedication.id ? normalized : med,
+          ),
+        }));
+      }
       setShowEditModal(false);
       setEditingMedication(null);
       await loadPatient();
@@ -342,9 +359,10 @@ function PatientDetailPage() {
   };
 
   // Undo "taken" for today (restores quantity + removes today's log entry)
-  const handleUndoTakenMedication = async (medId) => {
+  const handleUndoTakenMedication = async (med) => {
     try {
-      await api.medications.undoMarkAsTaken(medId, todayStr);
+      const timeSlot = med?.timeOfDay || med?.timesOfDay?.[0];
+      await api.medications.undoMarkAsTaken(med.id, todayStr, timeSlot);
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to undo medication");
@@ -364,7 +382,11 @@ function PatientDetailPage() {
     if (!medId) return;
     try {
       await api.medications.deleteForPatient(patientId, medId);
-      setDeleteConfirm({ isOpen: false, medicationId: null, medicationName: "" });
+      setDeleteConfirm({
+        isOpen: false,
+        medicationId: null,
+        medicationName: "",
+      });
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to delete medication");
@@ -424,9 +446,9 @@ function PatientDetailPage() {
     }
   };
 
-  const handleDeleteTakenMedication = (medId) => {
+  const handleDeleteTakenMedication = (med) => {
     // In this UI, the "delete" icon on Taken cards is treated as "undo taken for today"
-    handleUndoTakenMedication(medId);
+    handleUndoTakenMedication(med);
   };
 
   if (isLoading) {
@@ -495,31 +517,7 @@ function PatientDetailPage() {
             </div>
 
             {/* Quick actions */}
-            <div className="flex gap-3 md:ml-auto">
-              <a
-                href={patient.phone ? `tel:${patient.phone}` : undefined}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border-default font-poppins font-medium text-sm transition-colors ${
-                  patient.phone
-                    ? "hover:bg-background-hover"
-                    : "opacity-50 cursor-not-allowed"
-                }`}
-                aria-disabled={!patient.phone}
-              >
-                <PhoneIcon
-                  size={18}
-                  weight="regular"
-                  color={colors.text.primary}
-                />
-                Call
-              </a>
-              <button
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-poppins font-semibold text-sm text-white"
-                style={{ backgroundColor: modeHexColor }}
-              >
-                <PencilSimpleIcon size={18} weight="regular" />
-                Edit Profile
-              </button>
-            </div>
+            <div className="flex gap-3 md:ml-auto" />
           </div>
 
           {/* Alerts */}
@@ -536,8 +534,8 @@ function PatientDetailPage() {
                       alert.type === "warning"
                         ? "bg-amber-50 text-amber-700"
                         : alert.type === "alert"
-                        ? "bg-red-50 text-red-600"
-                        : "bg-blue-50 text-blue-600"
+                          ? "bg-red-50 text-red-600"
+                          : "bg-blue-50 text-blue-600"
                     }`}
                   >
                     <WarningCircleIcon size={18} weight="fill" />
@@ -551,7 +549,7 @@ function PatientDetailPage() {
           )}
 
           {/* Patient notes */}
-        {patient.notes && (
+          {patient.notes && (
             <div className="mt-6 pt-6 border-t border-border-default">
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-2">
                 Notes
@@ -564,7 +562,7 @@ function PatientDetailPage() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-6 mb-6">
           <StatCard
             icon={<PillIcon size={20} weight="fill" />}
             iconColor={modeHexColor}
@@ -573,25 +571,11 @@ function PatientDetailPage() {
             description="Medications"
           />
           <StatCard
-            icon={<TrendUpIcon size={20} weight="fill" />}
-            iconColor={colors.success.DEFAULT}
-            label="Weekly"
-            value={`${avgAdherence}%`}
-            description="Avg Adherence"
-          />
-          <StatCard
             icon={<CalendarCheckIcon size={20} weight="fill" />}
             iconColor={colors.primary.DEFAULT}
             label="Upcoming"
             value={patient.appointments?.length || 0}
             description="Appointments"
-          />
-          <StatCard
-            icon={<HeartIcon size={20} weight="fill" />}
-            iconColor={colors.danger.DEFAULT}
-            label="Blood Type"
-            value={patient.bloodType || "—"}
-            description="Type"
           />
         </div>
 
@@ -622,22 +606,22 @@ function PatientDetailPage() {
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <MedicationSection
-            variant="pending"
-            medications={pendingMeds}
-            onMarkAsTaken={handleMarkAsTaken}
-            showTimeGroups={true}
-            compact={false}
-          />
-          <MedicationSection
-            variant="taken"
-            medications={takenMeds}
-            onEdit={handleEditMedication}
-            onDelete={handleDeleteTakenMedication}
-            showTimeGroups={true}
-            compact={false}
-          />
-        </div>
+            <MedicationSection
+              variant="pending"
+              medications={pendingMeds}
+              onMarkAsTaken={handleMarkAsTaken}
+              showTimeGroups={true}
+              compact={false}
+            />
+            <MedicationSection
+              variant="taken"
+              medications={takenMeds}
+              onEdit={handleEditMedication}
+              onDelete={handleDeleteTakenMedication}
+              showTimeGroups={true}
+              compact={false}
+            />
+          </div>
         </div>
 
         {showAddMedicationModal && (
@@ -842,8 +826,8 @@ function PatientDetailPage() {
                         value >= 90
                           ? colors.success.DEFAULT
                           : value >= 70
-                          ? colors.warning.DEFAULT
-                          : colors.danger.DEFAULT,
+                            ? colors.warning.DEFAULT
+                            : colors.danger.DEFAULT,
                     }}
                   />
                   <span className="font-poppins text-xs text-text-secondary">

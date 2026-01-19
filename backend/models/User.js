@@ -3,10 +3,10 @@ const bcrypt = require("bcrypt");
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  email: { type: String, unique: true, required: true },
+  email: { type: String, required: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["patient", "caregiver"], required: true },
-  caregiver: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   // Profile fields for managed patients
   nickname: String,
   phone: String,
@@ -24,5 +24,7 @@ userSchema.pre("save", async function () {
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compare(password, this.password);
 };
+
+userSchema.index({ email: 1, role: 1 }, { unique: true });
 
 module.exports = mongoose.model("User", userSchema);

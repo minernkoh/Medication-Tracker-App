@@ -13,6 +13,7 @@ import {
   CaretRightIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
+import { to12HourDisplay, timeToMinutes } from "../../../utils";
 import { GradientBackground, PieChart } from "../../ui";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
@@ -61,37 +62,98 @@ function CaregiverDashboard({ userName = "" }) {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
   const [patients, setPatients] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [scheduleItems, setScheduleItems] = useState([]);
+  const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const { showError } = useError();
+  const todayStr = new Date().toISOString().split("T")[0];
 
-  const loadPatients = useCallback(async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
-      const data = await api.caregiver.getPatients();
+      const [patientsData, appointmentsData] = await Promise.all([
+        api.caregiver.getPatients(),
+        api.caregiver.getAppointments(),
+      ]);
       setPatients(
-        (Array.isArray(data) ? data : []).map((patient, index) =>
-          normalizePatient(patient, index)
-        )
+        (Array.isArray(patientsData) ? patientsData : []).map(
+          (patient, index) => normalizePatient(patient, index),
+        ),
       );
+      setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
     } catch (error) {
       showError(error.message || "Unable to load patients");
     }
   }, [showError]);
 
   useEffect(() => {
-    loadPatients();
-  }, [loadPatients]);
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (patients.length === 0) {
+      setScheduleItems([]);
+      return;
+    }
+
+    const buildSchedule = async () => {
+      setIsScheduleLoading(true);
+      try {
+        const data = await api.caregiver.getSchedule(todayStr);
+        setScheduleItems(Array.isArray(data) ? data : []);
+      } catch (error) {
+        showError(error.message || "Unable to load schedule");
+      } finally {
+        setIsScheduleLoading(false);
+      }
+    };
+
+    buildSchedule();
+  }, [patients.length, showError, todayStr]);
 
   // Calculate totals
   const totalPatients = patients.length;
   const totalMedicationsToday = patients.reduce(
     (sum, p) => sum + (p.medicationsTotalToday || 0),
-    0
+    0,
   );
   const totalMedicationsTaken = patients.reduce(
     (sum, p) => sum + (p.medicationsTakenToday || 0),
-    0
+    0,
   );
   const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
-  const upcomingAppointments = patients.filter((p) => p.nextAppointment).length;
+  const upcomingAppointments = appointments.filter((appt) => {
+    const date = new Date(appt.date);
+    if (Number.isNaN(date.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    return date >= today;
+  }).length;
+
+  const timeSortValue = (time) => {
+    const key = String(time || "").toLowerCase();
+    if (key === "morning") return 8 * 60;
+    if (key === "afternoon") return 13 * 60;
+    if (key === "night") return 20 * 60;
+    if (/^\d{2}:\d{2}$/.test(key)) return timeToMinutes(key);
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  const formatScheduleTime = (time) => {
+    const key = String(time || "").toLowerCase();
+    if (key === "morning" || key === "afternoon" || key === "night") {
+      return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+    }
+    if (/^\d{2}:\d{2}$/.test(key)) return to12HourDisplay(key);
+    return "Unscheduled";
+  };
+
+  const filteredScheduleItems = scheduleItems
+    .filter(
+      (item) => scheduleFilter === "all" || item.patientId === scheduleFilter,
+    )
+    .sort((a, b) => timeSortValue(a.time) - timeSortValue(b.time));
 
   // Patient card component
   const PatientCard = ({ patient }) => {
@@ -114,7 +176,9 @@ function CaregiverDashboard({ userName = "" }) {
               {patient.initials}
             </div>
             <div>
-              <h3 className="font-poppins font-bold text-text-primary">{patient.name}</h3>
+              <h3 className="font-poppins font-bold text-text-primary">
+                {patient.name}
+              </h3>
               <p className="font-poppins text-xs text-text-secondary">
                 {total > 0
                   ? `${taken}/${total} medications today`
@@ -125,7 +189,9 @@ function CaregiverDashboard({ userName = "" }) {
           {patient.alerts > 0 && (
             <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-full">
               <WarningCircleIcon size={14} weight="fill" />
-              <span className="font-poppins text-xs font-semibold">{patient.alerts}</span>
+              <span className="font-poppins text-xs font-semibold">
+                {patient.alerts}
+              </span>
             </div>
           )}
         </div>
@@ -133,10 +199,17 @@ function CaregiverDashboard({ userName = "" }) {
         {/* Progress bar */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="font-poppins text-xs text-text-secondary">Today's Progress</span>
+            <span className="font-poppins text-xs text-text-secondary">
+              Today's Progress
+            </span>
             <span
               className="font-poppins text-xs font-semibold"
-              style={{ color: completionPercent === 100 ? colors.success.DEFAULT : modeHexColor }}
+              style={{
+                color:
+                  completionPercent === 100
+                    ? colors.success.DEFAULT
+                    : modeHexColor,
+              }}
             >
               {total > 0 ? `${completionPercent}%` : "—"}
             </span>
@@ -146,7 +219,10 @@ function CaregiverDashboard({ userName = "" }) {
               className="h-full rounded-full transition-all duration-300"
               style={{
                 width: `${completionPercent}%`,
-                backgroundColor: completionPercent === 100 ? colors.success.DEFAULT : modeHexColor,
+                backgroundColor:
+                  completionPercent === 100
+                    ? colors.success.DEFAULT
+                    : modeHexColor,
               }}
             />
           </div>
@@ -157,22 +233,31 @@ function CaregiverDashboard({ userName = "" }) {
           {patient.nextMedication && (
             <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-1.5 rounded-lg flex-1">
               <ClockIcon size={14} weight="fill" />
-              <span className="font-poppins text-xs font-medium">Next: {patient.nextMedication}</span>
+              <span className="font-poppins text-xs font-medium">
+                Next: {patient.nextMedication}
+              </span>
             </div>
           )}
-          {!patient.nextMedication && patient.medicationsTaken === patient.medicationsTotal && (
-            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1.5 rounded-lg flex-1">
-              <CheckCircleIcon size={14} weight="fill" />
-              <span className="font-poppins text-xs font-medium">All done today!</span>
-            </div>
-          )}
+          {!patient.nextMedication &&
+            patient.medicationsTaken === patient.medicationsTotal && (
+              <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1.5 rounded-lg flex-1">
+                <CheckCircleIcon size={14} weight="fill" />
+                <span className="font-poppins text-xs font-medium">
+                  All done today!
+                </span>
+              </div>
+            )}
         </div>
 
         {/* Upcoming appointment */}
         {patient.nextAppointment && (
           <div className="mt-3 pt-3 border-t border-border-default flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CalendarCheckIcon size={16} weight="regular" color={colors.text.secondary} />
+              <CalendarCheckIcon
+                size={16}
+                weight="regular"
+                color={colors.text.secondary}
+              />
               <span className="font-poppins text-xs text-text-secondary">
                 {patient.nextAppointment.title} • {patient.nextAppointment.date}
               </span>
@@ -219,7 +304,9 @@ function CaregiverDashboard({ userName = "" }) {
             >
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-poppins text-sm text-text-secondary">Today's adherence</p>
+                  <p className="font-poppins text-sm text-text-secondary">
+                    Today's adherence
+                  </p>
                   <p className="font-poppins font-bold text-2xl text-text-primary mt-1">
                     {totalMedicationsToday > 0
                       ? `${Math.round((totalMedicationsTaken / totalMedicationsToday) * 100)}%`
@@ -233,7 +320,10 @@ function CaregiverDashboard({ userName = "" }) {
                 </div>
                 <PieChart
                   taken={totalMedicationsTaken}
-                  notTaken={Math.max(totalMedicationsToday - totalMedicationsTaken, 0)}
+                  notTaken={Math.max(
+                    totalMedicationsToday - totalMedicationsTaken,
+                    0,
+                  )}
                   size={96}
                 />
               </div>
@@ -247,10 +337,18 @@ function CaregiverDashboard({ userName = "" }) {
               aria-label="View low supply alerts by patient"
             >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-red-50">
-                <WarningCircleIcon size={20} weight="fill" color={colors.danger.DEFAULT} />
+                <WarningCircleIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.danger.DEFAULT}
+                />
               </div>
-              <p className="font-poppins font-bold text-2xl text-text-primary">{totalLowSupply}</p>
-              <p className="font-poppins text-sm text-text-secondary">Low supply alerts</p>
+              <p className="font-poppins font-bold text-2xl text-text-primary">
+                {totalLowSupply}
+              </p>
+              <p className="font-poppins text-sm text-text-secondary">
+                Low supply alerts
+              </p>
             </button>
 
             {/* Upcoming appointments */}
@@ -261,39 +359,47 @@ function CaregiverDashboard({ userName = "" }) {
               aria-label="View upcoming appointments"
             >
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-                <CalendarCheckIcon size={20} weight="fill" color={colors.primary.DEFAULT} />
+                <CalendarCheckIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.primary.DEFAULT}
+                />
               </div>
-              <p className="font-poppins font-bold text-2xl text-text-primary">{upcomingAppointments}</p>
-              <p className="font-poppins text-sm text-text-secondary">Upcoming appointments</p>
+              <p className="font-poppins font-bold text-2xl text-text-primary">
+                {upcomingAppointments}
+              </p>
+              <p className="font-poppins text-sm text-text-secondary">
+                Upcoming appointments
+              </p>
             </button>
           </div>
 
           {/* Patients section */}
           <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-poppins font-bold text-xl text-text-primary">
-              Your Patients
-            </h2>
-            <p className="font-poppins text-sm text-text-secondary mt-1">
-              {totalPatients} patient{totalPatients === 1 ? "" : "s"}
-            </p>
+            <div>
+              <h2 className="font-poppins font-bold text-xl text-text-primary">
+                Your Patients
+              </h2>
+              <p className="font-poppins text-sm text-text-secondary mt-1">
+                {totalPatients} patient{totalPatients === 1 ? "" : "s"}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/patients")}
+              className="font-poppins text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"
+              style={{ color: modeHexColor }}
+            >
+              View All
+              <CaretRightIcon size={16} weight="bold" />
+            </button>
           </div>
-          <button
-            onClick={() => navigate("/patients")}
-            className="font-poppins text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"
-            style={{ color: modeHexColor }}
-          >
-            View All
-            <CaretRightIcon size={16} weight="bold" />
-          </button>
-        </div>
 
           {/* Patient cards grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {patients.map((patient) => (
-            <PatientCard key={patient.id} patient={patient} />
-          ))}
-        </div>
+            {patients.map((patient) => (
+              <PatientCard key={patient.id} patient={patient} />
+            ))}
+          </div>
 
           {/* Today's schedule section */}
           <div>
@@ -301,12 +407,70 @@ function CaregiverDashboard({ userName = "" }) {
               Today's Medication Schedule
             </h2>
             <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
-              <div className="px-5 py-8 text-center">
-                <ClockIcon size={28} className="mx-auto mb-2 text-text-secondary" />
-                <p className="font-poppins text-text-secondary">
-                  No medication schedule available yet.
-                </p>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border-default">
+                <div className="flex items-center gap-2 text-text-secondary">
+                  <ClockIcon size={18} />
+                  <span className="font-poppins text-sm">
+                    {filteredScheduleItems.length} items
+                  </span>
+                </div>
+                <select
+                  value={scheduleFilter}
+                  onChange={(e) => setScheduleFilter(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-border-default text-sm font-poppins text-text-primary"
+                >
+                  <option value="all">All patients</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {isScheduleLoading ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="font-poppins text-text-secondary">
+                    Loading schedule…
+                  </p>
+                </div>
+              ) : filteredScheduleItems.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <ClockIcon
+                    size={28}
+                    className="mx-auto mb-2 text-text-secondary"
+                  />
+                  <p className="font-poppins text-text-secondary">
+                    No medication schedule available yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border-default">
+                  {filteredScheduleItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between px-5 py-4"
+                    >
+                      <div>
+                        <p className="font-poppins font-semibold text-text-primary">
+                          {item.medicationName}
+                        </p>
+                        <p className="font-poppins text-xs text-text-secondary">
+                          {item.patientName}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-poppins text-sm font-semibold text-text-primary">
+                          {formatScheduleTime(item.time)}
+                        </p>
+                        <p className="font-poppins text-xs text-text-secondary capitalize">
+                          {item.status}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

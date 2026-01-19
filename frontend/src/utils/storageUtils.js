@@ -85,5 +85,8 @@ export const getStoredUser = () => {
  * Patients linked to a caregiver have read-only access to their own data.
  */
 export const isReadOnlyPatientUser = (user) => {
-  return user?.role === "patient" && Boolean(user?.caregiver);
+  const hasCaregiver =
+    Boolean(user?.caregiver) ||
+    (Array.isArray(user?.caregivers) && user.caregivers.length > 0);
+  return user?.role === "patient" && hasCaregiver;
 };

@@ -72,6 +72,13 @@ const getAppointments = async (req, res) => {
   try {
     // If patientId is provided in params, use it (for caregiver viewing patient data)
     if (req.params.patientId) {
+      const patient = await User.findById(req.params.patientId);
+      if (!patient)
+        return res.status(404).json({ message: "Patient not found" });
+      const access = checkPatientAccess(req.user, patient, false);
+      if (!access.authorized)
+        return res.status(403).json({ message: access.message });
+
       const appts = await Appointment.find({ patient: req.params.patientId });
       return res.json(appts);
     }
@@ -131,19 +138,24 @@ const createAppointment = async (req, res) => {
   try {
     const mongoose = require("mongoose");
     if (mongoose.connection.readyState !== 1) {
-      console.error("MongoDB not connected. Connection state:", mongoose.connection.readyState);
+      console.error(
+        "MongoDB not connected. Connection state:",
+        mongoose.connection.readyState,
+      );
       return res.status(503).json({ message: "Database not connected" });
     }
 
-    const patientId = req.params.patientId || req.user.id;
+    // Ensure patientId is declared only once
+    const patientId = req.params.patientId || req.body.patient || req.user.id;
     const patient = await User.findById(patientId);
     if (!patient) {
       console.error("Patient not found:", patientId);
       return res.status(404).json({ message: "Patient not found" });
     }
-    
-    if (patient && patient.caregiver && req.user.id === patient.id) {
-      return res.status(403).json({ message: "Patient has read only access" });
+
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
     }
 
     processAppointmentDate(req.body);
@@ -159,7 +171,7 @@ const createAppointment = async (req, res) => {
       patient: patientId,
       createdBy: req.user.id,
     });
-    
+
     console.log("Appointment created successfully:", appt._id);
     res.status(201).json(appt);
   } catch (err) {
@@ -205,7 +217,7 @@ const updateAppointment = async (req, res) => {
     const updatedAppt = await Appointment.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { new: true },
     );
     res.json(updatedAppt);
   } catch (err) {
@@ -229,17 +241,10 @@ const deleteAppointment = async (req, res) => {
     }
 
     const patient = await User.findById(appt.patient);
-    const isPatient = req.user.id === patient.id;
-    const isCaregiver =
-      req.user.role === "caregiver" &&
-      patient.caregiver?.toString() === req.user.id;
 
-    if (isPatient && patient.caregiver) {
-      return res.status(403).json({ message: "Patient has read only access" });
-    }
-
-    if (!isPatient && !isCaregiver) {
-      return res.status(403).json({ message: "Not authorized" });
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
     }
 
     await Appointment.findByIdAndDelete(req.params.id);

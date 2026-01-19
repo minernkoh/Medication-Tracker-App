@@ -15,10 +15,16 @@ app.use(express.json());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  if (req.method === "POST" && (req.path.includes("/medications") || req.path.includes("/appointments"))) {
-    console.log(`${req.method} ${req.path}`, {
-      body: req.body,
-      user: req.user || "No user",
+  if (
+    req.method === "POST" &&
+    (req.path.includes("/medications") || req.path.includes("/appointments"))
+  ) {
+    // Log on finish to capture user after auth middleware runs and status code
+    res.on("finish", () => {
+      console.log(`${req.method} ${req.path} [${res.statusCode}]`, {
+        body: req.body,
+        user: req.user ? req.user.id : "Unauthenticated",
+      });
     });
   }
   next();
@@ -44,7 +50,7 @@ app.use(require("./routes/appointments"));
 app.use(require("./routes/users"));
 app.use(require("./routes/caregiver"));
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 // On some macOS setups, port 5000 may already be bound on wildcard addresses
 // (e.g. AirPlay/AirTunes). Binding explicitly to loopback keeps local dev stable.
 const HOST = process.env.HOST || "127.0.0.1";

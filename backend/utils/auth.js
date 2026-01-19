@@ -15,12 +15,33 @@ const checkPatientAccess = (reqUser, patient, requireModify = false) => {
     return { authorized: false, message: "Invalid request" };
   }
 
+  const currentUserId = reqUser.id?.toString();
+
   // Handle both _id (MongoDB) and id fields
   const patientId = patient.id || patient._id?.toString();
-  const isPatient = reqUser.id === patientId || reqUser.id === patient._id?.toString();
+  const isPatient =
+    currentUserId === patientId || currentUserId === patient._id?.toString();
+
+  // Normalize caregiver lists for checking
+  const caregiverIds =
+    patient.caregivers?.filter(Boolean).map((id) => id.toString()) || [];
+  const legacyCaregiverId = patient.caregiver?.toString();
+
   const isCaregiver =
     reqUser.role === "caregiver" &&
-    patient.caregiver?.toString() === reqUser.id;
+    (caregiverIds.includes(currentUserId) ||
+      legacyCaregiverId === currentUserId);
+
+  // Debug log if authorization fails for a caregiver
+  if (reqUser.role === "caregiver" && !isCaregiver && !isPatient) {
+    console.log(
+      `Auth Failed: User ${reqUser.id} is not in patient ${patientId} caregivers list.`,
+      {
+        caregiverIds,
+        legacyCaregiverId,
+      },
+    );
+  }
 
   // Check basic authorization
   if (!isPatient && !isCaregiver) {
@@ -28,7 +49,11 @@ const checkPatientAccess = (reqUser, patient, requireModify = false) => {
   }
 
   // If modification is required, check for read-only restrictions
-  if (requireModify && isPatient && patient.caregiver) {
+  if (
+    requireModify &&
+    isPatient &&
+    (caregiverIds.length > 0 || legacyCaregiverId)
+  ) {
     return { authorized: false, message: "Patient has read only access" };
   }
 

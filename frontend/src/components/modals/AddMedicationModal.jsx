@@ -22,6 +22,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     unit: "pills",
     instructions: [],
     timeOfDay: [],
+    refillDate: "",
+    additionalInfo: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -40,6 +42,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
         unit: "pills",
         instructions: [],
         timeOfDay: [],
+        refillDate: "",
+        additionalInfo: "",
       });
       setErrors({});
     }
@@ -127,9 +131,15 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
 
     // Format instructions into additionalInfo string
     const additionalInfo =
-      formData.instructions.length > 0
-        ? formData.instructions.join(", ")
-        : null;
+      [
+        formData.additionalInfo,
+        ...(formData.instructions.length > 0
+          ? [formData.instructions.join(", ")]
+          : []),
+      ]
+        .filter(Boolean)
+        .join(", ")
+        .trim() || null;
 
     // Get the first time of day for timeOfDay field (for backward compatibility)
     const primaryTimeOfDay =
@@ -146,6 +156,8 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
       quantity: parseFloat(formData.quantity) || 0,
       initialQuantity: parseFloat(formData.quantity) || 0, // Track initial quantity for percentage calculation
       additionalInfo: additionalInfo,
+      refillDate: formData.refillDate || "",
+      instructions: formData.instructions,
       timeOfDay: primaryTimeOfDay,
       timesOfDay: formData.timeOfDay,
     };
@@ -432,6 +444,20 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
             )}
           </div>
 
+          {/* Refill Date */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Refill Date
+            </label>
+            <input
+              type="date"
+              name="refillDate"
+              value={formData.refillDate}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+            />
+          </div>
+
           {/* Instructions */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
@@ -467,6 +493,21 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Notes / Instructions */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Notes / Instructions
+            </label>
+            <textarea
+              name="additionalInfo"
+              value={formData.additionalInfo}
+              onChange={handleChange}
+              placeholder="e.g., Take after meal, Before sleep"
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-colors"
+            />
           </div>
         </div>
       </form>
