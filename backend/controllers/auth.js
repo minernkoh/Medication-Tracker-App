@@ -32,13 +32,16 @@ const signup = async (req, res) => {
 };
 
 const signin = async (req, res) => {
+  console.log("🔐 Signin request received:", { email: req.body.email, role: req.body.role });
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log("❌ Validation errors:", errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
     if (!req.body || !req.body.email || !req.body.password) {
+      console.log("❌ Missing email or password");
       return res
         .status(400)
         .json({ message: "Email and password are required" });
@@ -47,11 +50,13 @@ const signin = async (req, res) => {
     const { email, password, role } = req.body;
     let user = null;
 
+    console.log("🔍 Looking for user:", { email, role });
     if (role) {
       user = await User.findOne({ email, role });
     } else {
       const matches = await User.find({ email }).limit(2);
       if (matches.length > 1) {
+        console.log("⚠️ Multiple accounts found for email:", email);
         return res.status(400).json({
           message: "Multiple accounts found. Please select an account type.",
           availableRoles: matches.map((m) => m.role),
@@ -60,7 +65,10 @@ const signin = async (req, res) => {
       user = matches[0] || null;
     }
 
+    console.log("👤 User found:", user ? { id: user._id, role: user.role } : "None");
+
     if (!user || !(await user.comparePassword(password))) {
+      console.log("❌ Invalid credentials");
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -78,9 +86,10 @@ const signin = async (req, res) => {
 
     const userObj = user.toObject();
     delete userObj.password;
+    console.log("✅ Signin successful for:", userObj.email);
     res.json({ token, user: userObj });
   } catch (error) {
-    console.error("Signin error:", error);
+    console.error("❌ Signin error:", error);
     res.status(500).json({ message: error.message });
   }
 };
