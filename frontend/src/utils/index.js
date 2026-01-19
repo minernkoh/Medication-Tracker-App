@@ -134,3 +134,11 @@ export {
   normalizeMedication,
   normalizeAppointment,
 } from "./normalization";
+// Request utilities (concurrency, debounce, cache, etc.)
+export {
+  limitConcurrency,
+  debounce,
+  throttle,
+  createRequestCache,
+  createAbortable,
+} from "./requestUtils";

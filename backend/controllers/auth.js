@@ -16,9 +16,7 @@ const signup = async (req, res) => {
 
     const existing = await User.findOne({ email, role });
     if (existing) {
-      return res
-        .status(400)
-        .json({ message: "Account already exists" });
+      return res.status(400).json({ message: "Account already exists" });
     }
 
     const user = await User.create(req.body);
@@ -27,9 +25,7 @@ const signup = async (req, res) => {
     res.status(201).json(userObj);
   } catch (error) {
     if (error.code === 11000) {
-      return res
-        .status(400)
-        .json({ message: "Account already exists" });
+      return res.status(400).json({ message: "Account already exists" });
     }
     res.status(400).json({ message: error.message });
   }
@@ -58,6 +54,7 @@ const signin = async (req, res) => {
       if (matches.length > 1) {
         return res.status(400).json({
           message: "Multiple accounts found. Please select an account type.",
+          availableRoles: matches.map((m) => m.role),
         });
       }
       user = matches[0] || null;

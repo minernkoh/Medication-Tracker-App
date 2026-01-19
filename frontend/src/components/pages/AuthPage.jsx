@@ -66,7 +66,9 @@ function AuthPage({ onLogin, onSignup }) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    if (!accountType) {
+    // Account type is required for signup, but optional for signin
+    // When signing in without selecting a role, backend will find the user by email alone
+    if (!isLogin && !accountType) {
       newErrors.accountType = "Please select an account type";
     }
 
@@ -289,11 +291,16 @@ function AuthPage({ onLogin, onSignup }) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Account type selection */}
+            {/* Account type selection - Required for signup, optional for signin */}
             <div className="space-y-3">
               <label className="font-poppins font-semibold text-sm text-text-primary">
-                I am a...
+                {isLogin ? "Account Type (Optional)" : "I am a..."}
               </label>
+              <p className="font-poppins text-xs text-text-secondary">
+                {isLogin
+                  ? "If you have multiple accounts, select which one to access"
+                  : "Select the type of account you want to create"}
+              </p>
               <div className="flex gap-4">
                 <AccountTypeCard
                   type="patient"

@@ -31,6 +31,7 @@ import { useMedications } from "../../../contexts/MedicationsContext";
 import { useError } from "../../../contexts/ErrorContext";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
+import { limitConcurrency } from "../../../utils/requestUtils";
 import {
   hexToRgba,
   MONTHS,
@@ -65,7 +66,9 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
   // State: tracks selected date, menu item, and date picker
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
-  const [visibleWeekStart, setVisibleWeekStart] = useState(getStartOfWeek(today));
+  const [visibleWeekStart, setVisibleWeekStart] = useState(
+    getStartOfWeek(today),
+  );
 
   // Modal state for editing taken-time entries
   const [editingMedication, setEditingMedication] = useState(null);
@@ -114,7 +117,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
         return d.toISOString().split("T")[0];
       });
 
-      const results = await Promise.all(
+      const results = await limitConcurrency(
         days.map(async (dateStr) => {
           try {
             const meds = await api.medications.getForDate(dateStr);
@@ -123,6 +126,7 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
             return [dateStr, []];
           }
         }),
+        3, // Max 3 concurrent requests
       );
 
       const map = {};

@@ -33,12 +33,16 @@ app.use((req, res, next) => {
 // Security Middleware
 app.use(helmet());
 
-// Rate Limiting
+// Rate Limiting - More lenient in development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  max: process.env.NODE_ENV === "production" ? 100 : 1000, // 1000 requests in dev, 100 in production
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for auth routes in development
+    return process.env.NODE_ENV !== "production" && req.path.includes("/auth");
+  },
 });
 app.use(limiter);
 

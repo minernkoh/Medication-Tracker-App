@@ -26,6 +26,7 @@ import { Calendar } from "../../features";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
+import { limitConcurrency } from "../../../utils/requestUtils";
 
 const PATIENT_COLORS = [
   colors.patient.pink,
@@ -143,7 +144,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
         return d.toISOString().split("T")[0];
       });
 
-      const results = await Promise.all(
+      const results = await limitConcurrency(
         days.map(async (dateStr) => {
           try {
             const items = await api.caregiver.getSchedule(dateStr);
@@ -152,6 +153,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
             return [dateStr, []];
           }
         }),
+        3, // Max 3 concurrent requests
       );
 
       const map = {};
@@ -180,27 +182,37 @@ const CaregiverDashboard = ({ userName = "" }) => {
       }))
       .filter((appt) => {
         const status = String(appt?.status || "").toLowerCase();
-        return status !== "completed" && status !== "cancelled" && status !== "missed";
+        return (
+          status !== "completed" &&
+          status !== "cancelled" &&
+          status !== "missed"
+        );
       })
       .filter((appt) => Boolean(appt?.date));
   }, [appointments]);
 
   // Calculate totals
   const totalPatients = patients.length;
-  
+
   // Use scheduleItems for more reactive adherence stats
   const totalMedicationsDate = scheduleItems.length;
-  const totalMedicationsTakenDate = scheduleItems.filter(i => i.status === "taken").length;
-  
+  const totalMedicationsTakenDate = scheduleItems.filter(
+    (i) => i.status === "taken",
+  ).length;
+
   const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
-  
+
   const upcomingAppointments = appointments.filter((appt) => {
     const status = String(appt.status || "").toLowerCase();
     // Only count active/upcoming ones
-    if (status === "completed" || status === "cancelled" || status === "missed") {
+    if (
+      status === "completed" ||
+      status === "cancelled" ||
+      status === "missed"
+    ) {
       return false;
     }
-    
+
     const date = new Date(appt.date);
     if (Number.isNaN(date.getTime())) return false;
     const today = new Date();
@@ -218,7 +230,8 @@ const CaregiverDashboard = ({ userName = "" }) => {
 
   const formatScheduleTime = (time) => {
     const key = String(time || "").toLowerCase();
-    if (TIME_BUCKET_TO_24H[key]) return to12HourDisplay(TIME_BUCKET_TO_24H[key]);
+    if (TIME_BUCKET_TO_24H[key])
+      return to12HourDisplay(TIME_BUCKET_TO_24H[key]);
     if (/^\d{2}:\d{2}$/.test(key)) return to12HourDisplay(key);
     return "Unscheduled";
   };
@@ -235,9 +248,9 @@ const CaregiverDashboard = ({ userName = "" }) => {
 
   // Patient card component
   const PatientCard = ({ patient }) => {
-    const pStats = scheduleItems.filter(i => i.patientId === patient.id);
+    const pStats = scheduleItems.filter((i) => i.patientId === patient.id);
     const total = pStats.length;
-    const taken = pStats.filter(i => i.status === "taken").length;
+    const taken = pStats.filter((i) => i.status === "taken").length;
     const completionPercent = total > 0 ? Math.round((taken / total) * 100) : 0;
 
     return (
@@ -546,6 +559,6 @@ const CaregiverDashboard = ({ userName = "" }) => {
       </div>
     </div>
   );
-}
+};
 
 export default CaregiverDashboard;
