@@ -17,6 +17,7 @@ function EditMedicationModal({
     name: "",
     dosage: "",
     quantity: "",
+    unit: "",
     timeOfDay: "",
     refillDate: "",
     additionalInfo: "",
@@ -31,6 +32,7 @@ function EditMedicationModal({
         name: medication.name || "",
         dosage: medication.dosage || "",
         quantity: medication.quantity || "",
+        unit: medication.unit || "",
         timeOfDay: timeForInput,
         refillDate: medication.refillDate || "",
         additionalInfo: medication.additionalInfo || "",
@@ -51,8 +53,9 @@ function EditMedicationModal({
     const updatedMedication = {
       ...medication,
       name: formData.name,
-      dosage: formData.dosage,
-      quantity: formData.quantity,
+      dosage: parseFloat(formData.dosage) || 0,
+      quantity: parseFloat(formData.quantity) || 0,
+      unit: formData.unit,
       additionalInfo: formData.additionalInfo,
       refillDate: formData.refillDate,
     };
@@ -134,7 +137,17 @@ function EditMedicationModal({
             type="text"
             value={formData.quantity}
             onChange={handleChange}
-            placeholder="e.g., 30 pills, 60ml"
+            placeholder="e.g., 30, 60"
+          />
+
+          {/* Unit */}
+          <FormField
+            label="Unit"
+            name="unit"
+            type="text"
+            value={formData.unit}
+            onChange={handleChange}
+            placeholder="e.g., pills, ml, mg"
           />
 
           {/* Time of Day (for pending/supply medications) */}

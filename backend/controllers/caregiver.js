@@ -1,6 +1,16 @@
 const User = require("../models/User");
 const Medication = require("../models/Medication");
+const MedicationLog = require("../models/MedicationLog");
 const Appointment = require("../models/Appointments");
+
+const getTodayStr = () => new Date().toISOString().split("T")[0];
+
+const isScheduledMedication = (med) => {
+  if (!med) return false;
+  if (med.timeOfDay) return true;
+  if (Array.isArray(med.timesOfDay) && med.timesOfDay.length > 0) return true;
+  return false;
+};
 
 const getPatients = async (req, res) => {
   try {
@@ -8,6 +18,7 @@ const getPatients = async (req, res) => {
     const patients = await User.find({ caregiver: req.user.id }).select(
       "-password"
     );
+    const today = getTodayStr();
 
     // Aggregate data for each patient to populate the dashboard
     const patientsWithStats = await Promise.all(
@@ -22,14 +33,26 @@ const getPatients = async (req, res) => {
           (m) => m.status === "taken" || m.taken
         ).length;
 
+        // Today's adherence: scheduled meds + logs
+        const scheduledMeds = meds.filter(isScheduledMedication);
+        const medicationsTotalToday = scheduledMeds.length;
+        const logs = await MedicationLog.find({
+          patient: patient._id,
+          date: today,
+        }).select("medication");
+        const takenTodayIds = new Set(logs.map((l) => l.medication.toString()));
+        const medicationsTakenToday = scheduledMeds.filter((m) =>
+          takenTodayIds.has(m._id.toString())
+        ).length;
+
         // Calculate adherence rate
         const adherenceRate =
           totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
 
         // Check for low supply alerts
         const alerts = meds.filter((m) => {
-          const qty = parseInt(m.quantity) || 0;
-          return qty < 10; // Low supply threshold
+          const qty = Number(m.quantity);
+          return Number.isFinite(qty) && qty < 10; // Low supply threshold
         }).length;
 
         // 2. Get Next Appointment
@@ -70,6 +93,8 @@ const getPatients = async (req, res) => {
           ...patientObj,
           medicationsTotal: totalMeds,
           medicationsTaken: takenMeds,
+          medicationsTotalToday,
+          medicationsTakenToday,
           adherenceRate,
           alerts,
           nextAppointment,
@@ -120,10 +145,21 @@ const addPatient = async (req, res) => {
     const meds = await Medication.find({ patient: patient._id });
     const totalMeds = meds.length;
     const takenMeds = meds.filter((m) => m.status === "taken" || m.taken).length;
+    const today = getTodayStr();
+    const scheduledMeds = meds.filter(isScheduledMedication);
+    const medicationsTotalToday = scheduledMeds.length;
+    const logs = await MedicationLog.find({
+      patient: patient._id,
+      date: today,
+    }).select("medication");
+    const takenTodayIds = new Set(logs.map((l) => l.medication.toString()));
+    const medicationsTakenToday = scheduledMeds.filter((m) =>
+      takenTodayIds.has(m._id.toString())
+    ).length;
     const adherenceRate = totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
     const alerts = meds.filter((m) => {
-      const qty = parseInt(m.quantity) || 0;
-      return qty < 10;
+      const qty = Number(m.quantity);
+      return Number.isFinite(qty) && qty < 10;
     }).length;
 
     const allAppointments = await Appointment.find({ patient: patient._id })
@@ -147,6 +183,8 @@ const addPatient = async (req, res) => {
       ...patientObj,
       medicationsTotal: totalMeds,
       medicationsTaken: takenMeds,
+      medicationsTotalToday,
+      medicationsTakenToday,
       adherenceRate,
       alerts,
       nextAppointment,

@@ -5,19 +5,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  UsersIcon,
   PillIcon,
   CalendarCheckIcon,
   WarningCircleIcon,
   CheckCircleIcon,
   ClockIcon,
   CaretRightIcon,
-  HeartIcon,
-  BellIcon,
-  TrendUpIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
-import { GradientBackground } from "../../ui";
+import { GradientBackground, PieChart } from "../../ui";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
@@ -87,20 +83,20 @@ function CaregiverDashboard({ userName = "" }) {
   // Calculate totals
   const totalPatients = patients.length;
   const totalMedicationsToday = patients.reduce(
-    (sum, p) => sum + (p.medicationsTotal || 0),
+    (sum, p) => sum + (p.medicationsTotalToday || 0),
     0
   );
   const totalMedicationsTaken = patients.reduce(
-    (sum, p) => sum + (p.medicationsTaken || 0),
+    (sum, p) => sum + (p.medicationsTakenToday || 0),
     0
   );
-  const totalAlerts = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
+  const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
   const upcomingAppointments = patients.filter((p) => p.nextAppointment).length;
 
   // Patient card component
   const PatientCard = ({ patient }) => {
-    const total = patient.medicationsTotal || 0;
-    const taken = patient.medicationsTaken || 0;
+    const total = patient.medicationsTotalToday || 0;
+    const taken = patient.medicationsTakenToday || 0;
     const completionPercent = total > 0 ? Math.round((taken / total) * 100) : 0;
 
     return (
@@ -120,7 +116,9 @@ function CaregiverDashboard({ userName = "" }) {
             <div>
               <h3 className="font-poppins font-bold text-text-primary">{patient.name}</h3>
               <p className="font-poppins text-xs text-text-secondary">
-                {taken}/{total} medications today
+                {total > 0
+                  ? `${taken}/${total} medications today`
+                  : "No medications scheduled today"}
               </p>
             </div>
           </div>
@@ -140,7 +138,7 @@ function CaregiverDashboard({ userName = "" }) {
               className="font-poppins text-xs font-semibold"
               style={{ color: completionPercent === 100 ? colors.success.DEFAULT : modeHexColor }}
             >
-              {completionPercent}%
+              {total > 0 ? `${completionPercent}%` : "—"}
             </span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -200,7 +198,6 @@ function CaregiverDashboard({ userName = "" }) {
         <div className="w-full max-w-[67.5rem] mx-auto flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
-            <HeartIcon size={32} weight="fill" color={modeHexColor} />
             <div>
               <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
                 Good Morning, {userName}!
@@ -212,58 +209,75 @@ function CaregiverDashboard({ userName = "" }) {
           </div>
 
           {/* Stats cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-              style={{ backgroundColor: `${modeHexColor}15` }}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Today's adherence */}
+            <button
+              type="button"
+              onClick={() => navigate("/patients")}
+              className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
+              aria-label="View today's adherence by patient"
             >
-              <UsersIcon size={20} weight="fill" color={modeHexColor} />
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">{totalPatients}</p>
-            <p className="font-poppins text-sm text-text-secondary">Patients</p>
-          </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-poppins text-sm text-text-secondary">Today's adherence</p>
+                  <p className="font-poppins font-bold text-2xl text-text-primary mt-1">
+                    {totalMedicationsToday > 0
+                      ? `${Math.round((totalMedicationsTaken / totalMedicationsToday) * 100)}%`
+                      : "—"}
+                  </p>
+                  <p className="font-poppins text-sm text-text-secondary mt-1">
+                    {totalMedicationsToday > 0
+                      ? `${totalMedicationsTaken}/${totalMedicationsToday} taken`
+                      : "No scheduled meds today"}
+                  </p>
+                </div>
+                <PieChart
+                  taken={totalMedicationsTaken}
+                  notTaken={Math.max(totalMedicationsToday - totalMedicationsTaken, 0)}
+                  size={96}
+                />
+              </div>
+            </button>
 
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
-              <PillIcon size={20} weight="fill" color={colors.success.DEFAULT} />
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">
-              {totalMedicationsTaken}/{totalMedicationsToday}
-            </p>
-            <p className="font-poppins text-sm text-text-secondary">Medications Today</p>
-          </div>
-
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-              <CalendarCheckIcon size={20} weight="fill" color={colors.primary.DEFAULT} />
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">{upcomingAppointments}</p>
-            <p className="font-poppins text-sm text-text-secondary">Upcoming Appointments</p>
-          </div>
-
-          <div className="bg-background-default border border-border-default rounded-2xl p-4">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-                totalAlerts > 0 ? "bg-red-50" : "bg-emerald-50"
-              }`}
+            {/* Low supply */}
+            <button
+              type="button"
+              onClick={() => navigate("/patients")}
+              className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
+              aria-label="View low supply alerts by patient"
             >
-              {totalAlerts > 0 ? (
-                <BellIcon size={20} weight="fill" color={colors.danger.DEFAULT} />
-              ) : (
-                <CheckCircleIcon size={20} weight="fill" color={colors.success.DEFAULT} />
-              )}
-            </div>
-            <p className="font-poppins font-bold text-2xl text-text-primary">{totalAlerts}</p>
-            <p className="font-poppins text-sm text-text-secondary">
-              {totalAlerts > 0 ? "Alerts" : "No Alerts"}
-            </p>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-red-50">
+                <WarningCircleIcon size={20} weight="fill" color={colors.danger.DEFAULT} />
+              </div>
+              <p className="font-poppins font-bold text-2xl text-text-primary">{totalLowSupply}</p>
+              <p className="font-poppins text-sm text-text-secondary">Low supply alerts</p>
+            </button>
+
+            {/* Upcoming appointments */}
+            <button
+              type="button"
+              onClick={() => navigate("/appointments")}
+              className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
+              aria-label="View upcoming appointments"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
+                <CalendarCheckIcon size={20} weight="fill" color={colors.primary.DEFAULT} />
+              </div>
+              <p className="font-poppins font-bold text-2xl text-text-primary">{upcomingAppointments}</p>
+              <p className="font-poppins text-sm text-text-secondary">Upcoming appointments</p>
+            </button>
           </div>
-        </div>
 
           {/* Patients section */}
           <div className="flex items-center justify-between mb-4">
-          <h2 className="font-poppins font-bold text-xl text-text-primary">Your Patients</h2>
+          <div>
+            <h2 className="font-poppins font-bold text-xl text-text-primary">
+              Your Patients
+            </h2>
+            <p className="font-poppins text-sm text-text-secondary mt-1">
+              {totalPatients} patient{totalPatients === 1 ? "" : "s"}
+            </p>
+          </div>
           <button
             onClick={() => navigate("/patients")}
             className="font-poppins text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"

@@ -164,10 +164,17 @@ function PatientsPage() {
               {patient.initials}
             </div>
             <div>
-              <p className="font-poppins font-semibold text-text-primary">
-                {patient.nickname || patient.name} (
-                {(patient.name || "").split(" ")[0]})
-              </p>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/patients/${patient.id}`);
+                }}
+                className="font-poppins font-semibold text-text-primary hover:underline text-left"
+                aria-label={`View ${patient.nickname || patient.name}'s profile`}
+              >
+                {patient.nickname || patient.name} ({(patient.name || "").split(" ")[0]})
+              </button>
               <p className="font-poppins text-xs text-text-secondary">
                 {patient.relationship}
               </p>
@@ -285,7 +292,7 @@ function PatientsPage() {
   };
 
   return (
-    <div className="bg-background-default w-full p-6 md:p-10">
+    <div className="bg-background-default w-full p-6 md:p-10 relative">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">

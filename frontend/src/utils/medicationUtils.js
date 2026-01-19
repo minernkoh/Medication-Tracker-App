@@ -6,16 +6,16 @@
 /**
  * Calculate supply status as percentage and determine visual style
  * @param {object} med - Normalized medication object
- * @param {function} parseQuantity - Helper to parse quantity string
  * @returns {object|null} { label, className } or null
  */
-export const calculateSupplyStatus = (med, parseQuantity) => {
-  if (!med.taken || !med.initialQuantity) return null;
+export const calculateSupplyStatus = (med) => {
+  // We need both current and initial quantity for the calculation
+  if (med.quantity === undefined || med.initialQuantity === undefined) return null;
 
-  const currentQ = parseQuantity(med.quantity).value;
-  const initialQ = parseQuantity(med.initialQuantity).value;
+  const currentQ = Number(med.quantity);
+  const initialQ = Number(med.initialQuantity);
 
-  if (initialQ === 0) return null;
+  if (isNaN(currentQ) || isNaN(initialQ) || initialQ === 0) return null;
 
   const percentage = Math.round((currentQ / initialQ) * 100);
 

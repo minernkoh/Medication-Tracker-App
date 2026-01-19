@@ -6,7 +6,8 @@ const TIME_24H_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const medicationSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    dosage: { type: String, required: true },
+    dosage: { type: Number, required: true },
+    unit: { type: String, default: "pills" },
     type: {
       type: String,
       enum: [
@@ -56,8 +57,8 @@ const medicationSchema = new mongoose.Schema(
     taken: { type: Boolean, default: false },
     takenTime: String, // e.g., "9:00 AM"
     frequency: String, // e.g., "2 times per day", "Every 4 hours"
-    quantity: String, // e.g., "30 pills"
-    initialQuantity: String, // e.g., "30 pills" (baseline for supply %)
+    quantity: { type: Number }, // Current amount remaining
+    initialQuantity: { type: Number }, // Baseline for supply %
     refillDate: String, // e.g., "2026-02-15"
     additionalInfo: String, // e.g., "Before Meal"
     pillColor: String, // Hex color code

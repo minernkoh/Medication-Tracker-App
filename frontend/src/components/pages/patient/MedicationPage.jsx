@@ -89,7 +89,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
    */
   // Calculate supply status using shared utility
   const getSupplyStatus = (medication) => {
-    return calculateSupplyStatus(medication, parseQuantity);
+    return calculateSupplyStatus(medication);
   };
 
   // ============================================================================
@@ -183,10 +183,10 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
         return multiplier * a.name.localeCompare(b.name);
 
       case "dosage":
-        return multiplier * a.dosage.localeCompare(b.dosage);
+        return multiplier * (Number(a.dosage) - Number(b.dosage));
 
       case "quantity":
-        return multiplier * a.quantity.localeCompare(b.quantity);
+        return multiplier * (Number(a.quantity) - Number(b.quantity));
 
       case "refillDate": {
         const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
@@ -249,16 +249,18 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "dosage",
       label: "Dosage",
-      render: (value) => (
-        <span className="font-poppins text-sm text-text-primary">{value}</span>
+      render: (value, row) => (
+        <span className="font-poppins text-sm text-text-primary">
+          {formatQuantity(value, row.unit)}
+        </span>
       ),
     },
     {
       key: "quantity",
       label: "Quantity",
-      render: (value) => (
+      render: (value, row) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
-          {value || "N/A"}
+          {value !== undefined ? formatQuantity(value, row.unit) : "N/A"}
         </span>
       ),
     },
@@ -309,7 +311,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   // ============================================================================
 
   return (
-    <div className="bg-background-default w-full overflow-x-hidden">
+    <div className="bg-background-default w-full overflow-x-hidden relative">
       {/* Gradient background decoration */}
       <GradientBackground />
 

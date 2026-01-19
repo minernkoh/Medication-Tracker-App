@@ -19,6 +19,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     frequencyValue: "",
     frequencyText: "",
     quantity: "",
+    unit: "pills",
     instructions: [],
     timeOfDay: [],
   });
@@ -36,6 +37,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
         frequencyValue: "",
         frequencyText: "",
         quantity: "",
+        unit: "pills",
         instructions: [],
         timeOfDay: [],
       });
@@ -136,12 +138,13 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     // Create new medication object
     const newMedication = {
       name: formData.name,
-      dosage: formData.dosage,
+      dosage: parseFloat(formData.dosage) || 0,
+      unit: formData.unit,
       type: formData.type,
       frequency: frequencyString,
       status: "pending",
-      quantity: formData.quantity,
-      initialQuantity: formData.quantity, // Track initial quantity for percentage calculation
+      quantity: parseFloat(formData.quantity) || 0,
+      initialQuantity: parseFloat(formData.quantity) || 0, // Track initial quantity for percentage calculation
       additionalInfo: additionalInfo,
       timeOfDay: primaryTimeOfDay,
       timesOfDay: formData.timeOfDay,
@@ -255,6 +258,30 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               <option value="capsules">Capsules</option>
               <option value="liquid">Liquid</option>
               <option value="drops">Drops</option>
+            </datalist>
+          </div>
+
+          {/* Unit */}
+          <div>
+            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+              Unit
+            </label>
+            <input
+              type="text"
+              name="unit"
+              value={formData.unit}
+              onChange={handleChange}
+              placeholder="e.g., pills, ml, mg, drops"
+              list="medication-units"
+              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+            />
+            <datalist id="medication-units">
+              <option value="pills">pills</option>
+              <option value="ml">ml</option>
+              <option value="mg">mg</option>
+              <option value="drops">drops</option>
+              <option value="sprays">sprays</option>
+              <option value="patches">patches</option>
             </datalist>
           </div>
 

@@ -46,13 +46,21 @@ export const normalizeUser = (user) => {
  */
 export const normalizeMedication = (medication) => {
   if (!medication) return null;
+  
+  // Ensure dosage and quantity are numbers
+  const dosage = typeof medication.dosage === 'string' ? parseFloat(medication.dosage) : (medication.dosage || 0);
+  const quantity = typeof medication.quantity === 'string' ? parseFloat(medication.quantity) : (medication.quantity || 0);
+  const initialQuantity = typeof medication.initialQuantity === 'string' ? parseFloat(medication.initialQuantity) : (medication.initialQuantity ?? quantity);
+
   const normalized = {
     ...medication,
     id: normalizeId(medication),
+    dosage,
+    quantity,
+    initialQuantity,
+    unit: medication.unit || (medication.type === 'pills' ? 'pills' : (medication.type === 'liquid' ? 'ml' : '')),
     status: medication.status || (medication.taken ? "taken" : "pending"),
     taken: Boolean(medication.taken),
-    // Preserve initialQuantity if it exists, otherwise set it to current quantity if medication has been taken
-    initialQuantity: medication.initialQuantity || (medication.taken ? medication.quantity : undefined),
   };
   // Preserve lastQuantityDelta if it exists
   if (!Object.prototype.hasOwnProperty.call(normalized, "lastQuantityDelta")) {

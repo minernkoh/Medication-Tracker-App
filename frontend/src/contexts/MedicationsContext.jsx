@@ -42,25 +42,31 @@ export function MedicationsProvider({ children }) {
     loadMedications();
   }, [loadMedications]);
 
-  // Helper: Parse numeric quantity and unit from a quantity string like "30 pills"
-  const parseQuantity = useCallback((quantityStr = "") => {
-    const str = String(quantityStr || "");
-    const match = str.match(/^\s*(\d+)\s*(.*)\s*$/);
-    const value = match ? parseInt(match[1], 10) || 0 : 0;
-    const unit = match && match[2] ? match[2].trim() : "";
+  // Helper: Format quantity for display (e.g., "30 pills")
+  const formatQuantity = useCallback((value, unit) => {
+    const num = Number(value);
+    if (isNaN(num)) return `0${unit ? ` ${unit}` : ""}`;
+    // Round to 2 decimal places to avoid floating point issues
+    const rounded = Math.round(num * 100) / 100;
+    return `${rounded}${unit ? ` ${unit}` : ""}`;
+  }, []);
+
+  // Helper: Extract numeric value from any input (preserving backward compatibility if needed)
+  const parseQuantity = useCallback((val) => {
+    if (typeof val === 'number') return { value: val, unit: "" };
+    const str = String(val || "");
+    const match = str.match(/^\s*(\d+(\.\d+)?)\s*(.*)\s*$/);
+    const value = match ? parseFloat(match[1]) || 0 : 0;
+    const unit = match && match[3] ? match[3].trim() : "";
     return { value, unit };
   }, []);
 
-  // Helper: Format quantity back to a display string
-  const formatQuantity = useCallback((value, unit) => {
-    return `${Math.max(value, 0)}${unit ? ` ${unit}` : ""}`;
-  }, []);
-
-  // Helper: Parse dosage to extract numeric value (e.g., "2 pills" -> 2, "500mg" -> 500)
-  const parseDosage = useCallback((dosageStr = "") => {
-    const str = String(dosageStr || "");
-    const match = str.match(/^(\d+)/);
-    return match ? parseInt(match[1], 10) : 1;
+  // Helper: Extract dosage numeric value
+  const parseDosage = useCallback((val) => {
+    if (typeof val === 'number') return val;
+    const str = String(val || "");
+    const match = str.match(/^(\d+(\.\d+)?)/);
+    return match ? parseFloat(match[1]) : 1;
   }, []);
 
   const createMedication = useCallback(
@@ -154,26 +160,23 @@ export function MedicationsProvider({ children }) {
             med.quantity !== undefined &&
             med.quantity !== null &&
             med.quantity !== "";
+          
           if (hasQuantity) {
-            const { value: quantityValue, unit: quantityUnit } = parseQuantity(
-              med.quantity,
-            );
-            const dosageAmount = parseDosage(med.dosage);
+            const quantityValue = typeof med.quantity === 'number' ? med.quantity : parseQuantity(med.quantity).value;
+            const dosageAmount = typeof med.dosage === 'number' ? med.dosage : parseDosage(med.dosage);
             const shouldDecrement = med.status !== "taken" && !med.taken;
             const decrementAmount = shouldDecrement ? dosageAmount : 0;
             const updatedQuantityValue =
               quantityValue > 0
                 ? Math.max(quantityValue - decrementAmount, 0)
                 : 0;
-            updatedQuantity = formatQuantity(
-              updatedQuantityValue,
-              quantityUnit,
-            );
+            
+            updatedQuantity = updatedQuantityValue;
             lastQuantityDelta = shouldDecrement ? -dosageAmount : 0;
 
             // Set initialQuantity on first time marking as taken if not already set
             if (!med.initialQuantity && shouldDecrement) {
-              updatedInitialQuantity = med.quantity;
+              updatedInitialQuantity = quantityValue;
             }
           }
           return {

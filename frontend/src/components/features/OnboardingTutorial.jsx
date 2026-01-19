@@ -10,6 +10,8 @@ import {
   CalendarCheckIcon,
   ChartLineUpIcon,
   UsersIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -34,6 +36,17 @@ function OnboardingTutorial({ onComplete, user }) {
   const [currentStep, setCurrentStep] = useState(0);
   const isCaregiver = user?.mode === "Caregiver";
 
+  const TutorialIllustrationFrame = ({ children }) => (
+    <div className="relative w-full h-56 sm:h-64 rounded-3xl overflow-hidden">
+      {/* Scale illustration to avoid any internal scrolling */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center origin-center scale-[0.82] sm:scale-[0.88] md:scale-[0.92] lg:scale-100 [&_img]:max-w-full [&_img]:max-h-full [&_img]:h-auto [&_img]:object-contain">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+
   const steps = [
     {
       id: "welcome",
@@ -44,7 +57,7 @@ function OnboardingTutorial({ onComplete, user }) {
         ? "As a caregiver, you'll be able to manage medications and appointments for your loved ones. Let's walk through the key features."
         : "You're all set to start tracking your health journey. Let's walk through the key features together.",
       illustration: (
-        <div className="relative w-full h-48 flex items-center justify-center">
+        <div className="relative w-full h-full flex items-center justify-center rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-blue-100/50 rounded-3xl" />
           <div className="relative flex items-center gap-6">
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/30 animate-pulse">
@@ -58,17 +71,154 @@ function OnboardingTutorial({ onComplete, user }) {
         </div>
       ),
     },
+    ...(isCaregiver
+      ? [
+          {
+            id: "patients",
+            icon: UsersIcon,
+            title: "Add & Manage Patients",
+            subtitle: "Your care circle, in one place",
+            description:
+              "Use the Patients page to add a patient by email, then select a patient to manage their medications, supply, appointments, and adherence.",
+            illustration: (
+              <div className="relative w-full h-full rounded-3xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-50 to-rose-100/50" />
+                <div className="relative w-full h-full px-4 py-4 flex items-center justify-center">
+                  <div className="bg-background-default border border-border-default rounded-2xl shadow-sm overflow-hidden w-full max-w-full">
+                    {/* Header row */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border-default bg-background-subtle">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <UsersIcon size={16} weight="fill" className="flex-shrink-0" color={colors.secondary.DEFAULT} />
+                        <p className="font-poppins font-semibold text-sm text-text-primary truncate">
+                          My Patients
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-poppins font-semibold text-xs text-white flex-shrink-0"
+                        style={{ backgroundColor: colors.secondary.DEFAULT }}
+                        aria-label="Add patient"
+                      >
+                        <PlusIcon size={14} weight="bold" />
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Search */}
+                    <div className="px-4 py-3 border-b border-border-default">
+                      <div className="relative w-full">
+                        <MagnifyingGlassIcon
+                          size={16}
+                          weight="regular"
+                          color={colors.text.secondary}
+                          className="absolute left-3 top-1/2 -translate-y-1/2"
+                        />
+                        <div className="w-full pl-9 pr-3 py-2 rounded-xl border border-border-default bg-white font-poppins text-xs text-text-secondary/70">
+                          Search patients…
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mini list */}
+                    <div className="divide-y divide-border-default">
+                      {[
+                        { name: "John Doe", initials: "JD", alerts: 1, adherence: 75, color: colors.patient.blue },
+                        { name: "Jane Smith", initials: "JS", alerts: 0, adherence: 100, color: colors.patient.pink },
+                      ].map((p) => (
+                        <div key={p.initials} className="px-4 py-3 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center text-white font-poppins font-bold text-xs flex-shrink-0"
+                              style={{ backgroundColor: p.color }}
+                            >
+                              {p.initials}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-poppins font-semibold text-sm text-text-primary truncate">{p.name}</p>
+                              <p className="font-poppins text-xs text-text-secondary truncate">
+                                {p.adherence}% adherence today
+                              </p>
+                            </div>
+                          </div>
+                          {p.alerts > 0 ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-poppins text-xs font-semibold flex-shrink-0">
+                              <WarningCircleIcon size={12} weight="fill" />
+                              {p.alerts} alert
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-poppins text-xs font-semibold flex-shrink-0">
+                              <CheckCircleIcon size={12} weight="fill" />
+                              Good
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ),
+          },
+          {
+            id: "patientDetail",
+            icon: HeartIcon,
+            title: "Patient Details",
+            subtitle: "Everything you need on one screen",
+            description:
+              "Open a patient to view today’s meds, update taken status, track supply, and manage upcoming appointments—all in one place.",
+            illustration: (
+              <div className="relative w-full h-full rounded-3xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-purple-100/50" />
+                <div className="relative w-full h-full px-4 py-4 flex items-center justify-center">
+                  <div className="bg-background-default border border-border-default rounded-2xl p-4 w-full max-w-full">
+                    <div className="flex items-center gap-3 mb-4 min-w-0">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-poppins font-bold flex-shrink-0"
+                        style={{ backgroundColor: colors.patient.blue }}
+                      >
+                        JD
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-poppins font-bold text-text-primary truncate">John (John Doe)</p>
+                        <p className="font-poppins text-xs text-text-secondary truncate">Son • 72 years old</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-background-subtle rounded-xl p-3">
+                        <p className="font-poppins text-xs text-text-secondary">Today</p>
+                        <p className="font-poppins font-bold text-text-primary">2/3</p>
+                      </div>
+                      <div className="bg-background-subtle rounded-xl p-3">
+                        <p className="font-poppins text-xs text-text-secondary">Weekly</p>
+                        <p className="font-poppins font-bold text-text-primary">86%</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between bg-amber-50 text-amber-700 px-3 py-2 rounded-xl">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <WarningCircleIcon size={16} weight="fill" className="flex-shrink-0" />
+                        <p className="font-poppins text-xs font-semibold truncate">Low supply: Metformin</p>
+                      </div>
+                      <span className="font-poppins text-xs font-bold flex-shrink-0">25%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ),
+          },
+        ]
+      : []),
     {
       id: "medications",
       icon: PillIcon,
-      title: "Track Daily Medications",
-      subtitle: "Never miss a dose again",
-      description:
-        "Add your medications with dosage and timing. Medications are organized by time of day (Morning, Afternoon, Night) to help you stay on schedule.",
+      title: isCaregiver ? "Manage Daily Medications" : "Track Daily Medications",
+      subtitle: isCaregiver ? "Support your patient’s schedule" : "Never miss a dose again",
+      description: isCaregiver
+        ? "Add and review a patient’s medications, organized by time of day. You can mark medications as taken to keep adherence accurate."
+        : "Add your medications with dosage and timing. Medications are organized by time of day (Morning, Afternoon, Night) to help you stay on schedule.",
       illustration: (
-        <div className="relative w-full h-48 flex items-center justify-center overflow-y-auto">
+        <div className="relative w-full h-full rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-100/50 rounded-3xl" />
-          <div className="relative flex flex-col gap-6 w-full max-w-md px-4 py-4">
+          <div className="relative w-full h-full flex flex-col gap-5 max-w-full px-4 py-4 justify-center">
             {/* Time group: Morning */}
             <div>
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-3 flex items-center gap-2">
@@ -90,7 +240,6 @@ function OnboardingTutorial({ onComplete, user }) {
                 </div>
               </div>
             </div>
-            {/* Time group: Afternoon */}
             <div>
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-3 flex items-center gap-2">
                 <SunDimIcon size={16} weight="regular" className="text-amber-500" />
@@ -118,49 +267,57 @@ function OnboardingTutorial({ onComplete, user }) {
     {
       id: "supply",
       icon: PackageIcon,
-      title: "Monitor Your Supply",
-      subtitle: "Stay ahead of refills",
-      description:
-        "View your medication inventory in a table format. Supply status is calculated as a percentage when you mark medications as taken, helping you track how much you have remaining.",
+      title: isCaregiver ? "Monitor Supply & Refills" : "Monitor Your Supply",
+      subtitle: isCaregiver ? "Stay ahead for your patient" : "Stay ahead of refills",
+      description: isCaregiver
+        ? "Track a patient’s inventory and refill dates. Supply status updates automatically as medications are marked as taken."
+        : "View your medication inventory in a table format. Supply status is calculated as a percentage when you mark medications as taken, helping you track how much you have remaining.",
       illustration: (
-        <div className="relative w-full h-48 flex items-center justify-center overflow-y-auto">
+        <div className="relative w-full h-full rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-orange-100/50 rounded-3xl" />
-          <div className="relative w-full max-w-2xl px-4">
-            <div className="bg-background-default border border-border-default rounded-2xl shadow-sm overflow-hidden">
-              <table className="w-full">
+          <div className="relative w-full h-full px-4 py-4 flex items-center justify-center">
+            <div className="bg-background-default border border-border-default rounded-2xl shadow-sm overflow-hidden w-full max-w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-border-default bg-background-subtle">
-                    <th className="text-left px-5 py-4 font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    <th className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/2">
                       Medication
                     </th>
-                    <th className="text-left px-5 py-4 font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Current Quantity
+                    <th className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4">
+                      Qty
                     </th>
-                    <th className="text-left px-5 py-4 font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                      Supply Status
+                    <th className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4">
+                      Status
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    { name: "Aspirin", qty: "45 pills", status: "75%", statusColor: "bg-green-100 text-green-700", iconColor: colors.success.DEFAULT },
-                    { name: "Vitamin D", qty: "30 pills", status: "50%", statusColor: "bg-amber-100 text-amber-700", iconColor: colors.warning.DEFAULT },
-                    { name: "Metformin", qty: "15 pills", status: "25%", statusColor: "bg-red-100 text-red-700", iconColor: colors.danger.DEFAULT },
+                    { name: "Aspirin", qty: "45", status: "75%", statusColor: "bg-green-100 text-green-700", iconColor: colors.success.DEFAULT },
+                    { name: "Vitamin D", qty: "30", status: "50%", statusColor: "bg-amber-100 text-amber-700", iconColor: colors.warning.DEFAULT },
+                    { name: "Metformin", qty: "15", status: "25%", statusColor: "bg-red-100 text-red-700", iconColor: colors.danger.DEFAULT },
                   ].map((med, i) => (
                     <tr key={i} className="border-b border-border-default last:border-0">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: `${med.iconColor}15` }}>
-                            <PillIcon size={20} weight="fill" color={med.iconColor} />
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0"
+                            style={{ backgroundColor: `${med.iconColor}15` }}
+                          >
+                            <PillIcon size={18} weight="fill" color={med.iconColor} />
                           </div>
-                          <span className="font-poppins font-semibold text-sm text-text-primary">{med.name}</span>
+                          <span className="font-poppins font-semibold text-xs text-text-primary truncate">
+                            {med.name}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <span className="font-poppins text-sm font-medium text-text-primary">{med.qty}</span>
+                      <td className="px-3 py-3">
+                        <span className="font-poppins text-xs font-medium text-text-primary truncate">
+                          {med.qty}
+                        </span>
                       </td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${med.statusColor}`}>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-poppins font-semibold ${med.statusColor} whitespace-nowrap`}>
                           {med.status}
                         </span>
                       </td>
@@ -176,12 +333,13 @@ function OnboardingTutorial({ onComplete, user }) {
     {
       id: "appointments",
       icon: CalendarCheckIcon,
-      title: "Manage Appointments",
-      subtitle: "Keep your schedule organized",
-      description:
-        "Add doctor visits, lab tests, and check-ups. View your upcoming appointments at a glance and stay on top of your healthcare schedule.",
+      title: isCaregiver ? "Manage Appointments" : "Manage Appointments",
+      subtitle: isCaregiver ? "Across all your patients" : "Keep your schedule organized",
+      description: isCaregiver
+        ? "Add and track appointments for each patient. You can review all appointments in one place and filter by patient or status."
+        : "Add doctor visits, lab tests, and check-ups. View your upcoming appointments at a glance and stay on top of your healthcare schedule.",
       illustration: (
-        <div className="relative w-full h-48 flex items-center justify-center">
+        <div className="relative w-full h-full flex items-center justify-center rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100/50 rounded-3xl" />
           <div className="relative w-full max-w-md px-4">
             <div className="bg-background-default border border-border-default rounded-2xl p-5 w-full cursor-pointer group">
@@ -244,12 +402,13 @@ function OnboardingTutorial({ onComplete, user }) {
     {
       id: "progress",
       icon: ChartLineUpIcon,
-      title: "Track Your Progress",
-      subtitle: "Celebrate your consistency",
-      description:
-        "See your daily medication adherence at a glance. Watch your progress grow as you build healthy habits over time.",
+      title: isCaregiver ? "Monitor Adherence" : "Track Your Progress",
+      subtitle: isCaregiver ? "Spot trends and missed doses" : "Celebrate your consistency",
+      description: isCaregiver
+        ? "Quickly see how a patient is doing today and over time. Trends make it easier to catch issues early and stay consistent."
+        : "See your daily medication adherence at a glance. Watch your progress grow as you build healthy habits over time.",
       illustration: (
-        <div className="relative w-full h-48 flex items-center justify-center">
+        <div className="relative w-full h-full flex items-center justify-center rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-purple-100/50 rounded-3xl" />
           <div className="relative">
             {/* Progress card matching Dashboard */}
@@ -323,9 +482,9 @@ function OnboardingTutorial({ onComplete, user }) {
             description:
               "View all your patients at a glance. Track their medications, appointments, and progress from one central dashboard.",
             illustration: (
-              <div className="relative w-full h-48 flex items-center justify-center overflow-y-auto">
+              <div className="relative w-full h-full rounded-3xl overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-pink-50 to-rose-100/50 rounded-3xl" />
-                <div className="relative w-full max-w-2xl px-4">
+                <div className="relative w-full h-full px-4 py-4 flex items-center justify-center">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                     {[
                       { name: "John Doe", initials: "JD", color: colors.secondary.DEFAULT, taken: 3, total: 4, nextMed: "12:00 PM" },
@@ -406,10 +565,10 @@ function OnboardingTutorial({ onComplete, user }) {
       title: "You're All Set!",
       subtitle: "Ready to start your health journey",
       description: isCaregiver
-        ? "Head to your dashboard to add patients and start managing their medications. You've got this!"
+        ? "Head to Patients to add your first patient and start managing medications and appointments. You've got this!"
         : "Head to your dashboard to add your first medication. Small steps lead to big health wins!",
       illustration: (
-        <div className="relative w-full h-48 flex items-center justify-center">
+        <div className="relative w-full h-full flex items-center justify-center rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-green-100/50 rounded-3xl" />
           <div className="relative text-center">
             <div
@@ -470,7 +629,7 @@ function OnboardingTutorial({ onComplete, user }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-5xl">
         {/* Progress bar */}
         <div className="flex items-center gap-2 mb-8">
           {steps.map((_, index) => (
@@ -491,77 +650,85 @@ function OnboardingTutorial({ onComplete, user }) {
 
         {/* Main card */}
         <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden">
-          {/* Illustration area */}
-          <div className="p-8 pb-0">{currentStepData.illustration}</div>
-
-          {/* Content */}
-          <div className="p-8 pt-6 text-center">
-            <div
-              className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center"
-              style={{
-                backgroundColor: isCaregiver ? colors.secondary.light : colors.primary.light,
-              }}
-            >
-              <IconComponent
-                size={24}
-                weight="fill"
-                color={isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT}
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            {/* Illustration (left on md+) */}
+            <div className="p-6 sm:p-8 md:p-10 bg-white">
+              <TutorialIllustrationFrame>
+                {currentStepData.illustration}
+              </TutorialIllustrationFrame>
             </div>
 
-            <h2 className="font-poppins font-bold text-2xl text-text-primary mb-2">
-              {currentStepData.title}
-            </h2>
-            <p
-              className="font-poppins font-medium text-sm mb-3"
-              style={{ color: isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT }}
-            >
-              {currentStepData.subtitle}
-            </p>
-            <p className="font-poppins text-text-secondary leading-relaxed max-w-md mx-auto">
-              {currentStepData.description}
-            </p>
-          </div>
+            {/* Content + navigation (right on md+) */}
+            <div className="p-6 sm:p-8 md:p-10 flex flex-col">
+              <div className="flex-1 text-center md:text-left">
+                <div
+                  className="w-12 h-12 rounded-xl mx-auto md:mx-0 mb-4 flex items-center justify-center"
+                  style={{
+                    backgroundColor: isCaregiver ? colors.secondary.light : colors.primary.light,
+                  }}
+                >
+                  <IconComponent
+                    size={24}
+                    weight="fill"
+                    color={isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT}
+                  />
+                </div>
 
-          {/* Navigation */}
-          <div className="p-8 pt-4 flex items-center justify-between">
-            <button
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className={`flex items-center gap-2 font-poppins font-medium text-sm px-4 py-2.5 rounded-xl transition-all ${
-                currentStep === 0
-                  ? "text-gray-300 cursor-not-allowed"
-                  : "text-text-secondary hover:bg-gray-100"
-              }`}
-            >
-              <ArrowLeftIcon size={16} weight="bold" />
-              Back
-            </button>
+                <h2 className="font-poppins font-bold text-2xl text-text-primary mb-2">
+                  {currentStepData.title}
+                </h2>
+                <p
+                  className="font-poppins font-medium text-sm mb-3"
+                  style={{ color: isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT }}
+                >
+                  {currentStepData.subtitle}
+                </p>
+                <p className="font-poppins text-text-secondary leading-relaxed max-w-md md:max-w-none md:pr-2 mx-auto md:mx-0">
+                  {currentStepData.description}
+                </p>
+              </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSkip}
-                className="font-poppins font-medium text-sm text-text-secondary hover:text-text-primary px-4 py-2.5 rounded-xl transition-colors"
-              >
-                {isLastStep ? "Skip" : "Skip Tutorial"}
-              </button>
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-2 font-poppins font-semibold text-sm text-white px-6 py-2.5 rounded-xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  backgroundColor: isCaregiver
-                    ? colors.secondary.DEFAULT
-                    : colors.primary.DEFAULT,
-                  boxShadow: getBoxShadow(
-                    isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT,
-                    0.3,
-                    "md"
-                  ),
-                }}
-              >
-                {isLastStep ? "Get Started" : "Next"}
-                <ArrowRightIcon size={16} weight="bold" />
-              </button>
+              {/* Navigation */}
+              <div className="pt-6 flex items-center justify-between">
+                <button
+                  onClick={handleBack}
+                  disabled={currentStep === 0}
+                  className={`flex items-center gap-2 font-poppins font-medium text-sm px-4 py-2.5 rounded-xl transition-all ${
+                    currentStep === 0
+                      ? "text-gray-300 cursor-not-allowed"
+                      : "text-text-secondary hover:bg-gray-100"
+                  }`}
+                >
+                  <ArrowLeftIcon size={16} weight="bold" />
+                  Back
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSkip}
+                    className="font-poppins font-medium text-sm text-text-secondary hover:text-text-primary px-4 py-2.5 rounded-xl transition-colors"
+                  >
+                    {isLastStep ? "Skip" : "Skip Tutorial"}
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="flex items-center gap-2 font-poppins font-semibold text-sm text-white px-6 py-2.5 rounded-xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      backgroundColor: isCaregiver
+                        ? colors.secondary.DEFAULT
+                        : colors.primary.DEFAULT,
+                      boxShadow: getBoxShadow(
+                        isCaregiver ? colors.secondary.DEFAULT : colors.primary.DEFAULT,
+                        0.3,
+                        "md"
+                      ),
+                    }}
+                  >
+                    {isLastStep ? "Get Started" : "Next"}
+                    <ArrowRightIcon size={16} weight="bold" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

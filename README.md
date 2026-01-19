@@ -223,7 +223,13 @@ Medication-Tracker-App/
 
 4. **Set up environment variables**
 
-   Create a `.env` file in the `backend` directory:
+   Copy the environment template, then edit values:
+
+   ```bash
+   cp backend/env.example backend/.env
+   ```
+
+   Or create a `.env` file in the `backend` directory with these variables:
 
    ```env
    MONGODB_URI=mongodb://localhost:27017/medtrack

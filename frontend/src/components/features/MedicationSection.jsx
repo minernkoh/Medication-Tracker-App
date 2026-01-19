@@ -30,6 +30,7 @@ import {
   textStyles,
   getTimeGroup,
 } from "../../utils";
+import { useMedications } from "../../contexts/MedicationsContext";
 
 function MedicationSection({
   variant = "pending",
@@ -43,6 +44,7 @@ function MedicationSection({
   onAddMedication,
   onCardClick,
 }) {
+  const { formatQuantity } = useMedications();
   const isPending = variant === "pending";
 
 
@@ -269,7 +271,7 @@ function MedicationSection({
 
       {/* Medications Content */}
       {medications.length > 0 ? (
-        <div className={`flex-1 overflow-y-auto ${compact ? "min-h-0" : ""}`}>
+        <div className={`flex-1 ${compact ? "overflow-y-auto min-h-0" : ""}`}>
           {isPending && showTimeGroups && groupedMeds ? (
             // Pending: Grouped by time (Morning/Afternoon/Night)
             <div className="space-y-6">
@@ -291,7 +293,7 @@ function MedicationSection({
                       key={med.id}
                       type="Due"
                       medicationName={med.name}
-                      dosage={med.dosage}
+                      dosage={formatQuantity(med.dosage, med.unit)}
                       additionalInfo={buildPendingInfo(med)}
                       pillColor={med.pillColor}
                       onCheck={() => onMarkAsTaken?.(med.id)}
@@ -316,7 +318,7 @@ function MedicationSection({
                       key={med.id}
                       type="Taken"
                       medicationName={med.name}
-                      dosage={med.dosage}
+                      dosage={formatQuantity(med.dosage, med.unit)}
                       additionalInfo={
                         med.takenTime
                           ? `Taken at ${med.takenTime}`
@@ -339,7 +341,7 @@ function MedicationSection({
                   key={med.id}
                   type={isPending ? "Due" : "Taken"}
                   medicationName={med.name}
-                  dosage={med.dosage}
+                  dosage={formatQuantity(med.dosage, med.unit)}
                   additionalInfo={
                     isPending
                       ? buildPendingInfo(med)

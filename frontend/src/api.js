@@ -27,6 +27,7 @@ const formatMedicationForAPI = (medicationData) => {
   const passthroughKeys = [
     "name",
     "dosage",
+    "unit",
     "type",
     "status",
     "timeOfDay",

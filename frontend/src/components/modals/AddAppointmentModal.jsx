@@ -17,6 +17,10 @@ function AddAppointmentModal({
   onSave,
   appointment = null,
   mode = "Personal",
+  // Caregiver/global use: provide patients to enable patient selection
+  patients = null,
+  patientId = "",
+  onPatientIdChange,
 }) {
   const isEditing = !!appointment;
 
@@ -78,6 +82,9 @@ function AddAppointmentModal({
   const validate = () => {
     const newErrors = {};
 
+    if (Array.isArray(patients) && patients.length > 0 && !patientId) {
+      newErrors.patientId = "Please select a patient";
+    }
     if (!formData.title.trim()) {
       newErrors.title = "Appointment title is required";
     }
@@ -142,6 +149,37 @@ function AddAppointmentModal({
     >
       <form id="appointment-form" onSubmit={handleSubmit} className="p-5">
         <div className="flex flex-col gap-4">
+          {/* Patient (Caregiver mode) */}
+          {Array.isArray(patients) && patients.length > 0 && (
+            <div>
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Patient <span className="text-danger">*</span>
+              </label>
+              <select
+                value={patientId}
+                onChange={(e) => onPatientIdChange?.(e.target.value)}
+                className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none transition-colors ${
+                  errors.patientId
+                    ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"
+                    : "border-border-default focus:border-primary focus:ring-2 focus:ring-primary/20"
+                }`}
+                required
+              >
+                <option value="">Select a patient…</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {errors.patientId && (
+                <p className="mt-1.5 font-poppins font-semibold text-xs text-danger">
+                  {errors.patientId}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Title */}
           <FormField
             label="Appointment Title"

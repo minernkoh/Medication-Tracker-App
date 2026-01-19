@@ -281,7 +281,7 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   };
 
   return (
-    <div className="bg-background-default w-full overflow-x-hidden">
+    <div className="bg-background-default w-full overflow-x-hidden relative">
       {/* Gradient background decoration */}
       <GradientBackground />
 

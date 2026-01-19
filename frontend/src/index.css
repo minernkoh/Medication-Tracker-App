@@ -12,13 +12,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
-    overflow-y: hidden;
   }
 
   #root {
     height: 100%;
     overflow-x: hidden;
-    overflow-y: hidden;
   }
 
   /* Custom select styling - integrated with Tailwind */

@@ -54,7 +54,7 @@ function AppLayout({
   const modeColor = getModeHexColor(mode);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden overflow-x-hidden">
+    <div className="h-screen bg-white flex flex-col md:flex-row overflow-hidden overflow-x-hidden">
       {/* Mobile header */}
       <header className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <button

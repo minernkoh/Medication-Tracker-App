@@ -28,6 +28,7 @@ import {
 } from "../../../utils";
 import { MedicationSection } from "../../features";
 import { DataTable, SectionHeader, StatCard, Button } from "../../ui";
+import ActionButtons from "../../ui/ActionButtons";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import AddMedicationModal from "../../modals/AddMedicationModal";
 import EditMedicationModal from "../../modals/EditMedicationModal";
@@ -136,11 +137,8 @@ function PatientDetailPage() {
   });
 
   const parseQuantity = (quantityStr = "") => {
-    const str = String(quantityStr || "");
-    const match = str.match(/^\s*(\d+)\s*(.*)\s*$/);
-    const value = match ? parseInt(match[1], 10) || 0 : 0;
-    const unit = match && match[2] ? match[2].trim() : "";
-    return { value, unit };
+    const num = Number(quantityStr);
+    return { value: Number.isFinite(num) ? num : 0, unit: "" };
   };
 
   const formatRefillDate = (dateStr) => {
@@ -220,16 +218,18 @@ function PatientDetailPage() {
     {
       key: "dosage",
       label: "Dosage",
-      render: (value) => (
-        <span className="font-poppins text-sm text-text-primary">{value}</span>
+      render: (value, row) => (
+        <span className="font-poppins text-sm text-text-primary">
+          {value ?? "—"} {row?.unit || ""}
+        </span>
       ),
     },
     {
       key: "quantity",
       label: "Quantity",
-      render: (value) => (
+      render: (value, row) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
-          {value || "N/A"}
+          {value ?? "N/A"} {value !== undefined && value !== null ? (row?.unit || "") : ""}
         </span>
       ),
     },
@@ -424,6 +424,11 @@ function PatientDetailPage() {
     }
   };
 
+  const handleDeleteTakenMedication = (medId) => {
+    // In this UI, the "delete" icon on Taken cards is treated as "undo taken for today"
+    handleUndoTakenMedication(medId);
+  };
+
   if (isLoading) {
     return (
       <div className="bg-background-default w-full p-6 md:p-10">
@@ -592,7 +597,31 @@ function PatientDetailPage() {
 
         {/* Medications section */}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="bg-background-default border border-border-default rounded-2xl p-6 mb-6">
+          <SectionHeader
+            icon={
+              <PillIcon
+                size={24}
+                weight="regular"
+                color={colors.icon.primary}
+              />
+            }
+            title="Medications"
+            description="Manage this patient's medications"
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<PlusIcon size={16} weight="bold" />}
+                style={{ backgroundColor: modeHexColor }}
+                onClick={() => setShowAddMedicationModal(true)}
+              >
+                Add
+              </Button>
+            }
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <MedicationSection
             variant="pending"
             medications={pendingMeds}
@@ -604,11 +633,21 @@ function PatientDetailPage() {
             variant="taken"
             medications={takenMeds}
             onEdit={handleEditMedication}
-            onDelete={handleDeleteMedication}
+            onDelete={handleDeleteTakenMedication}
             showTimeGroups={true}
             compact={false}
           />
         </div>
+        </div>
+
+        {showAddMedicationModal && (
+          <AddMedicationModal
+            isOpen={showAddMedicationModal}
+            onClose={() => setShowAddMedicationModal(false)}
+            onSave={handleAddMedication}
+            mode="Caregiver"
+          />
+        )}
 
         {showEditModal && editingMedication && (
           <EditMedicationModal
@@ -622,6 +661,58 @@ function PatientDetailPage() {
             mode="Caregiver"
           />
         )}
+
+        <ConfirmDialog
+          isOpen={deleteConfirm.isOpen}
+          onClose={() =>
+            setDeleteConfirm({
+              isOpen: false,
+              medicationId: null,
+              medicationName: "",
+            })
+          }
+          onConfirm={confirmDeleteMedication}
+          title="Delete Medication"
+          message={`Are you sure you want to delete ${deleteConfirm.medicationName}? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+        />
+
+        {/* Current supply */}
+        <div className="bg-background-default border border-border-default rounded-2xl p-6 mb-6">
+          <SectionHeader
+            icon={
+              <PillIcon
+                size={24}
+                weight="regular"
+                color={colors.icon.primary}
+              />
+            }
+            title="Current Supply"
+            description="Inventory and refills"
+            action={
+              <span className="font-poppins font-semibold text-sm text-text-secondary bg-background-hover px-3 py-1 rounded-full">
+                {supplyMeds.length} in supply
+              </span>
+            }
+          />
+
+          <div className="mt-4">
+            <DataTable
+              columns={supplyColumns}
+              data={sortedSupplyMeds}
+              sortConfig={supplySortConfig}
+              onSort={setSupplySortConfig}
+              onEdit={(row) => handleEditMedication(row)}
+              onDelete={(row) => requestDeleteMedication(row)}
+              emptyMessage="No medications in supply"
+              emptySubMessage="Add a medication with quantity to track supply"
+              EmptyIcon={PillIcon}
+              mode="Caregiver"
+            />
+          </div>
+        </div>
 
         {/* Appointments section */}
         <div className="bg-background-default border border-border-default rounded-2xl p-6">
@@ -640,6 +731,7 @@ function PatientDetailPage() {
                 size="sm"
                 icon={<PlusIcon size={16} weight="bold" />}
                 style={{ backgroundColor: modeHexColor }}
+                onClick={openAddAppointmentModal}
               >
                 Add
               </Button>
@@ -669,17 +761,26 @@ function PatientDetailPage() {
                         {apt.title}
                       </p>
                       <p className="font-poppins text-sm text-text-secondary">
-                        {apt.doctor} • {apt.location}
+                        {apt.doctorName} • {apt.location}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-poppins font-semibold text-text-primary">
-                      {formatDateLocale(apt.date)}
-                    </p>
-                    <p className="font-poppins text-sm text-text-secondary">
-                      {apt.time}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-poppins font-semibold text-text-primary">
+                        {formatDateLocale(apt.date)}
+                      </p>
+                      <p className="font-poppins text-sm text-text-secondary">
+                        {apt.time}
+                      </p>
+                    </div>
+                    <ActionButtons
+                      onEdit={() => openEditAppointmentModal(apt)}
+                      onDelete={() => requestDeleteAppointment(apt)}
+                      size="base"
+                      editLabel="Edit appointment"
+                      deleteLabel="Delete appointment"
+                    />
                   </div>
                 </div>
               ))}
@@ -690,6 +791,36 @@ function PatientDetailPage() {
             </p>
           )}
         </div>
+
+        {showAppointmentModal && (
+          <AddAppointmentModal
+            isOpen={showAppointmentModal}
+            onClose={() => {
+              setShowAppointmentModal(false);
+              setEditingAppointment(null);
+            }}
+            onSave={handleSaveAppointment}
+            appointment={editingAppointment}
+            mode="Caregiver"
+          />
+        )}
+
+        <ConfirmDialog
+          isOpen={appointmentDeleteConfirm.isOpen}
+          onClose={() =>
+            setAppointmentDeleteConfirm({
+              isOpen: false,
+              appointmentId: null,
+              appointmentTitle: "",
+            })
+          }
+          onConfirm={confirmDeleteAppointment}
+          title="Delete Appointment"
+          message={`Are you sure you want to delete \"${appointmentDeleteConfirm.appointmentTitle}\"? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+        />
 
         {/* Adherence chart placeholder */}
         <div className="bg-background-default border border-border-default rounded-2xl p-6 mt-6">

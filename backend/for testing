@@ -1,4 +1,0 @@
-use in Bruno for testing
-
-MONGODB_URI=mongodb://127.0.0.1:27017/medtrack
-http://localhost:3001/ in Bruno for testing

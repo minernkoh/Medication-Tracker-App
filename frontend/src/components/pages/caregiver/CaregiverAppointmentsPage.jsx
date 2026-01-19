@@ -18,6 +18,9 @@ import {
 } from "@phosphor-icons/react";
 import { getModeHexColor, formatDateLocale } from "../../../utils";
 import { GradientBackground, PageHeader } from "../../ui";
+import ActionButtons from "../../ui/ActionButtons";
+import ConfirmDialog from "../../ui/ConfirmDialog";
+import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
@@ -93,7 +96,33 @@ function CaregiverAppointmentsPage() {
   const [filterPatient, setFilterPatient] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [appointments, setAppointments] = useState([]);
+  const [caregiverPatients, setCaregiverPatients] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
+  const [selectedPatientId, setSelectedPatientId] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    appointmentId: null,
+    appointmentTitle: "",
+    patientId: null,
+  });
   const { showError } = useError();
+
+  const loadPatients = useCallback(async () => {
+    try {
+      const data = await api.caregiver.getPatients();
+      setCaregiverPatients(
+        (Array.isArray(data) ? data : [])
+          .map((p) => ({
+            id: p.id || p._id,
+            name: p.nickname ? `${p.nickname} (${p.name})` : p.name,
+          }))
+          .filter((p) => p.id && p.name),
+      );
+    } catch (error) {
+      showError(error.message || "Unable to load patients");
+    }
+  }, [showError]);
 
   const loadAppointments = useCallback(async () => {
     try {
@@ -110,7 +139,8 @@ function CaregiverAppointmentsPage() {
 
   useEffect(() => {
     loadAppointments();
-  }, [loadAppointments]);
+    loadPatients();
+  }, [loadAppointments, loadPatients]);
 
   // Get unique patients for filter
   const patients = useMemo(
@@ -162,6 +192,72 @@ function CaregiverAppointmentsPage() {
     );
   };
 
+  const openAddModal = () => {
+    setEditingAppointment(null);
+    setSelectedPatientId("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (apt) => {
+    setEditingAppointment(apt);
+    setSelectedPatientId(apt.patientId || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (appointmentData) => {
+    try {
+      if (!selectedPatientId) {
+        showError("Please select a patient");
+        return;
+      }
+
+      if (editingAppointment?.id) {
+        await api.appointments.updateForPatient(
+          selectedPatientId,
+          editingAppointment.id,
+          { ...appointmentData, id: editingAppointment.id },
+        );
+      } else {
+        await api.appointments.createForPatient(selectedPatientId, appointmentData);
+      }
+
+      setIsModalOpen(false);
+      setEditingAppointment(null);
+      setSelectedPatientId("");
+      await loadAppointments();
+    } catch (error) {
+      showError(error.message || "Unable to save appointment");
+    }
+  };
+
+  const requestDelete = (apt) => {
+    setDeleteConfirm({
+      isOpen: true,
+      appointmentId: apt?.id,
+      appointmentTitle: apt?.title || "this appointment",
+      patientId: apt?.patientId,
+    });
+  };
+
+  const confirmDelete = async () => {
+    try {
+      if (!deleteConfirm.appointmentId || !deleteConfirm.patientId) return;
+      await api.appointments.deleteForPatient(
+        deleteConfirm.patientId,
+        deleteConfirm.appointmentId,
+      );
+      setDeleteConfirm({
+        isOpen: false,
+        appointmentId: null,
+        appointmentTitle: "",
+        patientId: null,
+      });
+      await loadAppointments();
+    } catch (error) {
+      showError(error.message || "Unable to delete appointment");
+    }
+  };
+
 
   return (
     <div className="bg-background-default w-full overflow-x-hidden relative">
@@ -177,6 +273,7 @@ function CaregiverAppointmentsPage() {
             description="Manage appointments for all your patients"
             action={
               <button
+                onClick={openAddModal}
                 className="flex items-center gap-2 px-5 py-3 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all"
                 style={{
                   backgroundColor: modeHexColor,
@@ -252,6 +349,9 @@ function CaregiverAppointmentsPage() {
                   <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
                     Status
                   </th>
+                  <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -320,6 +420,17 @@ function CaregiverAppointmentsPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end">
+                        <ActionButtons
+                          onEdit={() => openEditModal(apt)}
+                          onDelete={() => requestDelete(apt)}
+                          size="base"
+                          editLabel="Edit appointment"
+                          deleteLabel="Delete appointment"
+                        />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -340,6 +451,40 @@ function CaregiverAppointmentsPage() {
             </div>
           )}
         </div>
+
+          {isModalOpen && (
+            <AddAppointmentModal
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setEditingAppointment(null);
+              }}
+              onSave={handleSave}
+              appointment={editingAppointment}
+              mode="Caregiver"
+              patients={caregiverPatients}
+              patientId={selectedPatientId}
+              onPatientIdChange={setSelectedPatientId}
+            />
+          )}
+
+          <ConfirmDialog
+            isOpen={deleteConfirm.isOpen}
+            onClose={() =>
+              setDeleteConfirm({
+                isOpen: false,
+                appointmentId: null,
+                appointmentTitle: "",
+                patientId: null,
+              })
+            }
+            onConfirm={confirmDelete}
+            title="Delete Appointment"
+            message={`Are you sure you want to delete \"${deleteConfirm.appointmentTitle}\"? This action cannot be undone.`}
+            confirmText="Delete"
+            cancelText="Cancel"
+            variant="danger"
+          />
 
           {/* Stats summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
