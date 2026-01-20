@@ -19,7 +19,8 @@ const signup = async (req, res) => {
       return res.status(400).json({ message: "Account already exists" });
     }
 
-    const user = await User.create(req.body);
+    const { name, password } = req.body;
+    const user = await User.create({ name, email, password, role });
     const userObj = user.toObject();
     delete userObj.password;
     res.status(201).json(userObj);

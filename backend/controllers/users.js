@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Medication = require("../models/Medication");
 const Appointment = require("../models/Appointments");
+const MedicationLog = require("../models/MedicationLog");
 
 const getCurrentUser = async (req, res) => {
   const user = await User.findById(req.user.id)
@@ -45,7 +46,9 @@ const updateUser = async (req, res) => {
   Object.assign(user, updates);
   await user.save();
 
-  res.json(user);
+  const userObj = user.toObject();
+  delete userObj.password;
+  res.json(userObj);
 };
 
 const assignCaregiver = async (req, res) => {
@@ -74,7 +77,9 @@ const assignCaregiver = async (req, res) => {
   }
   await patient.save();
 
-  res.json(patient);
+  const patientObj = patient.toObject();
+  delete patientObj.password;
+  res.json(patientObj);
 };
 
 const deleteUser = async (req, res) => {
@@ -102,6 +107,7 @@ const deleteUser = async (req, res) => {
     }
     await Medication.deleteMany({ patient: userId });
     await Appointment.deleteMany({ patient: userId });
+    await MedicationLog.deleteMany({ patient: userId });
     await User.findByIdAndDelete(userId);
 
     res.status(200).json({ message: "Account deleted successfully" });

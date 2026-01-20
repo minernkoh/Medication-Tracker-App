@@ -7,12 +7,11 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ["patient", "caregiver"], required: true },
   caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  caregiver: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-  nickname: String,
-  phone: String,
-  relationship: String,
-  color: String,
-  initials: String,
+  caregiver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
 });
 
 userSchema.pre("save", async function () {

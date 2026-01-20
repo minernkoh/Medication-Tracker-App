@@ -10,6 +10,8 @@ import { useError } from "./ErrorContext";
 import { normalizeMedication } from "../utils/normalization";
 import {
   getNowTimeInputRounded,
+  toTimeInput,
+  timeToMinutes,
   getStoredUser,
   isReadOnlyPatientUser,
   to12HourDisplay,
@@ -143,15 +145,49 @@ export function MedicationsProvider({ children }) {
         typeof medicationOrId === "object" && medicationOrId
           ? medicationOrId.id
           : medicationOrId;
+      const scheduleSlots =
+        typeof medicationOrId === "object" && medicationOrId
+          ? Array.isArray(medicationOrId?.timesOfDay) &&
+            medicationOrId.timesOfDay.length > 0
+            ? medicationOrId.timesOfDay
+            : medicationOrId?.timeOfDay
+              ? [medicationOrId.timeOfDay]
+              : []
+          : [];
+      const normalizedSlots = scheduleSlots
+        .map((slot) => String(slot || "").trim())
+        .filter(Boolean);
+      const nowMinutes = timeToMinutes(getNowTimeInputRounded(15, "nearest"));
       const resolvedTimeSlot =
         timeSlot ||
-        (typeof medicationOrId === "object" && medicationOrId
-          ? medicationOrId.timeOfDay || medicationOrId.timesOfDay?.[0]
+        (normalizedSlots.length
+          ? (() => {
+              if (normalizedSlots.length === 1) return normalizedSlots[0];
+              const sorted = normalizedSlots
+                .map((slot) => ({
+                  slot,
+                  minutes: timeToMinutes(toTimeInput(slot) || slot),
+                }))
+                .sort((a, b) => a.minutes - b.minutes);
+              const upcoming = sorted.find((s) => s.minutes >= nowMinutes);
+              return (upcoming || sorted[sorted.length - 1]).slot;
+            })()
           : null);
 
       const targetDate = date || new Date().toISOString().split("T")[0];
       const currentTime =
         takenTime || to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
+
+      if (normalizedSlots.length > 1) {
+        api.medications
+          .markAsTaken(medicationId, currentTime, targetDate, resolvedTimeSlot)
+          .then(() => loadMedications(targetDate))
+          .catch((error) => {
+            showError(error.message || "Unable to update medication status");
+            loadMedications(targetDate);
+          });
+        return;
+      }
 
       let updatedQuantity;
       let updatedInitialQuantity;

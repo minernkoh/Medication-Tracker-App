@@ -2,7 +2,13 @@ const Medication = require("../models/Medication");
 const MedicationLog = require("../models/MedicationLog");
 const User = require("../models/User");
 const { checkPatientAccess } = require("../utils/auth");
-const { decrementQuantity, incrementQuantity } = require("../utils/medication");
+
+const toLocalIsoDay = (value = new Date()) => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  const tzOffsetMs = d.getTimezoneOffset() * 60 * 1000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+};
 
 const getMedications = async (req, res) => {
   try {
@@ -17,15 +23,14 @@ const getMedications = async (req, res) => {
     }
 
     const query = { patient: patientId };
-    const date =
-      req.query.date ||
-      (req.query.status ? new Date().toISOString().split("T")[0] : null);
+    const date = req.query.date || (req.query.status ? toLocalIsoDay() : null);
 
     const meds = await Medication.find(query);
 
     if (date) {
       const logs = await MedicationLog.find({ patient: patientId, date });
       const logsByMedication = new Map();
+      const takenAtByMedication = new Map();
 
       for (const log of logs) {
         const medId = log.medication.toString();
@@ -35,6 +40,10 @@ const getMedications = async (req, res) => {
         }
         if (slot) {
           logsByMedication.get(medId).add(slot);
+          if (!takenAtByMedication.has(medId)) {
+            takenAtByMedication.set(medId, new Map());
+          }
+          takenAtByMedication.get(medId).set(slot, log.takenAt || null);
         }
       }
 
@@ -47,6 +56,24 @@ const getMedications = async (req, res) => {
           : medObj.timeOfDay
             ? [medObj.timeOfDay]
             : [];
+        const pendingSlots = scheduledSlots.filter(
+          (slot) => !takenSlots.has(slot),
+        );
+
+        medObj.scheduledSlots = scheduledSlots;
+        medObj.takenSlots = Array.from(takenSlots);
+        medObj.pendingSlots = pendingSlots;
+
+        const takenTimesMap = takenAtByMedication.get(medId);
+        if (takenTimesMap) {
+          medObj.takenTimesBySlot = Array.from(takenTimesMap.entries()).reduce(
+            (acc, [slot, takenAt]) => {
+              acc[slot] = takenAt;
+              return acc;
+            },
+            {},
+          );
+        }
 
         if (scheduledSlots.length > 0) {
           const allTaken = scheduledSlots.every((slot) => takenSlots.has(slot));
@@ -138,7 +165,7 @@ const markMedicationAsTaken = async (req, res) => {
       return res.status(403).json({ message: access.message });
     }
 
-    const date = req.body?.date || new Date().toISOString().split("T")[0];
+    const date = req.body?.date || toLocalIsoDay();
     const takenTime =
       req.body?.takenTime ||
       new Date().toLocaleTimeString("en-US", {
@@ -162,12 +189,14 @@ const markMedicationAsTaken = async (req, res) => {
       { upsert: true, new: true },
     );
     const update = {
-      status: "taken",
-      taken: true,
-      takenTime,
+      $set: {
+        status: "taken",
+        taken: true,
+        takenTime,
+      },
     };
     if (med.quantity) {
-      update.quantity = decrementQuantity(med.quantity, med.dosage);
+      update.$inc = { quantity: -Math.abs(med.dosage) };
     }
 
     const updated = await Medication.findByIdAndUpdate(req.params.id, update, {
@@ -198,7 +227,7 @@ const undoMarkAsTaken = async (req, res) => {
       return res.status(403).json({ message: access.message });
     }
 
-    const date = req.body?.date || new Date().toISOString().split("T")[0];
+    const date = req.body?.date || toLocalIsoDay();
     const timeSlot = req.body?.timeSlot || req.body?.timeOfDay || null;
 
     const query = { medication: med._id, date };
@@ -214,14 +243,16 @@ const undoMarkAsTaken = async (req, res) => {
         .json({ message: "No intake record found for this date" });
     }
     const update = {
-      status: "pending",
-      taken: false,
-      takenTime: null,
+      $set: {
+        status: "pending",
+        taken: false,
+        takenTime: null,
+      },
     };
 
     if (med.quantity) {
       const restoreAmount = Number(med.dosage) * deletedCount;
-      update.quantity = incrementQuantity(med.quantity, restoreAmount);
+      update.$inc = { quantity: restoreAmount };
     }
 
     const updated = await Medication.findByIdAndUpdate(req.params.id, update, {

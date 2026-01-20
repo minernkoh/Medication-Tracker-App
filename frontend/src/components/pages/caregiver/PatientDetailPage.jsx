@@ -20,10 +20,19 @@ import {
   getNowTimeInputRounded,
   normalizeMedication,
   normalizeAppointment,
+  timeToMinutes,
+  toTimeInput,
   to12HourDisplay,
 } from "../../../utils";
 import { MedicationSection } from "../../features";
-import { Card, DataTable, PieChart, SectionHeader, StatCard, Button } from "../../ui";
+import {
+  Card,
+  DataTable,
+  PieChart,
+  SectionHeader,
+  StatCard,
+  Button,
+} from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import AddMedicationModal from "../../modals/AddMedicationModal";
@@ -52,7 +61,8 @@ const getInitials = (name = "") => {
 };
 
 const getPatientColor = (patient) => {
-  const base = patient?.id || patient?._id || patient?.email || patient?.name || "";
+  const base =
+    patient?.id || patient?._id || patient?.email || patient?.name || "";
   const str = String(base);
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
@@ -143,11 +153,85 @@ function PatientDetailPage() {
     return false;
   };
 
+  const formatSlotLabel = (slot) => {
+    const normalized = toTimeInput(slot);
+    return normalized ? to12HourDisplay(normalized) : String(slot || "");
+  };
+
+  const formatTakenTimeForSlot = (med, slot) => {
+    const takenAt = med?.takenTimesBySlot?.[slot];
+    if (takenAt) {
+      const date = new Date(takenAt);
+      if (!Number.isNaN(date.getTime())) {
+        const hh = String(date.getHours()).padStart(2, "0");
+        const mm = String(date.getMinutes()).padStart(2, "0");
+        return to12HourDisplay(`${hh}:${mm}`);
+      }
+    }
+    return formatSlotLabel(slot);
+  };
+
+  const splitMedicationsBySlot = (meds = []) => {
+    const pending = [];
+    const taken = [];
+
+    meds.forEach((med) => {
+      const scheduledSlots = Array.isArray(med?.scheduledSlots)
+        ? med.scheduledSlots
+        : Array.isArray(med?.timesOfDay) && med.timesOfDay.length > 0
+          ? med.timesOfDay
+          : med?.timeOfDay
+            ? [med.timeOfDay]
+            : [];
+      const takenSlotsSet = new Set(
+        Array.isArray(med?.takenSlots) ? med.takenSlots : [],
+      );
+      const pendingSlots = Array.isArray(med?.pendingSlots)
+        ? med.pendingSlots
+        : scheduledSlots.filter((slot) => !takenSlotsSet.has(slot));
+
+      if (!scheduledSlots.length) {
+        if (med.status === "taken") {
+          taken.push(med);
+        } else {
+          pending.push(med);
+        }
+        return;
+      }
+
+      const buildSlotEntry = (slot, status) => ({
+        ...med,
+        id: `${med.id}-${slot}-${status}`,
+        status,
+        timeOfDay: slot,
+        timesOfDay: [slot],
+        takenTime:
+          status === "taken"
+            ? formatTakenTimeForSlot(med, slot)
+            : med.takenTime,
+        slot,
+        sourceMedication: med,
+      });
+
+      pendingSlots.forEach((slot) => {
+        pending.push(buildSlotEntry(slot, "pending"));
+      });
+
+      scheduledSlots.forEach((slot) => {
+        if (takenSlotsSet.has(slot)) {
+          taken.push(buildSlotEntry(slot, "taken"));
+        }
+      });
+    });
+
+    return { pending, taken };
+  };
+
   // Separate medications by status
-  const pendingMeds =
-    patient?.medications?.filter((m) => m.status === "pending") || [];
-  const takenMeds =
-    patient?.medications?.filter((m) => m.status === "taken") || [];
+  const splitMeds = splitMedicationsBySlot(patient?.medications || []);
+  const pendingMeds = splitMeds.pending;
+  const takenMeds = splitMeds.taken;
+  const activeMedications = [...pendingMeds, ...takenMeds];
   const supplyMeds = filterMedsByStatus(patient?.medications || [], "supply");
 
   const parseQuantity = (quantityStr = "") => {
@@ -309,16 +393,25 @@ function PatientDetailPage() {
   // A medication counts as "taken" if ANY schedule slot has a log for today,
   // which is exactly what GET /patients/:id/medications?date=YYYY-MM-DD encodes
   // via `status === "taken"` for that day.
-  const scheduledMedsToday = (patient?.medications || []).filter(isScheduledMedication);
-  const totalScheduledToday = scheduledMedsToday.length; 
+  const scheduledMedsToday = (patient?.medications || []).filter(
+    isScheduledMedication,
+  );
+  const totalScheduledToday = scheduledMedsToday.length;
   const takenScheduledToday = scheduledMedsToday.filter(
     (m) => String(m?.status || "").toLowerCase() === "taken",
   ).length;
-  const pendingScheduledToday = Math.max(totalScheduledToday - takenScheduledToday, 0);
+  const pendingScheduledToday = Math.max(
+    totalScheduledToday - takenScheduledToday,
+    0,
+  );
 
   const adherence = patient?.adherence?.[adherenceRange] || null;
-  const adherenceLabels = Array.isArray(adherence?.labels) ? adherence.labels : [];
-  const adherenceValues = Array.isArray(adherence?.values) ? adherence.values : [];
+  const adherenceLabels = Array.isArray(adherence?.labels)
+    ? adherence.labels
+    : [];
+  const adherenceValues = Array.isArray(adherence?.values)
+    ? adherence.values
+    : [];
   const adherenceIsEmpty =
     (adherence?.expectedTotal || 0) === 0 && (adherence?.takenTotal || 0) === 0;
 
@@ -337,17 +430,39 @@ function PatientDetailPage() {
     const currentTime = to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
     try {
-      const timeSlots =
-        Array.isArray(med?.timesOfDay) && med.timesOfDay.length
-          ? med.timesOfDay
-          : med?.timeOfDay
-            ? [med.timeOfDay]
-            : [null];
+      const baseMed = med?.sourceMedication || med;
+      const explicitSlot = med?.slot || med?.timeOfDay || med?.timesOfDay?.[0];
+      const rawSlots =
+        Array.isArray(baseMed?.timesOfDay) && baseMed.timesOfDay.length
+          ? baseMed.timesOfDay
+          : baseMed?.timeOfDay
+            ? [baseMed.timeOfDay]
+            : [];
+      const normalizedSlots = rawSlots
+        .map((slot) => String(slot || "").trim())
+        .filter(Boolean);
+      let timeSlot = null;
+      if (explicitSlot) {
+        timeSlot = explicitSlot;
+      } else if (normalizedSlots.length === 1) {
+        timeSlot = normalizedSlots[0];
+      } else if (normalizedSlots.length > 1) {
+        const nowMinutes = timeToMinutes(getNowTimeInputRounded(15, "nearest"));
+        const sorted = normalizedSlots
+          .map((slot) => ({
+            slot,
+            minutes: timeToMinutes(toTimeInput(slot) || slot),
+          }))
+          .sort((a, b) => a.minutes - b.minutes);
+        const upcoming = sorted.find((s) => s.minutes >= nowMinutes);
+        timeSlot = (upcoming || sorted[sorted.length - 1]).slot;
+      }
 
-      await Promise.all(
-        timeSlots.map((slot) =>
-          api.medications.markAsTaken(med.id, currentTime, todayStr, slot),
-        ),
+      await api.medications.markAsTaken(
+        baseMed.id,
+        currentTime,
+        todayStr,
+        timeSlot,
       );
       await loadPatient();
     } catch (error) {
@@ -423,8 +538,9 @@ function PatientDetailPage() {
   // Undo "taken" for today (restores quantity + removes today's log entry)
   const handleUndoTakenMedication = async (med) => {
     try {
-      const timeSlot = med?.timeOfDay || med?.timesOfDay?.[0];
-      await api.medications.undoMarkAsTaken(med.id, todayStr, timeSlot);
+      const baseMed = med?.sourceMedication || med;
+      const timeSlot = med?.slot || med?.timeOfDay || med?.timesOfDay?.[0];
+      await api.medications.undoMarkAsTaken(baseMed.id, todayStr, timeSlot);
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to undo medication");
@@ -709,7 +825,9 @@ function PatientDetailPage() {
             <MedicationSection
               variant="taken"
               medications={takenMeds}
-              onEdit={handleEditMedication}
+              onEdit={(med) =>
+                handleEditMedication(med?.sourceMedication || med)
+              }
               onDelete={handleDeleteTakenMedication}
               showTimeGroups={true}
               compact={false}
@@ -954,7 +1072,10 @@ function PatientDetailPage() {
           {adherence && !adherenceIsEmpty && adherenceValues.length > 0 ? (
             <div className="flex items-stretch justify-between h-32 gap-2 mt-4">
               {Array.from({
-                length: Math.max(adherenceValues.length, adherenceLabels.length),
+                length: Math.max(
+                  adherenceValues.length,
+                  adherenceLabels.length,
+                ),
               }).map((_, index) => {
                 const rawValue = Number(adherenceValues[index] ?? 0);
                 const value = Number.isFinite(rawValue)
