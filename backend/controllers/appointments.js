@@ -2,54 +2,17 @@ const Appointment = require("../models/Appointments");
 const User = require("../models/User");
 const { checkPatientAccess } = require("../utils/auth");
 
+const pad2 = (value) => String(value).padStart(2, "0");
+
+const toLocalDateString = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+const toLocalTimeString = (d) =>
+  `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
 const processAppointmentDate = (reqBody) => {
   const { date } = reqBody;
   if (!date) return;
-
-  if (typeof date === "string" && date.includes("GMT")) {
-    const parts = date.split(" ");
-    if (parts.length >= 5) {
-      const months = {
-        Jan: "01",
-        Feb: "02",
-        Mar: "03",
-        Apr: "04",
-        May: "05",
-        Jun: "06",
-        Jul: "07",
-        Aug: "08",
-        Sep: "09",
-        Oct: "10",
-        Nov: "11",
-        Dec: "12",
-      };
-      const month = months[parts[1]];
-      const dayStr = parts[2];
-      const year = parts[3];
-      const time = parts[4].substring(0, 5);
-
-      if (month && dayStr && year) {
-        reqBody.date = `${year}-${month}-${dayStr}`;
-        reqBody.time = time;
-
-        const d = new Date(`${year}-${month}-${dayStr}`);
-        const days = [
-          "Sunday",
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-        ];
-        reqBody.day = days[d.getUTCDay()];
-        return;
-      }
-    }
-  }
-
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return;
 
   const days = [
     "Sunday",
@@ -60,17 +23,45 @@ const processAppointmentDate = (reqBody) => {
     "Friday",
     "Saturday",
   ];
-  reqBody.day = days[d.getDay()];
 
-  if (date.includes("T")) {
-    reqBody.date = d.toISOString().split("T")[0];
-    reqBody.time = d.toISOString().split("T")[1].substring(0, 5);
+  const applyFromDate = (d, setTime = false) => {
+    if (!d || Number.isNaN(d.getTime())) return false;
+    reqBody.date = toLocalDateString(d);
+    if (setTime && !reqBody.time) {
+      reqBody.time = toLocalTimeString(d);
+    }
+    reqBody.day = days[d.getDay()];
+    return true;
+  };
+
+  if (date instanceof Date) {
+    applyFromDate(date, true);
+    return;
   }
+
+  if (typeof date === "string") {
+    if (date.includes("GMT")) {
+      const d = new Date(date);
+      if (applyFromDate(d, true)) return;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const d = new Date(`${date}T00:00:00`);
+      if (applyFromDate(d, false)) return;
+    }
+
+    if (date.includes("T")) {
+      const d = new Date(date);
+      if (applyFromDate(d, true)) return;
+    }
+  }
+
+  const fallback = new Date(date);
+  applyFromDate(fallback, true);
 };
 
 const getAppointments = async (req, res) => {
   try {
-    // If patientId is provided in params, use it (for caregiver viewing patient data)
     if (req.params.patientId) {
       const patient = await User.findById(req.params.patientId);
       if (!patient)
@@ -83,21 +74,14 @@ const getAppointments = async (req, res) => {
       return res.json(appts);
     }
 
-    // If no patientId, check if the user is a caregiver
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // If user is a caregiver, they shouldn't have their own appointments
-    // Return empty array or only appointments for their patients
     if (user.role === "caregiver") {
-      // Caregivers should use /caregiver/appointments endpoint
-      // Return empty array here to prevent showing wrong appointments
       return res.json([]);
     }
-
-    // User is a patient, return their appointments
     const appts = await Appointment.find({ patient: req.user.id });
     res.json(appts);
   } catch (err) {
@@ -145,11 +129,9 @@ const createAppointment = async (req, res) => {
       return res.status(503).json({ message: "Database not connected" });
     }
 
-    // Ensure patientId is declared only once
     const patientId = req.params.patientId || req.body.patient || req.user.id;
     const patient = await User.findById(patientId);
     if (!patient) {
-      console.error("Patient not found:", patientId);
       return res.status(404).json({ message: "Patient not found" });
     }
 
@@ -160,28 +142,14 @@ const createAppointment = async (req, res) => {
 
     processAppointmentDate(req.body);
 
-    console.log("Creating appointment with data:", {
-      ...req.body,
-      patient: patientId,
-      createdBy: req.user.id,
-    });
-
     const appt = await Appointment.create({
       ...req.body,
       patient: patientId,
       createdBy: req.user.id,
     });
 
-    console.log("Appointment created successfully:", appt._id);
     res.status(201).json(appt);
   } catch (err) {
-    console.error("Error creating appointment:", err);
-    console.error("Error details:", {
-      message: err.message,
-      name: err.name,
-      errors: err.errors,
-      stack: err.stack,
-    });
     res.status(400).json({ message: err.message });
   }
 };

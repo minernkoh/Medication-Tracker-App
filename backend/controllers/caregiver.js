@@ -6,6 +6,32 @@ const Appointment = require("../models/Appointments");
 const getTodayStr = () => new Date().toISOString().split("T")[0];
 const LOW_SUPPLY_THRESHOLD = 10;
 
+const getAppointmentDateTime = (appointment) => {
+  if (!appointment) return null;
+  const baseDate =
+    appointment.date instanceof Date
+      ? appointment.date
+      : new Date(appointment.date);
+  if (Number.isNaN(baseDate.getTime())) return null;
+  const dateTime = new Date(baseDate);
+  if (appointment.time && typeof appointment.time === "string") {
+    const [hours, minutes] = appointment.time.split(":").map(Number);
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      dateTime.setHours(hours, minutes, 0, 0);
+    }
+  }
+  return dateTime;
+};
+
+const getAppointmentDateString = (appointment) => {
+  const baseDate =
+    appointment?.date instanceof Date
+      ? appointment.date
+      : new Date(appointment?.date);
+  if (!baseDate || Number.isNaN(baseDate.getTime())) return null;
+  return baseDate.toISOString().split("T")[0];
+};
+
 const isScheduledMedication = (med) => {
   if (!med) return false;
   if (med.timeOfDay) return true;
@@ -208,26 +234,19 @@ const buildAdherenceSummary = async (patientId, medications) => {
 
 const getPatients = async (req, res) => {
   try {
-    // Find all patients assigned to this caregiver
     const patients = await User.find({
       $or: [{ caregivers: req.user.id }, { caregiver: req.user.id }],
     }).select("-password");
     const today = getTodayStr();
-
-    // Aggregate data for each patient to populate the dashboard
     const patientsWithStats = await Promise.all(
       patients.map(async (patient) => {
         const patientObj = patient.toObject();
-        patientObj.id = patient._id; // Ensure ID is available as 'id'
-
-        // 1. Get Medications Stats
+        patientObj.id = patient._id;
         const meds = await Medication.find({ patient: patient._id });
         const totalMeds = meds.length;
         const takenMeds = meds.filter(
           (m) => m.status === "taken" || m.taken,
         ).length;
-
-        // Today's adherence: scheduled meds + logs
         const scheduledMeds = meds.filter(isScheduledMedication);
         const medicationsTotalToday = scheduledMeds.length;
         const logs = await MedicationLog.find({
@@ -238,6 +257,7 @@ const getPatients = async (req, res) => {
         const medicationsTakenToday = scheduledMeds.filter((m) =>
           takenTodayIds.has(m._id.toString()),
         ).length;
+<<<<<<< Updated upstream
 
         // Today's adherence rate (scheduled meds vs taken logs for today)
         const adherenceRate =
@@ -263,39 +283,30 @@ const getPatients = async (req, res) => {
         const alerts = meds.filter((m) => {
           const qty = Number(m.quantity);
           return Number.isFinite(qty) && qty < LOW_SUPPLY_THRESHOLD; // Low supply threshold
+=======
+        const adherenceRate =
+          totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
+        const alerts = meds.filter((m) => {
+          const qty = Number(m.quantity);
+          return Number.isFinite(qty) && qty < 10;
+>>>>>>> Stashed changes
         }).length;
-
-        // 2. Get Next Appointment
         const now = new Date();
-        // Get all appointments for this patient, sorted by date
         const allAppointments = await Appointment.find({
           patient: patient._id,
         }).sort({ date: 1, time: 1 });
 
         let nextAppointment = null;
-        // Find the first appointment that is in the future
         for (const apt of allAppointments) {
-          const aptDate = new Date(apt.date);
-          if (!aptDate || isNaN(aptDate.getTime())) continue;
-
-          // Create a date-time object for the appointment
-          const aptDateTime = new Date(aptDate);
-          if (apt.time) {
-            const [hours, minutes] = apt.time.split(":").map(Number);
-            if (!isNaN(hours) && !isNaN(minutes)) {
-              aptDateTime.setHours(hours, minutes, 0, 0);
-            }
-          }
-
-          // Only include if the appointment is in the future
+          const aptDateTime = getAppointmentDateTime(apt);
+          if (!aptDateTime) continue;
           if (aptDateTime > now) {
-            const isoDate = aptDate.toISOString().split("T")[0];
             nextAppointment = {
               title: apt.title,
-              date: isoDate,
+              date: getAppointmentDateString(apt),
               time: apt.time,
             };
-            break; // Found the next appointment, stop searching
+            break;
           }
         }
 
@@ -326,8 +337,6 @@ const addPatient = async (req, res) => {
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
-
-    // Find existing patient by email (patient role only)
     const patient = await User.findOne({
       email: email.trim().toLowerCase(),
       role: "patient",
@@ -339,15 +348,11 @@ const addPatient = async (req, res) => {
           "Patient not found. The patient must have an existing account.",
       });
     }
-
-    // Verify the user is a patient
     if (patient.role !== "patient") {
       return res.status(400).json({
         message: "The email provided does not belong to a patient account.",
       });
     }
-
-    // Check if patient already has a caregiver
     const isLinked =
       (patient.caregivers &&
         patient.caregivers.some((id) => id.toString() === req.user.id)) ||
@@ -362,9 +367,6 @@ const addPatient = async (req, res) => {
     if (!patient.caregivers || !Array.isArray(patient.caregivers)) {
       patient.caregivers = [];
     }
-
-    // Link patient to caregiver (or update if already linked)
-    // Handle case where caregivers might be a plain array or MongooseArray
     if (typeof patient.caregivers.addToSet === "function") {
       patient.caregivers.addToSet(req.user.id);
     } else if (
@@ -377,8 +379,6 @@ const addPatient = async (req, res) => {
     const patientObj = patient.toObject();
     delete patientObj.password;
     patientObj.id = patientObj._id;
-
-    // Get stats for this patient
     const meds = await Medication.find({ patient: patient._id });
     const totalMeds = meds.length;
     const takenMeds = meds.filter(
@@ -411,22 +411,17 @@ const addPatient = async (req, res) => {
     let nextAppointment = null;
     const now = new Date();
     for (const appt of allAppointments) {
-      const apptDate = new Date(`${appt.date}T${appt.time || "00:00"}`);
-      if (apptDate >= now) {
-        const baseDate = new Date(appt.date);
-        const isoDate = !Number.isNaN(baseDate.getTime())
-          ? baseDate.toISOString().split("T")[0]
-          : null;
+      const apptDateTime = getAppointmentDateTime(appt);
+      if (!apptDateTime) continue;
+      if (apptDateTime >= now) {
         nextAppointment = {
           title: appt.title,
-          date: isoDate,
+          date: getAppointmentDateString(appt),
           time: appt.time,
         };
         break;
       }
     }
-
-    // Return with stats structure
     res.status(200).json({
       ...patientObj,
       medicationsTotal: totalMeds,
@@ -448,7 +443,6 @@ const deletePatient = async (req, res) => {
     const caregiverObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
       ? new mongoose.Types.ObjectId(req.user.id)
       : null;
-    // Verify the patient belongs to this caregiver before deleting
     const patient = await User.findOne({
       _id: req.params.id,
       $or: [
@@ -462,8 +456,6 @@ const deletePatient = async (req, res) => {
         .status(404)
         .json({ message: "Patient not found or not authorized" });
     }
-
-    // Unlink the patient from this caregiver (instead of deleting the account)
     const caregiversToPull = caregiverObjectId
       ? { $in: [req.user.id, caregiverObjectId] }
       : req.user.id;
@@ -472,10 +464,9 @@ const deletePatient = async (req, res) => {
       { _id: req.params.id },
       {
         $pull: { caregivers: caregiversToPull },
-        $unset: { caregiver: "" }, // Also clear legacy field if present
+        $unset: { caregiver: "" },
       },
     );
-
     res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -505,13 +496,10 @@ const getPatientById = async (req, res) => {
 
 const getAllAppointments = async (req, res) => {
   try {
-    // Find all patients for this caregiver
     const patients = await User.find({
       $or: [{ caregivers: req.user.id }, { caregiver: req.user.id }],
     }).select("_id");
     const patientIds = patients.map((p) => p._id);
-
-    // Find all appointments for these patients
     const appointments = await Appointment.find({
       patient: { $in: patientIds },
     })

@@ -1,12 +1,8 @@
-const API_URL = "/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-// Helper function to format medication data for API
 const formatMedicationForAPI = (medicationData) => {
   if (!medicationData || typeof medicationData !== "object") return {};
-
-  // Convert frontend frequency fields to single frequency string
   const formatFrequency = (data) => {
     if (data.frequencyType === "timesPerDay") {
       return `${data.frequencyValue} times per day`;
@@ -18,10 +14,6 @@ const formatMedicationForAPI = (medicationData) => {
     }
     return data.frequency;
   };
-
-  // Build a payload that is safe for PARTIAL updates.
-  // Only include keys that are actually present on the incoming object,
-  // otherwise we risk wiping required fields (name/dosage) during PUT updates.
   const out = {};
 
   const passthroughKeys = [

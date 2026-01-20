@@ -65,9 +65,6 @@ const signin = async (req, res) => {
     }
 
     if (!process.env.JWT_SECRET) {
-      console.error(
-        "Error: JWT_SECRET is not defined in environment variables.",
-      );
       return res.status(500).json({ message: "Server configuration error" });
     }
 
@@ -80,7 +77,6 @@ const signin = async (req, res) => {
     delete userObj.password;
     res.json({ token, user: userObj });
   } catch (error) {
-    console.error("Signin error:", error);
     res.status(500).json({ message: error.message });
   }
 };

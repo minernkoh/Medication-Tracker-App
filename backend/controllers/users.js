@@ -85,15 +85,11 @@ const deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    // Verify user can only delete their own account
     if (req.user.id !== userId) {
       return res
         .status(403)
         .json({ message: "Not authorized to delete this account" });
     }
-
-    // If user is a caregiver, remove caregiver reference from all patients
     if (user.role === "caregiver") {
       await User.updateMany(
         { caregivers: userId },
@@ -104,17 +100,8 @@ const deleteUser = async (req, res) => {
         { $unset: { caregiver: "" } },
       );
     }
-
-    // If user is a patient with a caregiver, no need to update caregiver
-    // (caregiver can still see historical data if needed)
-
-    // Delete all medications associated with this user
     await Medication.deleteMany({ patient: userId });
-
-    // Delete all appointments associated with this user
     await Appointment.deleteMany({ patient: userId });
-
-    // Delete the user account
     await User.findByIdAndDelete(userId);
 
     res.status(200).json({ message: "Account deleted successfully" });

@@ -13,10 +13,8 @@ router.get(
   medsCtrl.getMedications
 );
 
-// Current patient's medications
 router.get("/medications", verifyToken, medsCtrl.getMedications);
 
-// Extra endpoints used by the frontend API helper
 router.get("/medications/today", verifyToken, medsCtrl.getMedicationsDueToday);
 router.get("/medications/supply", verifyToken, medsCtrl.getMedicationSupply);
 router.get(
@@ -32,7 +30,6 @@ router.post(
   medsCtrl.createMedication
 );
 
-// Create medication for current patient
 router.post("/medications", verifyToken, medsCtrl.createMedication);
 
 router.put(

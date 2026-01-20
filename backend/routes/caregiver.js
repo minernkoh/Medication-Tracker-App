@@ -2,8 +2,6 @@ const router = require("express").Router();
 const verifyToken = require("../middleware/auth");
 const caregiverCtrl = require("../controllers/caregiver");
 
-// Middleware to ensure user is a caregiver could be added here
-
 router.get("/caregiver/patients", verifyToken, caregiverCtrl.getPatients);
 
 router.get(

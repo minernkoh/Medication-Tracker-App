@@ -38,8 +38,6 @@ const medicationSchema = new mongoose.Schema(
       enum: ["pending", "taken", "supply"],
       default: "supply",
     },
-    // Accept either coarse buckets ("morning") or a precise time ("09:30").
-    // Frontend uses both representations in different places.
     timeOfDay: {
       type: String,
       default: null,
@@ -64,8 +62,8 @@ const medicationSchema = new mongoose.Schema(
           "timesOfDay entries must be one of morning/afternoon/night or a HH:MM 24-hour time",
       },
     },
-    // Frontend supply tracking expects these fields to persist.
     taken: { type: Boolean, default: false },
+<<<<<<< Updated upstream
     takenTime: String, // e.g., "9:00 AM"
     frequency: String, // e.g., "2 times per day", "Every 4 hours"
     quantity: { type: Number }, // Current amount remaining
@@ -74,6 +72,17 @@ const medicationSchema = new mongoose.Schema(
     additionalInfo: String, // e.g., "Before Meal"
     pillColor: String, // Hex color code
     instructions: [String], // Array of instruction strings
+=======
+    takenTime: String,
+    frequency: String,
+    quantity: { type: Number },
+    recommendSupply: { type: Number },
+    initialQuantity: { type: Number },
+    refillDate: String,
+    additionalInfo: String,
+    pillColor: String,
+    instructions: [String],
+>>>>>>> Stashed changes
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },

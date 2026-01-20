@@ -1,9 +1,3 @@
-/**
- * MedicationsContext - Global medications state management
- * Provides shared medication state across Dashboard and MedicationPage
- * Handles syncing quantity changes when medications are marked as taken/pending
- */
-
 import React, {
   createContext,
   useContext,
@@ -50,7 +44,6 @@ export function MedicationsProvider({ children }) {
     loadMedications();
   }, [loadMedications]);
 
-  // Helper: Format quantity for display (e.g., "30 pills")
   const formatQuantity = useCallback((value, unit) => {
     const num = Number(value);
     if (isNaN(num)) return `0${unit ? ` ${unit}` : ""}`;
@@ -59,7 +52,6 @@ export function MedicationsProvider({ children }) {
     return `${rounded}${unit ? ` ${unit}` : ""}`;
   }, []);
 
-  // Helper: Extract numeric value from any input (preserving backward compatibility if needed)
   const parseQuantity = useCallback((val) => {
     if (typeof val === "number") return { value: val, unit: "" };
     const str = String(val || "");
@@ -69,7 +61,6 @@ export function MedicationsProvider({ children }) {
     return { value, unit };
   }, []);
 
-  // Helper: Extract dosage numeric value
   const parseDosage = useCallback((val) => {
     if (typeof val === "number") return val;
     const str = String(val || "");
@@ -83,7 +74,6 @@ export function MedicationsProvider({ children }) {
         if (isReadOnlyPatient) {
           throw new Error("Read-only access");
         }
-        // Ensure initialQuantity is set if not provided
         const dataWithInitialQuantity = {
           ...medicationData,
           initialQuantity:
@@ -143,7 +133,6 @@ export function MedicationsProvider({ children }) {
     [showError, isReadOnlyPatient],
   );
 
-  // Handle marking a medication as taken
   const markMedicationAsTaken = useCallback(
     (medicationOrId, takenTime = null, date = null, timeSlot = null) => {
       if (isReadOnlyPatient) {
@@ -195,7 +184,6 @@ export function MedicationsProvider({ children }) {
             updatedQuantity = updatedQuantityValue;
             lastQuantityDelta = shouldDecrement ? -dosageAmount : 0;
 
-            // Set initialQuantity on first time marking as taken if not already set
             if (!med.initialQuantity && shouldDecrement) {
               updatedInitialQuantity = quantityValue;
             }
@@ -229,7 +217,6 @@ export function MedicationsProvider({ children }) {
     ],
   );
 
-  // Reset medication status to "pending" - removes from taken cards and restores quantity
   const resetMedicationStatus = useCallback(
     async (medicationOrId, date = null, timeSlot = null) => {
       const targetDate = date || new Date().toISOString().split("T")[0];
@@ -246,7 +233,6 @@ export function MedicationsProvider({ children }) {
         if (isReadOnlyPatient) {
           throw new Error("Read-only access");
         }
-        // Optimistically update local state
         setMedications((prev) =>
           prev.map((med) =>
             med.id === medicationId
@@ -255,20 +241,16 @@ export function MedicationsProvider({ children }) {
                   status: "pending",
                   taken: false,
                   takenTime: null,
-                  // Local quantity update is tricky because we don't know the exact increment here easily,
-                  // but for immediate UI feedback we can try or just wait for loadMedications
                 }
               : med,
           ),
         );
 
-        // Update on server
         await api.medications.undoMarkAsTaken(
           medicationId,
           targetDate,
           resolvedTimeSlot,
         );
-        // Refresh to get accurate quantity from server
         await loadMedications(targetDate);
       } catch (error) {
         showError(error.message || "Unable to reset medication status");

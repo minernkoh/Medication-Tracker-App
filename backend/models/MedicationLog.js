@@ -13,12 +13,12 @@ const medicationLogSchema = new mongoose.Schema(
       required: true,
     },
     date: {
-      type: String, // Format: YYYY-MM-DD
+      type: String,
       required: true,
       index: true,
     },
     timeSlot: {
-      type: String, // e.g., "morning", "afternoon", "night", or specific time
+      type: String,
       required: true,
     },
     takenAt: {
@@ -28,8 +28,6 @@ const medicationLogSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// Compound index to ensure unique log per medication per date per timeSlot
 medicationLogSchema.index({ medication: 1, date: 1, timeSlot: 1 }, { unique: true });
 
 module.exports = mongoose.model("MedicationLog", medicationLogSchema);

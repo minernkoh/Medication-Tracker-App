@@ -255,7 +255,9 @@ function PatientDetailPage() {
           );
         }
 
-        return <span className="font-poppins text-sm text-text-secondary">—</span>;
+        return (
+          <span className="font-poppins text-sm text-text-secondary">—</span>
+        );
       },
     },
     {
@@ -301,6 +303,29 @@ function PatientDetailPage() {
         </span>
       ),
     },
+<<<<<<< Updated upstream
+=======
+    {
+      key: "refill",
+      label: "Refill?",
+      render: (value, row) => {
+        const status = getSupplyStatus(row);
+        const refillNeeded =
+          status && (status.label === "Low" || status.label === "Empty");
+        return (
+          <span
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${
+              refillNeeded
+                ? "bg-red-50 text-red-600"
+                : "bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {refillNeeded ? "Yes" : "No"}
+          </span>
+        );
+      },
+    },
+>>>>>>> Stashed changes
   ];
 
   // Today's adherence (Caregiver): scheduled medications only.
@@ -335,12 +360,17 @@ function PatientDetailPage() {
     const currentTime = to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
     try {
-      const timeSlot = med?.timeOfDay || med?.timesOfDay?.[0];
-      await api.medications.markAsTaken(
-        med.id,
-        currentTime,
-        todayStr,
-        timeSlot,
+      const timeSlots =
+        Array.isArray(med?.timesOfDay) && med.timesOfDay.length
+          ? med.timesOfDay
+          : med?.timeOfDay
+            ? [med.timeOfDay]
+            : [null];
+
+      await Promise.all(
+        timeSlots.map((slot) =>
+          api.medications.markAsTaken(med.id, currentTime, todayStr, slot),
+        ),
       );
       await loadPatient();
     } catch (error) {
