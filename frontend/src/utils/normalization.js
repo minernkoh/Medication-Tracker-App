@@ -21,11 +21,17 @@ export const normalizeId = (item) => {
  */
 export const normalizeDateInput = (value) => {
   if (!value) return "";
+  // If already a YYYY-MM-DD string, keep it stable (treat as a day-key).
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
   const parsed = new Date(value);
   // Keep invalid strings as-is (for display/debug), but never return non-strings
   // since downstream formatting/status logic expects a string/Date.
-  if (Number.isNaN(parsed.getTime())) return typeof value === "string" ? value : "";
-  return parsed.toISOString().split("T")[0];
+  if (Number.isNaN(parsed.getTime()))
+    return typeof value === "string" ? value : "";
+  const tzOffsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+  return new Date(parsed.getTime() - tzOffsetMs).toISOString().slice(0, 10);
 };
 
 /**
@@ -48,12 +54,24 @@ export const normalizeUser = (user) => {
  */
 export const normalizeMedication = (medication) => {
   if (!medication) return null;
-  
+
   // Ensure dosage and quantity are numbers
-  const dosage = typeof medication.dosage === 'string' ? parseFloat(medication.dosage) : (medication.dosage || 0);
-  const quantity = typeof medication.quantity === 'string' ? parseFloat(medication.quantity) : (medication.quantity || 0);
-  const recommendSupply = typeof medication.recommendSupply === 'string' ? parseFloat(medication.recommendSupply) : (medication.recommendSupply ?? null);
-  const initialQuantity = typeof medication.initialQuantity === 'string' ? parseFloat(medication.initialQuantity) : (medication.initialQuantity ?? quantity);
+  const dosage =
+    typeof medication.dosage === "string"
+      ? parseFloat(medication.dosage)
+      : medication.dosage || 0;
+  const quantity =
+    typeof medication.quantity === "string"
+      ? parseFloat(medication.quantity)
+      : medication.quantity || 0;
+  const recommendSupply =
+    typeof medication.recommendSupply === "string"
+      ? parseFloat(medication.recommendSupply)
+      : (medication.recommendSupply ?? null);
+  const initialQuantity =
+    typeof medication.initialQuantity === "string"
+      ? parseFloat(medication.initialQuantity)
+      : (medication.initialQuantity ?? quantity);
 
   const normalized = {
     ...medication,
@@ -62,7 +80,13 @@ export const normalizeMedication = (medication) => {
     quantity,
     recommendSupply,
     initialQuantity,
-    unit: medication.unit || (medication.type === 'pills' ? 'pills' : (medication.type === 'liquid' ? 'ml' : '')),
+    unit:
+      medication.unit ||
+      (medication.type === "pills"
+        ? "pills"
+        : medication.type === "liquid"
+          ? "ml"
+          : ""),
     status: medication.status || (medication.taken ? "taken" : "pending"),
     taken: Boolean(medication.taken),
   };
@@ -83,6 +107,7 @@ export const normalizeAppointment = (appointment) => {
   return {
     ...appointment,
     id: normalizeId(appointment),
-    date: normalizeDateInput(appointment.date),
+    // Prefer day-key if backend provides it.
+    date: normalizeDateInput(appointment.dateDay ?? appointment.date),
   };
 };

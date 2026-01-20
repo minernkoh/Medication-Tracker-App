@@ -15,7 +15,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { XIcon } from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
 
 const sizeClasses = {
   sm: "max-w-md",
@@ -82,21 +81,22 @@ function Modal({
         {/* Close button (pinned top-right, no header bar) */}
         {showCloseButton && !headerContent && (
           <button
+            type="button"
             onClick={onClose}
             className={`absolute top-4 right-4 p-2 rounded-lg hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 ${
-              isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35"
+              isCaregiver
+                ? "focus-visible:ring-secondary/35"
+                : "focus-visible:ring-primary/35"
             } focus-visible:ring-offset-2 z-10`}
             aria-label="Close modal"
           >
-            <XIcon size={24} weight="regular" color={colors.icon.primary} />
+            <XIcon size={24} weight="regular" className="text-icon-primary" />
           </button>
         )}
 
         {/* Header */}
         {headerContent ? (
-          <div className="flex-shrink-0 w-full">
-            {headerContent}
-          </div>
+          <div className="flex-shrink-0 w-full">{headerContent}</div>
         ) : title ? (
           <div className="p-5 pb-0 flex-shrink-0">
             <h2
@@ -118,8 +118,7 @@ function Modal({
           </div>
         )}
       </div>
-    </div>
-    ,
+    </div>,
     document.body,
   );
 }

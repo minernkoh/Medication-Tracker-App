@@ -28,6 +28,8 @@ function CalendarDateButton({
       isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35"
     } focus-visible:ring-offset-2
     relative
+    after:content-[''] after:absolute after:block after:inset-[1px] after:rounded-lg after:pointer-events-none
+    after:border-2 after:opacity-0 after:transition-opacity after:duration-200
   `;
 
   // state-based classes using tailwind - no js hover needed
@@ -36,19 +38,17 @@ function CalendarDateButton({
       ? "bg-secondary border-transparent shadow-glow-secondary-sm"
       : "bg-primary border-transparent shadow-glow-primary-sm"
     : hasFullAdherence
-    ? `bg-background-default border-success hover:border-transparent hover:ring-2 ${
-        isCaregiver ? "hover:ring-secondary" : "hover:ring-primary"
-      }`
+    ? "bg-background-default border-transparent after:opacity-100 after:border-success"
     : isToday
     ? `bg-background-default ${
         isCaregiver
-          ? "border-secondary hover:border-transparent hover:ring-2 hover:ring-secondary"
-          : "border-primary hover:border-transparent hover:ring-2 hover:ring-primary"
+          ? "border-secondary hover:border-transparent after:border-secondary hover:after:opacity-100"
+          : "border-primary hover:border-transparent after:border-primary hover:after:opacity-100"
       }`
     : `bg-background-default border-border-default ${
         isCaregiver
-          ? "hover:border-transparent hover:ring-2 hover:ring-secondary"
-          : "hover:border-transparent hover:ring-2 hover:ring-primary"
+          ? "hover:border-transparent after:border-secondary hover:after:opacity-100"
+          : "hover:border-transparent after:border-primary hover:after:opacity-100"
       }`;
 
   // text color classes based on state

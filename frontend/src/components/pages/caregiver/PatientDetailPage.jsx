@@ -2,7 +2,7 @@
  * PatientDetailPage Component - Detailed view of a single patient
  * Shows medications, appointments, and progress for a specific patient
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
@@ -11,31 +11,36 @@ import {
   CalendarCheckIcon,
   PlusIcon,
   WarningCircleIcon,
+  StethoscopeIcon,
+  MapPinIcon,
 } from "@phosphor-icons/react";
-import { getModeHexColor } from "../../../utils/modeUtils";
 import { formatDateLocale } from "../../../utils/dateUtils";
 import {
   calculateSupplyStatus,
   filterMedsByStatus,
+  formatDateNumeric,
+  formatTime,
   getNowTimeInputRounded,
+  getAppointmentDisplayStatus,
+  getAppointmentStatusPillClass,
+  getAppointmentStatusSortRank,
   normalizeMedication,
   normalizeAppointment,
   toTimeInput,
   to12HourDisplay,
 } from "../../../utils";
-import { MedicationSection } from "../../features";
+import { Calendar, MedicationSection } from "../../features";
 import {
   DataTable,
   TodayAdherencePieChart,
   SectionHeader,
   Button,
+  SelectMenu,
 } from "../../ui";
-import ActionButtons from "../../ui/ActionButtons";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import AddMedicationModal from "../../modals/AddMedicationModal";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 import ConfirmDialog from "../../ui/ConfirmDialog";
-import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 import { getMedicationColor } from "../../../utils/medicationColors";
@@ -43,6 +48,8 @@ import {
   getPatientAvatarColor,
   getPatientInitials,
 } from "../../../utils/patientUtils";
+import { getStartOfWeek, MONTHS } from "../../../utils";
+import { limitConcurrency } from "../../../utils/requestUtils";
 
 // Convert a Date (or now) to a local YYYY-MM-DD string.
 // Avoids UTC day shifts from Date#toISOString() in non-UTC timezones.
@@ -56,13 +63,19 @@ const toLocalIsoDay = (value = new Date()) => {
 function PatientDetailPage() {
   const { patientId } = useParams();
   const navigate = useNavigate();
-  const modeHexColor = getModeHexColor("Caregiver");
   const { showError } = useError();
-  const todayStr = toLocalIsoDay();
+
+  // Calendar date selection (same behavior as Dashboard)
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [visibleWeekStart, setVisibleWeekStart] = useState(() =>
+    getStartOfWeek(new Date()),
+  );
+  const selectedDateStr = toLocalIsoDay(selectedDate);
 
   const [patientData, setPatientData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [adherenceRange, setAdherenceRange] = useState("weekly"); // weekly | monthly | yearly
+  const [weekAdherence, setWeekAdherence] = useState({});
 
   // Modal state: medications
   const [editingMedication, setEditingMedication] = useState(null);
@@ -91,7 +104,7 @@ function PatientDetailPage() {
     try {
       const [data, medsForToday] = await Promise.all([
         api.caregiver.getPatient(patientId),
-        api.medications.getForPatient(patientId, todayStr),
+        api.medications.getForPatient(patientId, selectedDateStr),
       ]);
       const normalized = {
         ...data,
@@ -113,13 +126,44 @@ function PatientDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [patientId, showError, todayStr]);
+  }, [patientId, selectedDateStr, showError]);
 
   useEffect(() => {
     loadPatient();
   }, [loadPatient]);
 
   const patient = patientData;
+
+  const isSelectedDateToday = useCallback(() => {
+    const todayLocal = new Date();
+    return (
+      selectedDate.getDate() === todayLocal.getDate() &&
+      selectedDate.getMonth() === todayLocal.getMonth() &&
+      selectedDate.getFullYear() === todayLocal.getFullYear()
+    );
+  }, [selectedDate]);
+
+  const formatSelectedDateForLabel = useCallback(() => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayName = days[selectedDate.getDay()];
+    const monthName = MONTHS[selectedDate.getMonth()].slice(0, 3);
+    const date = selectedDate.getDate();
+    return `${dayName}, ${monthName} ${date}`;
+  }, [selectedDate]);
+
+  const dateLabel = isSelectedDateToday() ? null : formatSelectedDateForLabel();
+
+  const calendarAppointments = useMemo(() => {
+    const list = Array.isArray(patient?.appointments)
+      ? patient.appointments
+      : [];
+    return list.filter((appt) => {
+      const status = String(appt?.status || "").toLowerCase();
+      return (
+        status !== "completed" && status !== "cancelled" && status !== "missed"
+      );
+    });
+  }, [patient?.appointments]);
 
   const isScheduledMedication = (med) => {
     if (!med) return false;
@@ -368,6 +412,105 @@ function PatientDetailPage() {
     },
   ];
 
+  const appointmentColumns = [
+    {
+      key: "date",
+      label: "Date & Time",
+      sortValue: (row) => {
+        const dateStr = row?.date;
+        if (!dateStr) return null;
+        const timeStr = toTimeInput(row?.time || "");
+        const dt = timeStr
+          ? new Date(`${dateStr}T${timeStr}`)
+          : new Date(dateStr);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+      },
+      render: (value, row) => (
+        <div className="flex flex-col">
+          <span className="font-poppins text-sm text-text-primary">
+            {formatDateNumeric(value) || "—"}
+          </span>
+          <span className="font-poppins text-xs text-text-secondary mt-0.5">
+            {formatTime(row?.time) || "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "title",
+      label: "Appointment",
+      sortValue: (row) => row?.title || "",
+      render: (value, row) => (
+        <div className="flex flex-col">
+          <span className="font-poppins font-semibold text-sm text-text-primary">
+            {value || "—"}
+          </span>
+          {row?.notes ? (
+            <span className="font-poppins text-xs text-text-secondary mt-0.5 italic max-w-[240px] truncate">
+              {row.notes}
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "doctorName",
+      label: "Doctor",
+      sortValue: (row) => row?.doctorName || "",
+      render: (value) => (
+        <div className="flex items-center gap-2">
+          <StethoscopeIcon
+            size={16}
+            weight="regular"
+            className="text-icon-secondary"
+          />
+          <span className="font-poppins text-sm text-text-primary">
+            {value || "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "location",
+      label: "Location",
+      sortValue: (row) => row?.location || "",
+      render: (value) => (
+        <div className="flex items-center gap-2">
+          <MapPinIcon
+            size={16}
+            weight="regular"
+            className="text-icon-secondary"
+          />
+          <span className="font-poppins text-sm text-text-primary max-w-[220px] truncate">
+            {value || "—"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortValue: (row) => getAppointmentStatusSortRank(row),
+      render: (_value, row) => (
+        <SelectMenu
+          value={row?.status || "Scheduled"}
+          onChange={(next) => handleUpdateAppointmentStatus(row, next)}
+          options={[
+            { value: "Scheduled", label: "Scheduled" },
+            { value: "Completed", label: "Completed" },
+            { value: "Missed", label: "Missed" },
+            { value: "Cancelled", label: "Cancelled" },
+          ]}
+          variant="pill"
+          mode="Caregiver"
+          aria-label="Appointment status"
+          fullWidth={false}
+          buttonClassName={getAppointmentStatusPillClass(row)}
+        />
+      ),
+    },
+  ];
+
   // Today's adherence (Caregiver): scheduled medications only.
   // A medication counts as "taken" if ANY schedule slot has a log for today,
   // which is exactly what GET /patients/:id/medications?date=YYYY-MM-DD encodes
@@ -391,15 +534,19 @@ function PatientDetailPage() {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const { upcomingAppointmentsCount, nextUpcomingAppointment } = (() => {
-    const list = Array.isArray(patient?.appointments) ? patient.appointments : [];
+  const { upcomingAppointmentsCount, upcomingAppointmentsPreview } = (() => {
+    const list = Array.isArray(patient?.appointments)
+      ? patient.appointments
+      : [];
     const now = new Date();
     const parsed = list
       .map((apt) => {
         const dateStr = apt?.date;
         if (!dateStr) return null;
         const time24 = toTimeInput(apt?.time || "");
-        const dt = time24 ? new Date(`${dateStr}T${time24}`) : new Date(dateStr);
+        const dt = time24
+          ? new Date(`${dateStr}T${time24}`)
+          : new Date(dateStr);
         if (Number.isNaN(dt.getTime())) return null;
         return {
           ...apt,
@@ -414,7 +561,7 @@ function PatientDetailPage() {
     const upcoming = parsed.filter((apt) => apt._dateTime >= now);
     return {
       upcomingAppointmentsCount: upcoming.length,
-      nextUpcomingAppointment: upcoming[0] || null,
+      upcomingAppointmentsPreview: upcoming.slice(0, 3),
     };
   })();
 
@@ -422,7 +569,10 @@ function PatientDetailPage() {
     const list = Array.isArray(supplyMeds) ? supplyMeds : [];
     const flagged = list
       .map((m) => ({ med: m, status: getSupplyStatus(m) }))
-      .filter(({ status }) => status && (status.label === "Low" || status.label === "Empty"))
+      .filter(
+        ({ status }) =>
+          status && (status.label === "Low" || status.label === "Empty"),
+      )
       .sort((a, b) => (a.status?.ratio ?? 999) - (b.status?.ratio ?? 999));
     return {
       lowSupplyCount: flagged.length,
@@ -455,7 +605,8 @@ function PatientDetailPage() {
     const currentTime = to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
     try {
-      const medicationId = med?.sourceMedication?.id || med?.medicationId || med?.id;
+      const medicationId =
+        med?.sourceMedication?.id || med?.medicationId || med?.id;
       const timeSlot =
         med?.slot ||
         med?.timeOfDay ||
@@ -465,7 +616,12 @@ function PatientDetailPage() {
 
       // In Caregiver patient view, each card represents a single schedule slot.
       // Mark only that slot as taken (not all daily slots).
-      await api.medications.markAsTaken(medicationId, currentTime, todayStr, timeSlot);
+      await api.medications.markAsTaken(
+        medicationId,
+        currentTime,
+        selectedDateStr,
+        timeSlot,
+      );
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to update medication status");
@@ -490,7 +646,7 @@ function PatientDetailPage() {
         updatedMedication?.takenDate &&
         updatedMedication?.status === "taken"
       ) {
-        const todayStr = toLocalIsoDay();
+        const viewDateStr = selectedDateStr;
         const targetDate = updatedMedication.takenDate;
         const medicationId =
           updatedMedication?.sourceMedication?.id ||
@@ -501,8 +657,12 @@ function PatientDetailPage() {
           updatedMedication?.timeOfDay ||
           updatedMedication?.timesOfDay?.[0] ||
           null;
-        if (targetDate !== todayStr) {
-          await api.medications.undoMarkAsTaken(medicationId, todayStr, timeSlot);
+        if (targetDate !== viewDateStr) {
+          await api.medications.undoMarkAsTaken(
+            medicationId,
+            viewDateStr,
+            timeSlot,
+          );
         }
         await api.medications.markAsTaken(
           medicationId,
@@ -552,14 +712,19 @@ function PatientDetailPage() {
   // Undo "taken" for today (restores quantity + removes today's log entry)
   const handleUndoTakenMedication = async (med) => {
     try {
-      const medicationId = med?.sourceMedication?.id || med?.medicationId || med?.id;
+      const medicationId =
+        med?.sourceMedication?.id || med?.medicationId || med?.id;
       const timeSlot =
         med?.slot ||
         med?.timeOfDay ||
         (Array.isArray(med?.timesOfDay) && med.timesOfDay.length
           ? med.timesOfDay[0]
           : null);
-      await api.medications.undoMarkAsTaken(medicationId, todayStr, timeSlot);
+      await api.medications.undoMarkAsTaken(
+        medicationId,
+        selectedDateStr,
+        timeSlot,
+      );
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to undo medication");
@@ -598,6 +763,28 @@ function PatientDetailPage() {
   const openEditAppointmentModal = (appointment) => {
     setEditingAppointment(appointment);
     setShowAppointmentModal(true);
+  };
+
+  const handleUpdateAppointmentStatus = async (appointment, newStatus) => {
+    try {
+      if (!appointment?.id) return;
+      await api.appointments.updateForPatient(patientId, appointment.id, {
+        status: newStatus,
+      });
+      setPatientData((prev) => {
+        if (!prev) return prev;
+        const list = Array.isArray(prev.appointments) ? prev.appointments : [];
+        return {
+          ...prev,
+          appointments: list.map((apt) =>
+            apt.id === appointment.id ? { ...apt, status: newStatus } : apt,
+          ),
+        };
+      });
+    } catch (error) {
+      showError(error.message || "Unable to update appointment status");
+      loadPatient();
+    }
   };
 
   const handleSaveAppointment = async (appointmentData) => {
@@ -648,7 +835,62 @@ function PatientDetailPage() {
     handleUndoTakenMedication(med);
   };
 
-  if (isLoading) {
+  // Calendar: compute adherence across the visible week (per-medication, caregiver semantics)
+  useEffect(() => {
+    if (!patientId || !visibleWeekStart) return;
+    let isActive = true;
+
+    const buildWeekAdherence = async () => {
+      const days = Array.from({ length: 7 }, (_, idx) => {
+        const d = new Date(visibleWeekStart);
+        d.setDate(d.getDate() + idx);
+        return toLocalIsoDay(d);
+      });
+
+      const results = await limitConcurrency(
+        days.map(async (dateStr) => {
+          try {
+            const meds = await api.medications.getForPatient(
+              patientId,
+              dateStr,
+            );
+            return [dateStr, Array.isArray(meds) ? meds : []];
+          } catch {
+            return [dateStr, []];
+          }
+        }),
+        3,
+      );
+
+      const map = {};
+      for (const [dateStr, meds] of results) {
+        const list = Array.isArray(meds) ? meds : [];
+        const scheduled = list.filter(
+          (m) =>
+            Boolean(m?.timeOfDay) ||
+            (Array.isArray(m?.timesOfDay) && m.timesOfDay.length > 0),
+        );
+        const total = scheduled.length;
+        const taken = scheduled.filter(
+          (m) => String(m?.status || "").toLowerCase() === "taken",
+        ).length;
+        map[dateStr] = total > 0 ? Math.round((taken / total) * 100) : 0;
+      }
+
+      if (!isActive) return;
+      setWeekAdherence(map);
+    };
+
+    buildWeekAdherence();
+    return () => {
+      isActive = false;
+    };
+  }, [patientId, visibleWeekStart]);
+
+  // Only show the full-page loading state on the initial fetch.
+  // During background refreshes (e.g., marking a med taken/undo), keep the page mounted
+  // to avoid resetting the scroll position to the top.
+  if (isLoading && !patient) {
     return (
       <div className="bg-background-default w-full p-6 md:p-10">
         <div className="max-w-6xl mx-auto">
@@ -667,10 +909,6 @@ function PatientDetailPage() {
       </div>
     );
   }
-
-  const headerDetails = [patient.age ? `${patient.age} years old` : null]
-    .filter(Boolean)
-    .join(" • ");
 
   return (
     <div className="bg-background-default w-full p-6 md:p-10">
@@ -699,11 +937,6 @@ function PatientDetailPage() {
                 <h1 className="font-poppins font-bold text-2xl text-text-primary">
                   {patient.name}
                 </h1>
-                {headerDetails && (
-                  <p className="font-poppins text-base text-text-secondary mt-2">
-                    {headerDetails}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -752,8 +985,18 @@ function PatientDetailPage() {
           )}
         </div>
 
+        {/* Calendar (date selector) */}
+        <Calendar
+          selectedDate={selectedDate}
+          onDateChange={(date) => setSelectedDate(date)}
+          onWeekChange={setVisibleWeekStart}
+          appointments={calendarAppointments}
+          adherence={weekAdherence}
+          mode="Caregiver"
+        />
+
         {/* Stats cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 items-start">
           {/* Today's adherence */}
           <button
             type="button"
@@ -766,13 +1009,13 @@ function PatientDetailPage() {
                 <CheckCircleIcon
                   size={20}
                   weight="fill"
-                  color={colors.success.DEFAULT}
+                    className="text-success"
                   aria-hidden="true"
                 />
               </div>
               <div className="min-w-0">
                 <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
-                  Today&apos;s Adherence
+                  {dateLabel ? `Adherence · ${dateLabel}` : "Today's Adherence"}
                 </p>
               </div>
             </div>
@@ -797,7 +1040,7 @@ function PatientDetailPage() {
                 <WarningCircleIcon
                   size={20}
                   weight="fill"
-                  color={colors.danger.DEFAULT}
+                    className="text-danger"
                   aria-hidden="true"
                 />
               </div>
@@ -806,7 +1049,8 @@ function PatientDetailPage() {
                   Low Supply Alerts
                 </p>
                 <span className="sr-only">
-                  {lowSupplyCount} low supply alert{lowSupplyCount === 1 ? "" : "s"} total
+                  {lowSupplyCount} low supply alert
+                  {lowSupplyCount === 1 ? "" : "s"} total
                 </span>
               </div>
             </div>
@@ -829,7 +1073,9 @@ function PatientDetailPage() {
                             {med?.name || "Medication"}
                           </p>
                           <p className="font-poppins text-xs text-text-secondary truncate">
-                            {status?.label ? `${status.label} supply` : "Low supply"}
+                            {status?.label
+                              ? `${status.label} supply`
+                              : "Low supply"}
                           </p>
                         </div>
                         <span className="font-poppins text-xs font-semibold text-red-600 tabular-nums whitespace-nowrap">
@@ -852,20 +1098,20 @@ function PatientDetailPage() {
             type="button"
             onClick={() => scrollToSection("patient-appointments")}
             className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
-            aria-label="View next appointment"
+            aria-label="View upcoming appointments"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
                 <CalendarCheckIcon
                   size={20}
                   weight="fill"
-                  color={colors.primary.DEFAULT}
+                    className="text-primary"
                   aria-hidden="true"
                 />
               </div>
               <div className="min-w-0">
                 <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
-                  Next Appointment
+                  Upcoming Appointments
                 </p>
                 <span className="sr-only">
                   {upcomingAppointmentsCount} upcoming appointment
@@ -875,27 +1121,37 @@ function PatientDetailPage() {
             </div>
 
             <div className="pt-4 flex-1">
-              {nextUpcomingAppointment ? (
-                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
-                  <p className="font-poppins text-sm font-semibold text-text-primary truncate">
-                    {nextUpcomingAppointment?.title || "Appointment"}
-                  </p>
-                  <p className="font-poppins text-xs text-text-secondary truncate">
-                    {nextUpcomingAppointment?.doctorName || "Doctor"}{" "}
-                    {nextUpcomingAppointment?.location
-                      ? `• ${nextUpcomingAppointment.location}`
-                      : ""}
-                  </p>
-                  <p className="font-poppins text-xs font-semibold text-blue-700 mt-1">
-                    {formatDateLocale(nextUpcomingAppointment._dateStr) || "—"}
-                    {nextUpcomingAppointment._displayTime
-                      ? ` • ${nextUpcomingAppointment._displayTime}`
-                      : ""}
-                  </p>
-                </div>
+              {upcomingAppointmentsPreview.length > 0 ? (
+                <ul className="space-y-2">
+                  {upcomingAppointmentsPreview.map((appt, idx) => {
+                    const key =
+                      appt?.id ||
+                      appt?._id ||
+                      `${appt?.title || "appt"}-${appt?._dateStr || "date"}-${idx}`;
+                    const containerClassName =
+                      idx === 0
+                        ? "bg-blue-50/50 border border-blue-100 rounded-xl p-3"
+                        : "bg-background-default border border-border-subtle rounded-xl p-3";
+                    return (
+                      <li key={key} className={containerClassName}>
+                        <p className="font-poppins text-base font-semibold text-text-primary truncate">
+                          {appt?.title || "Appointment"}
+                        </p>
+                        <p className="font-poppins text-sm text-text-secondary truncate">
+                          {appt?.doctorName || "Doctor"}{" "}
+                          {appt?.location ? `• ${appt.location}` : ""}
+                        </p>
+                        <p className="font-poppins text-sm font-semibold text-blue-700 mt-1">
+                          {formatDateLocale(appt?._dateStr) || "—"}
+                          {appt?._displayTime ? ` • ${appt._displayTime}` : ""}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
-                <p className="font-poppins text-sm text-text-secondary">
-                  No appointments scheduled.
+                <p className="font-poppins text-base text-text-secondary">
+                  No upcoming appointments.
                 </p>
               )}
             </div>
@@ -904,51 +1160,28 @@ function PatientDetailPage() {
 
         {/* Medications section */}
 
-        <div
-          id="patient-medications"
-          className="bg-background-default border border-border-default rounded-2xl p-6 mb-6"
-        >
-          <SectionHeader
-            icon={
-              <PillIcon
-                size={24}
-                weight="regular"
-                color={colors.icon.primary}
-              />
-            }
-            title="Medications"
-            description="Manage this patient's medications"
-            action={
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<PlusIcon size={16} weight="bold" />}
-                onClick={() => setShowAddMedicationModal(true)}
-              >
-                Add
-              </Button>
-            }
-          />
+        <div id="patient-medications" className="scroll-mt-24" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <MedicationSection
-              variant="pending"
-              medications={pendingMeds}
-              onMarkAsTaken={handleMarkAsTaken}
-              showTimeGroups={true}
-              compact={false}
-              mode="Caregiver"
-            />
-            <MedicationSection
-              variant="taken"
-              medications={takenMeds}
-              onEdit={handleEditMedication}
-              onDelete={handleDeleteTakenMedication}
-              showTimeGroups={true}
-              compact={false}
-              mode="Caregiver"
-            />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <MedicationSection
+            variant="pending"
+            medications={pendingMeds}
+            onMarkAsTaken={handleMarkAsTaken}
+            showTimeGroups={true}
+            compact={false}
+            dateLabel={dateLabel}
+            mode="Caregiver"
+          />
+          <MedicationSection
+            variant="taken"
+            medications={takenMeds}
+            onEdit={handleEditMedication}
+            onDelete={handleDeleteTakenMedication}
+            showTimeGroups={true}
+            compact={false}
+            dateLabel={dateLabel}
+            mode="Caregiver"
+          />
         </div>
 
         {showAddMedicationModal && (
@@ -1014,15 +1247,25 @@ function PatientDetailPage() {
               <PillIcon
                 size={24}
                 weight="regular"
-                color={colors.icon.primary}
+                    className="text-icon-primary"
               />
             }
             title="Current Supply"
             description="Inventory and refills"
             action={
-              <span className="font-poppins font-semibold text-sm text-text-secondary bg-background-hover px-3 py-1 rounded-full">
-                {supplyMeds.length} in supply
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="font-poppins font-semibold text-sm text-text-secondary bg-background-hover px-3 py-1 rounded-full">
+                  {supplyMeds.length} in supply
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<PlusIcon size={16} weight="bold" />}
+                  onClick={() => setShowAddMedicationModal(true)}
+                >
+                  Add
+                </Button>
+              </div>
             }
           />
 
@@ -1051,10 +1294,11 @@ function PatientDetailPage() {
               <CalendarCheckIcon
                 size={24}
                 weight="regular"
-                color={colors.icon.primary}
+                    className="text-icon-primary"
               />
             }
-            title="Upcoming Appointments"
+            title="Appointments"
+            description="Manage this patient's appointments"
             action={
               <Button
                 variant="secondary"
@@ -1067,59 +1311,37 @@ function PatientDetailPage() {
             }
           />
 
-          {patient.appointments?.length > 0 ? (
-            <div className="space-y-3">
-              {patient.appointments.map((apt) => (
-                <div
-                  key={apt.id}
-                  className="flex items-center justify-between p-4 bg-background-subtle rounded-xl"
+          <div className="mt-4">
+            <DataTable
+              columns={appointmentColumns}
+              data={
+                Array.isArray(patient.appointments) ? patient.appointments : []
+              }
+              defaultSortConfig={{ key: "date", direction: "asc" }}
+              onEdit={(row) => openEditAppointmentModal(row)}
+              onDelete={(row) => requestDeleteAppointment(row)}
+              emptyMessage="No appointments"
+              emptySubMessage="Add an appointment to track this patient's schedule"
+              emptyAction={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<PlusIcon size={16} weight="bold" />}
+                  onClick={openAddAppointmentModal}
                 >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${modeHexColor}15` }}
-                    >
-                      <CalendarCheckIcon
-                        size={24}
-                        weight="fill"
-                        color={modeHexColor}
-                      />
-                    </div>
-                    <div>
-                      <p className="font-poppins font-semibold text-text-primary">
-                        {apt.title}
-                      </p>
-                      <p className="font-poppins text-sm text-text-secondary">
-                        {apt.doctorName} • {apt.location}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="font-poppins font-semibold text-text-primary">
-                        {formatDateLocale(apt.date)}
-                      </p>
-                      <p className="font-poppins text-sm text-text-secondary">
-                        {apt.time}
-                      </p>
-                    </div>
-                    <ActionButtons
-                      onEdit={() => openEditAppointmentModal(apt)}
-                      onDelete={() => requestDeleteAppointment(apt)}
-                      size="base"
-                      editLabel="Edit appointment"
-                      deleteLabel="Delete appointment"
-                      mode="Caregiver"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="font-poppins text-text-secondary text-center py-8">
-              No upcoming appointments
-            </p>
-          )}
+                  Add appointment
+                </Button>
+              }
+              EmptyIcon={CalendarCheckIcon}
+              mode="Caregiver"
+              rowClassName={(row) => {
+                const status = getAppointmentDisplayStatus(row);
+                const isMissed = status === "Missed";
+                const isToday = status === "Today";
+                return `${isMissed ? "opacity-60" : ""} ${isToday ? "bg-amber-50/30" : ""}`;
+              }}
+            />
+          </div>
         </div>
 
         {showAppointmentModal && (
@@ -1203,12 +1425,8 @@ function PatientDetailPage() {
                   ? Math.max(0, Math.min(100, rawValue))
                   : 0;
                 const label = adherenceLabels[index] || "";
-                const barColor =
-                  value >= 90
-                    ? colors.success.DEFAULT
-                    : value >= 70
-                      ? colors.warning.DEFAULT
-                      : colors.danger.DEFAULT;
+                const barClass =
+                  value >= 90 ? "bg-success" : value >= 70 ? "bg-warning" : "bg-danger";
 
                 return (
                   <div
@@ -1218,10 +1436,9 @@ function PatientDetailPage() {
                     {/* Fixed-height track so % bar heights render correctly */}
                     <div className="w-full flex-1 flex items-end bg-background-hover rounded-lg overflow-hidden border border-border-subtle">
                       <div
-                        className="w-full rounded-t-lg transition-all"
+                        className={`w-full rounded-t-lg transition-all ${barClass}`}
                         style={{
                           height: `${value}%`,
-                          backgroundColor: barColor,
                         }}
                         aria-label={`${label} adherence ${value}%`}
                         title={`${label} • ${value}%`}

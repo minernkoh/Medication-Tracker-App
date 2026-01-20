@@ -16,6 +16,7 @@ import {
   getStartOfWeek,
   formatDateNumeric,
   normalizeDateInput,
+  toLocalIsoDay,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
   timeToMinutes,
@@ -29,7 +30,6 @@ import {
   SelectMenu,
 } from "../../ui";
 import { Calendar } from "../../features";
-import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 import { limitConcurrency } from "../../../utils/requestUtils";
@@ -98,7 +98,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const [scheduleStatusFilter, setScheduleStatusFilter] = useState("all"); // all | pending | taken
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const { showError } = useError();
-  const todayStr = selectedDate.toISOString().split("T")[0];
+  const todayStr = toLocalIsoDay(selectedDate);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -152,7 +152,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
       const days = Array.from({ length: 7 }, (_, idx) => {
         const d = new Date(visibleWeekStart);
         d.setDate(d.getDate() + idx);
-        return d.toISOString().split("T")[0];
+        return toLocalIsoDay(d);
       });
 
       const results = await limitConcurrency(
@@ -205,8 +205,10 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const totalPatients = patients.length;
 
   // Use scheduleItems for more reactive adherence stats
-  const { expectedTotal: totalMedicationsDate, takenTotal: totalMedicationsTakenDate } =
-    useMemo(() => getPerMedicationAdherence(scheduleItems), [scheduleItems]);
+  const {
+    expectedTotal: totalMedicationsDate,
+    takenTotal: totalMedicationsTakenDate,
+  } = useMemo(() => getPerMedicationAdherence(scheduleItems), [scheduleItems]);
 
   const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
 
@@ -252,48 +254,48 @@ const CaregiverDashboard = ({ userName = "" }) => {
       if (Number.isFinite(hours) && Number.isFinite(minutes)) {
         dt.setHours(hours, minutes, 0, 0);
       }
+    } else {
+      // Treat "no time" as end-of-day so same-day appointments remain upcoming.
+      dt.setHours(23, 59, 0, 0);
     }
     return dt;
   }, []);
 
-  const { upcomingAppointments, nextUpcomingAppointment } = useMemo(() => {
+  const { upcomingAppointments, upcomingAppointmentsPreview } = useMemo(() => {
     const list = Array.isArray(appointments) ? appointments : [];
     const now = new Date();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
     const upcoming = [];
     for (const appt of list) {
       const status = String(appt?.status || "").toLowerCase();
-      if (status === "completed" || status === "cancelled" || status === "missed") {
+      if (
+        status === "completed" ||
+        status === "cancelled" ||
+        status === "missed"
+      ) {
         continue;
       }
 
       const apptDt = appointmentDateTimeLocal(appt);
       if (!apptDt || Number.isNaN(apptDt.getTime())) continue;
-
-      const apptDay = new Date(apptDt);
-      apptDay.setHours(0, 0, 0, 0);
-      if (apptDay < today) continue;
+      if (apptDt < now) continue;
 
       upcoming.push({ appt, apptDt });
     }
 
     upcoming.sort((a, b) => a.apptDt - b.apptDt);
 
-    const next = upcoming.find((x) => x.apptDt >= now) || null;
+    const preview = upcoming.slice(0, 3).map(({ appt }) => ({
+      ...appt,
+      _dateStr: normalizeDateInput(appt?.date),
+      _displayTime:
+        appt?.time && /^\d{2}:\d{2}$/.test(String(appt.time))
+          ? to12HourDisplay(String(appt.time))
+          : appt?.time || "",
+    }));
     return {
       upcomingAppointments: upcoming.length,
-      nextUpcomingAppointment: next
-        ? {
-            ...next.appt,
-            _dateStr: normalizeDateInput(next.appt?.date),
-            _displayTime:
-              next.appt?.time && /^\d{2}:\d{2}$/.test(String(next.appt.time))
-                ? to12HourDisplay(String(next.appt.time))
-                : next.appt?.time || "",
-          }
-        : null,
+      upcomingAppointmentsPreview: preview,
     };
   }, [appointments, appointmentDateTimeLocal]);
 
@@ -432,11 +434,8 @@ const CaregiverDashboard = ({ userName = "" }) => {
       (i) => String(i?.patientId) === String(patient?.id),
     );
     const hasQuickInfo = Boolean(patient?.nextMedication);
-    const {
-      expectedTotal: total,
-      takenTotal: taken,
-      percent: completionPercent,
-    } = getPerMedicationAdherence(pStats);
+    const { expectedTotal: total, percent: completionPercent } =
+      getPerMedicationAdherence(pStats);
     const adherenceTone =
       total === 0
         ? "neutral"
@@ -445,10 +444,14 @@ const CaregiverDashboard = ({ userName = "" }) => {
           : completionPercent >= 50
             ? "warning"
             : "danger";
-    const adherenceColor =
-      adherenceTone === "neutral"
-        ? colors.text.secondary
-        : colors[adherenceTone].DEFAULT;
+    const adherenceToneClasses = {
+      neutral: { bar: "bg-border-subtle", text: "text-text-secondary" },
+      success: { bar: "bg-success", text: "text-success" },
+      warning: { bar: "bg-warning", text: "text-warning" },
+      danger: { bar: "bg-danger", text: "text-danger" },
+    };
+    const adherenceClasses =
+      adherenceToneClasses[adherenceTone] || adherenceToneClasses.neutral;
 
     return (
       <Card
@@ -467,7 +470,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-poppins font-bold text-lg"
+              className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold text-lg"
               style={{ backgroundColor: patient.avatarColor }}
             >
               {patient.avatarInitials}
@@ -491,21 +494,21 @@ const CaregiverDashboard = ({ userName = "" }) => {
         {/* Progress bar */}
         <div className={hasQuickInfo ? "mb-4" : "mb-0"}>
           <span className="sr-only">
-            {total > 0 ? `Adherence ${completionPercent}%` : "No adherence data"}
+            {total > 0
+              ? `Adherence ${completionPercent}%`
+              : "No adherence data"}
           </span>
           <div className="flex items-center gap-3">
             <div className="h-2 bg-background-subtle rounded-full overflow-hidden flex-1">
               <div
-                className="h-full rounded-full transition-all duration-300"
+                className={`h-full rounded-full transition-all duration-300 ${adherenceClasses.bar}`}
                 style={{
                   width: `${completionPercent}%`,
-                  backgroundColor: adherenceColor,
                 }}
               />
             </div>
             <span
-              className="font-poppins text-xs font-semibold tabular-nums text-right min-w-[3ch]"
-              style={{ color: adherenceColor }}
+              className={`font-poppins text-xs font-semibold tabular-nums text-right min-w-[3ch] ${adherenceClasses.text}`}
             >
               {total > 0 ? `${completionPercent}%` : "—"}
             </span>
@@ -552,7 +555,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
           />
 
           {/* Stats cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             {/* Today's adherence */}
             <Card
               onClick={() => navigate("/patients")}
@@ -565,7 +568,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   <CheckCircleIcon
                     size={20}
                     weight="fill"
-                    color={colors.success.DEFAULT}
+                    className="text-success"
                   />
                 </div>
                 <div className="min-w-0">
@@ -603,7 +606,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   <WarningCircleIcon
                     size={20}
                     weight="fill"
-                    color={colors.danger.DEFAULT}
+                    className="text-danger"
                   />
                 </div>
                 <div className="min-w-0">
@@ -658,19 +661,19 @@ const CaregiverDashboard = ({ userName = "" }) => {
               onClick={() => navigate("/appointments")}
               accent="secondary"
               className="text-left h-full flex flex-col"
-              aria-label="View next appointment"
+              aria-label="View upcoming appointments"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
                   <CalendarCheckIcon
                     size={20}
                     weight="fill"
-                    color={colors.primary.DEFAULT}
+                    className="text-primary"
                   />
                 </div>
                 <div className="min-w-0">
                   <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
-                    Next Appointment
+                    Upcoming Appointments
                   </p>
                 </div>
               </div>
@@ -680,26 +683,42 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   {upcomingAppointments} upcoming appointment
                   {upcomingAppointments === 1 ? "" : "s"} total
                 </span>
-                {nextUpcomingAppointment ? (
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
-                    <p className="font-poppins text-sm font-semibold text-text-primary truncate">
-                      {nextUpcomingAppointment?.title || "Appointment"}
-                    </p>
-                    <p className="font-poppins text-xs text-text-secondary truncate">
-                      {typeof nextUpcomingAppointment?.patient === "object"
-                        ? nextUpcomingAppointment.patient?.name || "Patient"
-                        : "Patient"}
-                    </p>
-                    <p className="font-poppins text-xs font-semibold text-blue-700 mt-1">
-                      {formatDateNumeric(nextUpcomingAppointment._dateStr) || "—"}
-                      {nextUpcomingAppointment._displayTime
-                        ? ` • ${nextUpcomingAppointment._displayTime}`
-                        : ""}
-                    </p>
-                  </div>
+                {upcomingAppointmentsPreview.length > 0 ? (
+                  <ul className="space-y-2">
+                    {upcomingAppointmentsPreview.map((appt, idx) => {
+                      const key =
+                        appt?.id ||
+                        appt?._id ||
+                        `${appt?.title || "appt"}-${appt?._dateStr || "date"}-${idx}`;
+                      const patientName =
+                        typeof appt?.patient === "object"
+                          ? appt.patient?.name || "Patient"
+                          : "Patient";
+                      const containerClassName =
+                        idx === 0
+                          ? "bg-blue-50/50 border border-blue-100 rounded-xl p-3"
+                          : "bg-background-default border border-border-subtle rounded-xl p-3";
+                      return (
+                        <li key={key} className={containerClassName}>
+                          <p className="font-poppins text-base font-semibold text-text-primary truncate">
+                            {appt?.title || "Appointment"}
+                          </p>
+                          <p className="font-poppins text-sm text-text-secondary truncate">
+                            {patientName}
+                          </p>
+                          <p className="font-poppins text-sm font-semibold text-blue-700 mt-1">
+                            {formatDateNumeric(appt?._dateStr) || "—"}
+                            {appt?._displayTime
+                              ? ` • ${appt._displayTime}`
+                              : ""}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 ) : (
-                  <p className="font-poppins text-sm text-text-secondary">
-                    No appointments scheduled.
+                  <p className="font-poppins text-base text-text-secondary">
+                    No upcoming appointments.
                   </p>
                 )}
               </div>
@@ -775,7 +794,10 @@ const CaregiverDashboard = ({ userName = "" }) => {
                           value: "pending",
                           label: `Pending (${scheduleCounts.pending})`,
                         },
-                        { value: "taken", label: `Taken (${scheduleCounts.taken})` },
+                        {
+                          value: "taken",
+                          label: `Taken (${scheduleCounts.taken})`,
+                        },
                       ]}
                       mode="Caregiver"
                       aria-label="Filter schedule by status"

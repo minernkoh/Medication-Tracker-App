@@ -5,7 +5,6 @@
 
 import { useNavigate } from "react-router-dom";
 import { HouseIcon, ArrowLeftIcon } from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
 import { Button } from "../ui";
 
 function NotFoundPage() {
@@ -16,10 +15,7 @@ function NotFoundPage() {
       <div className="max-w-md w-full text-center">
         {/* 404 Illustration */}
         <div className="mb-8">
-          <div
-            className="w-32 h-32 rounded-full mx-auto flex items-center justify-center mb-6"
-            style={{ backgroundColor: colors.primary.light }}
-          >
+          <div className="w-32 h-32 rounded-full mx-auto flex items-center justify-center mb-6 bg-primary-light">
             <span className="font-poppins font-bold text-6xl text-primary">
               404
             </span>

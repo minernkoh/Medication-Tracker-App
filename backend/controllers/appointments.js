@@ -26,7 +26,11 @@ const processAppointmentDate = (reqBody) => {
 
   const applyFromDate = (d, setTime = false) => {
     if (!d || Number.isNaN(d.getTime())) return false;
-    reqBody.date = toLocalDateString(d);
+    const dateDay = toLocalDateString(d);
+    reqBody.dateDay = dateDay;
+    // Keep `date` field populated for backwards compatibility, but store it as UTC midnight
+    // so it doesn't shift when serialized.
+    reqBody.date = new Date(`${dateDay}T00:00:00.000Z`);
     if (setTime && !reqBody.time) {
       reqBody.time = toLocalTimeString(d);
     }
@@ -71,7 +75,15 @@ const getAppointments = async (req, res) => {
         return res.status(403).json({ message: access.message });
 
       const appts = await Appointment.find({ patient: req.params.patientId });
-      return res.json(appts);
+      return res.json(
+        (Array.isArray(appts) ? appts : []).map((a) => {
+          const obj = a.toObject({ virtuals: true });
+          if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+            obj.dateDay = obj.date.toISOString().slice(0, 10);
+          }
+          return obj;
+        }),
+      );
     }
 
     const user = await User.findById(req.user.id);
@@ -83,7 +95,15 @@ const getAppointments = async (req, res) => {
       return res.json([]);
     }
     const appts = await Appointment.find({ patient: req.user.id });
-    res.json(appts);
+    res.json(
+      (Array.isArray(appts) ? appts : []).map((a) => {
+        const obj = a.toObject({ virtuals: true });
+        if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+          obj.dateDay = obj.date.toISOString().slice(0, 10);
+        }
+        return obj;
+      }),
+    );
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -112,7 +132,11 @@ const getAppointmentById = async (req, res) => {
       return res.status(403).json({ message: access.message });
     }
 
-    res.json(appt);
+    const obj = appt.toObject({ virtuals: true });
+    if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+      obj.dateDay = obj.date.toISOString().slice(0, 10);
+    }
+    res.json(obj);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -148,7 +172,11 @@ const createAppointment = async (req, res) => {
       createdBy: req.user.id,
     });
 
-    res.status(201).json(appt);
+    const obj = appt.toObject({ virtuals: true });
+    if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+      obj.dateDay = obj.date.toISOString().slice(0, 10);
+    }
+    res.status(201).json(obj);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -187,7 +215,11 @@ const updateAppointment = async (req, res) => {
       req.body,
       { new: true },
     );
-    res.json(updatedAppt);
+    const obj = updatedAppt?.toObject ? updatedAppt.toObject({ virtuals: true }) : updatedAppt;
+    if (obj && !obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+      obj.dateDay = obj.date.toISOString().slice(0, 10);
+    }
+    res.json(obj);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

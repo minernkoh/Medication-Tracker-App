@@ -58,17 +58,29 @@ function TimePickerDropdown({
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const margin = 8;
     const minWidth = 320;
-    const width = Math.max(rect.width, minWidth);
-    const maxLeft = Math.max(8, window.innerWidth - width - 8);
-    const left = clamp(rect.left, 8, maxLeft);
-    const top = rect.bottom + 8;
+    const width = Math.min(
+      Math.max(rect.width, minWidth),
+      Math.max(0, window.innerWidth - margin * 2),
+    );
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const left = clamp(rect.left, margin, maxLeft);
+
+    const availableBelow = Math.max(0, window.innerHeight - rect.bottom - margin);
+    const availableAbove = Math.max(0, rect.top - margin);
+    const openUp = availableBelow < 360 && availableAbove > availableBelow;
+    const maxHeight = openUp ? availableAbove : availableBelow;
+
     setPanelStyle({
       position: "fixed",
       left,
-      top,
       width,
       zIndex: 220,
+      maxHeight,
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + margin }
+        : { top: rect.bottom + margin }),
     });
   };
 
@@ -120,7 +132,8 @@ function TimePickerDropdown({
           <div
             ref={panelRef}
             style={panelStyle}
-            className={`rounded-2xl border border-border-default bg-background-default shadow-2xl p-4 ${panelClassName}`.trim()}
+            className={`rounded-2xl border border-border-default bg-background-default shadow-2xl p-4 overflow-y-auto overscroll-contain ${panelClassName}`.trim()}
+            data-popover-panel="true"
             role="dialog"
             aria-label={ariaLabel}
           >

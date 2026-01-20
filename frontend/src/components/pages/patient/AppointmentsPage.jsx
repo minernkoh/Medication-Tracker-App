@@ -28,10 +28,15 @@ import {
   getStoredUser,
   isReadOnlyPatientUser,
 } from "../../../utils";
-import { PageHeader, GradientBackground, Button, EmptyState, SelectMenu } from "../../ui";
+import {
+  PageHeader,
+  GradientBackground,
+  Button,
+  EmptyState,
+  SelectMenu,
+} from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import ConfirmDialog from "../../ui/ConfirmDialog";
-import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 
@@ -339,7 +344,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                 <CaretLeftIcon
                   size={20}
                   weight="bold"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               </button>
 
@@ -364,7 +369,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                 <CaretRightIcon
                   size={20}
                   weight="bold"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               </button>
             </div>
@@ -506,7 +511,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                               <StethoscopeIcon
                                 size={16}
                                 weight="regular"
-                                color={colors.icon.secondary}
+                                className="text-icon-secondary"
                               />
                               <span className="font-poppins text-sm text-text-primary">
                                 {apt.doctorName}
@@ -518,7 +523,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                               <MapPinIcon
                                 size={16}
                                 weight="regular"
-                                color={colors.icon.secondary}
+                                className="text-icon-secondary"
                               />
                               <span className="font-poppins text-sm text-text-primary max-w-[180px] truncate">
                                 {apt.location}
@@ -528,7 +533,9 @@ function AppointmentsPage({ mode = "Personal" }) {
                           <td className="px-5 py-4">
                             <SelectMenu
                               value={apt.status || "Scheduled"}
-                              onChange={(next) => handleUpdateStatus(apt.id, next)}
+                              onChange={(next) =>
+                                handleUpdateStatus(apt.id, next)
+                              }
                               disabled={isReadOnlyPatient}
                               options={[
                                 { value: "Scheduled", label: "Scheduled" },
@@ -536,14 +543,18 @@ function AppointmentsPage({ mode = "Personal" }) {
                                 { value: "Missed", label: "Missed" },
                                 { value: "Cancelled", label: "Cancelled" },
                               ]}
+                              variant="pill"
                               mode={mode}
                               aria-label="Appointment status"
-                              buttonClassName={`w-auto px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold border-none cursor-pointer ${
-                                (apt.status || "Scheduled") === "Scheduled" || isToday
+                              fullWidth={false}
+                              buttonClassName={`${
+                                (apt.status || "Scheduled") === "Scheduled" ||
+                                isToday
                                   ? "bg-blue-50 text-blue-600"
                                   : (apt.status || "Scheduled") === "Completed"
                                     ? "bg-emerald-50 text-emerald-700"
-                                    : (apt.status || "Scheduled") === "Cancelled"
+                                    : (apt.status || "Scheduled") ===
+                                        "Cancelled"
                                       ? "bg-gray-100 text-gray-600"
                                       : "bg-red-50 text-red-600"
                               }`}

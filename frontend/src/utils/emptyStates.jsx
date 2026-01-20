@@ -11,7 +11,6 @@ import {
   MagnifyingGlassIcon,
   PackageIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../tailwind.config.js";
 import { Button } from "../components/ui";
 
 /**
@@ -19,7 +18,7 @@ import { Button } from "../components/ui";
  */
 export function getMedicationsEmptyState(onAddClick) {
   return {
-    icon: <PillIcon weight="regular" color={colors.icon.secondary} />,
+    icon: <PillIcon weight="regular" className="text-icon-secondary" />,
     title: "No medications yet",
     description:
       "Get started by adding your first medication. Track dosages, schedules, and never miss a dose.",
@@ -40,12 +39,7 @@ export function getMedicationsEmptyState(onAddClick) {
  */
 export function getAppointmentsEmptyState(onAddClick) {
   return {
-    icon: (
-      <CalendarCheckIcon
-        weight="regular"
-        color={colors.icon.secondary}
-      />
-    ),
+    icon: <CalendarCheckIcon weight="regular" className="text-icon-secondary" />,
     title: "No appointments scheduled",
     description:
       "Keep track of your medical appointments. Add your first appointment to get started.",
@@ -66,9 +60,7 @@ export function getAppointmentsEmptyState(onAddClick) {
  */
 export function getPatientsEmptyState(onAddClick) {
   return {
-    icon: (
-      <UsersIcon weight="regular" color={colors.icon.secondary} />
-    ),
+    icon: <UsersIcon weight="regular" className="text-icon-secondary" />,
     title: "No patients yet",
     description:
       "Start managing care for your loved ones. Add your first patient to begin tracking their medications and appointments.",
@@ -90,10 +82,7 @@ export function getPatientsEmptyState(onAddClick) {
 export function getSearchEmptyState(query) {
   return {
     icon: (
-      <MagnifyingGlassIcon
-        weight="regular"
-        color={colors.icon.secondary}
-      />
+      <MagnifyingGlassIcon weight="regular" className="text-icon-secondary" />
     ),
     title: "No results found",
     description: query
@@ -107,9 +96,7 @@ export function getSearchEmptyState(query) {
  */
 export function getSupplyEmptyState(onAddClick) {
   return {
-    icon: (
-      <PackageIcon weight="regular" color={colors.icon.secondary} />
-    ),
+    icon: <PackageIcon weight="regular" className="text-icon-secondary" />,
     title: "No medications in supply",
     description:
       "Track your medication inventory to stay on top of refills and never run out.",
@@ -130,9 +117,7 @@ export function getSupplyEmptyState(onAddClick) {
  */
 export function getGenericEmptyState(title = "No data available", description) {
   return {
-    icon: (
-      <FileXIcon weight="regular" color={colors.icon.secondary} />
-    ),
+    icon: <FileXIcon weight="regular" className="text-icon-secondary" />,
     title,
     description: description || "There's nothing here yet. Check back later.",
   };

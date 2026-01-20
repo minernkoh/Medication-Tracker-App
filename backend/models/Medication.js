@@ -38,6 +38,15 @@ const medicationSchema = new mongoose.Schema(
       enum: ["pending", "taken", "supply"],
       default: "supply",
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
     timeOfDay: {
       type: String,
       default: null,

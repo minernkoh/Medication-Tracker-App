@@ -18,7 +18,6 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Modal, FormField, Button } from "../ui";
-import { colors } from "../../../tailwind.config.js";
 import { useError } from "../../contexts/ErrorContext";
 
 function CaregiverAuthModal({
@@ -139,6 +138,7 @@ function CaregiverAuthModal({
     >
       {/* Close button */}
       <button
+        type="button"
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 z-20"
         aria-label="Close modal"
@@ -158,7 +158,7 @@ function CaregiverAuthModal({
           {React.createElement(headerIcon, {
             size: 32,
             weight: "fill",
-            color: colors.text.onPrimary,
+            className: "text-white",
           })}
         </div>
         <h2 className="font-poppins font-bold text-2xl text-white mb-1">
@@ -207,7 +207,7 @@ function CaregiverAuthModal({
             <EnvelopeIcon
               size={18}
               weight="regular"
-              color={colors.icon.secondary}
+              className="text-icon-secondary"
             />
           }
           required
@@ -222,7 +222,7 @@ function CaregiverAuthModal({
           onChange={handleInputChange}
           placeholder="Enter your password"
           error={errors.password}
-          icon={<LockIcon size={18} weight="regular" color={colors.icon.secondary} />}
+          icon={<LockIcon size={18} weight="regular" className="text-icon-secondary" />}
           rightElement={
             <button
               type="button"

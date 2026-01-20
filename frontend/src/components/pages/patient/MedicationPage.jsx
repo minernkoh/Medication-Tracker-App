@@ -18,13 +18,13 @@ import {
 import { MedicationSection } from "../../features";
 import { AddMedicationModal, EditMedicationModal } from "../../modals";
 import { useMedications } from "../../../contexts/MedicationsContext";
-import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
 import {
   timeToMinutes,
   calculateSupplyStatus,
   filterMedsByStatus,
   toTimeInput,
+  toLocalIsoDay,
 } from "../../../utils";
 
 const MedicationPage = ({ mode = "Personal" }) => {
@@ -115,7 +115,7 @@ const MedicationPage = ({ mode = "Personal" }) => {
         updatedMedication?.takenDate &&
         updatedMedication?.status === "taken"
       ) {
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = toLocalIsoDay(new Date());
         const targetDate = updatedMedication.takenDate;
         const timeSlot =
           updatedMedication.timeOfDay || updatedMedication.timesOfDay?.[0];
@@ -195,7 +195,9 @@ const MedicationPage = ({ mode = "Personal" }) => {
       (Array.isArray(b.timesOfDay) && b.timesOfDay.length > 0
         ? b.timesOfDay[0]
         : b.timeOfDay) || "";
-    return timeToMinutes(toTimeInput(aSlot)) - timeToMinutes(toTimeInput(bSlot));
+    return (
+      timeToMinutes(toTimeInput(aSlot)) - timeToMinutes(toTimeInput(bSlot))
+    );
   });
 
   // ============================================================================
@@ -299,7 +301,9 @@ const MedicationPage = ({ mode = "Personal" }) => {
           );
         }
 
-        return <span className="font-poppins text-sm text-text-secondary">—</span>;
+        return (
+          <span className="font-poppins text-sm text-text-secondary">—</span>
+        );
       },
     },
     {
@@ -441,7 +445,7 @@ const MedicationPage = ({ mode = "Personal" }) => {
                 <PillIcon
                   size={24}
                   weight="regular"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               }
               title="Current Supply"

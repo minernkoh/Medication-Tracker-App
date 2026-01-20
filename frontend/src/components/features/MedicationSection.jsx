@@ -242,32 +242,6 @@ function MedicationSection({
     return med.additionalInfo || null;
   };
 
-  const buildPendingScheduleGroups = (med) => {
-    const times24 = getScheduledTimes24(med);
-    if (!times24.length) return null;
-
-    // Group times into hour buckets (e.g. 9:15 AM + 9:30 AM under 9:00 AM),
-    // but keep and display the original times within each group.
-    const groups = new Map();
-    times24.forEach((time24) => {
-      const [hour] = String(time24).split(":");
-      const hourLabel = to12HourDisplay(`${hour}:00`);
-      const timeLabel = to12HourDisplay(time24);
-      if (!hourLabel || !timeLabel) return;
-      if (!groups.has(hourLabel)) groups.set(hourLabel, []);
-      const arr = groups.get(hourLabel);
-      // Avoid redundant display like "8:00 AM 8:00 AM" when the scheduled time
-      // matches the hour bucket label exactly.
-      if (timeLabel === hourLabel) return;
-      if (!arr.includes(timeLabel)) arr.push(timeLabel);
-    });
-
-    return Array.from(groups.entries()).map(([hourLabel, times]) => ({
-      hourLabel,
-      times,
-    }));
-  };
-
   // Handle card click - navigate to medications page unless clicking on interactive elements
   const handleCardClick = (e) => {
     // Don't navigate if clicking on buttons or interactive elements
@@ -343,7 +317,6 @@ function MedicationSection({
                         type="Due"
                         medicationName={med.name}
                         dosage={formatQuantity(med.dosage, med.unit)}
-                        scheduleGroups={buildPendingScheduleGroups(med)}
                         frequency={
                           !getScheduledTimes24(med).length ? "Unscheduled" : undefined
                         }
@@ -378,7 +351,7 @@ function MedicationSection({
                         dosage={formatQuantity(med.dosage, med.unit)}
                         additionalInfo={
                           med.takenTime
-                            ? `Taken at ${med.takenTime}`
+                            ? med.takenTime
                             : med.additionalInfo
                         }
                         pillColor={med.pillColor}
@@ -401,9 +374,6 @@ function MedicationSection({
                     type={isPending ? "Due" : "Taken"}
                     medicationName={med.name}
                     dosage={formatQuantity(med.dosage, med.unit)}
-                    scheduleGroups={
-                      isPending ? buildPendingScheduleGroups(med) : undefined
-                    }
                     frequency={
                       isPending && !getScheduledTimes24(med).length
                         ? "Unscheduled"
@@ -413,7 +383,7 @@ function MedicationSection({
                       isPending
                         ? buildPendingInfo(med)
                         : med.takenTime
-                          ? `Taken at ${med.takenTime}`
+                          ? med.takenTime
                           : med.additionalInfo
                     }
                     pillColor={med.pillColor}
@@ -457,6 +427,7 @@ function MedicationSection({
           action={
             isReadOnlyPatient ? null : variant === "pending" && onAddMedication ? (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAddMedication();

@@ -19,12 +19,14 @@ import {
   PackageIcon,
   CalendarCheckIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
 import { useError } from "../../contexts/ErrorContext";
 
 function AuthPage({ onLogin, onSignup }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [accountType, setAccountType] = useState(null); // "patient" or "caregiver"
+  // Default to patient so the Patient card is always pre-selected on entry.
+  const [accountType, setAccountType] = useState("patient"); // "patient" or "caregiver"
+  // Keep login flexible: only send role when user explicitly selects it.
+  const [hasSelectedAccountType, setHasSelectedAccountType] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -40,8 +42,7 @@ function AuthPage({ onLogin, onSignup }) {
     ? {
         subtitle: "Caregiver companion",
         headline: "Support your loved ones with confidence",
-        body:
-          "Monitor medications and appointments across patients, and spot issues early.",
+        body: "Monitor medications and appointments across patients, and spot issues early.",
         features: [
           {
             icon: UsersIcon,
@@ -51,20 +52,21 @@ function AuthPage({ onLogin, onSignup }) {
           {
             icon: HeartIcon,
             title: "Adherence tracking",
-            description: "See daily progress and identify missed doses quickly.",
+            description:
+              "See daily progress and identify missed doses quickly.",
           },
           {
             icon: CalendarCheckIcon,
             title: "Appointment coordination",
-            description: "Keep upcoming appointments organized for each patient.",
+            description:
+              "Keep upcoming appointments organized for each patient.",
           },
         ],
       }
     : {
         subtitle: "Your health companion",
         headline: "Track your health journey with confidence",
-        body:
-          "Never miss a medication or appointment again. MedTracker helps you stay on top of your health.",
+        body: "Never miss a medication or appointment again. MedTracker helps you stay on top of your health.",
         features: [
           {
             icon: PackageIcon,
@@ -138,11 +140,17 @@ function AuthPage({ onLogin, onSignup }) {
             role: accountType,
           });
         } else {
-          await onLogin?.({
+          const loginPayload = {
             email: formData.email,
             password: formData.password,
-            role: accountType,
-          });
+          };
+
+          // Backend supports signing in without selecting a role.
+          if (hasSelectedAccountType) {
+            loginPayload.role = accountType;
+          }
+
+          await onLogin?.(loginPayload);
         }
       } catch (error) {
         showError(error?.message || "Authentication failed");
@@ -160,7 +168,10 @@ function AuthPage({ onLogin, onSignup }) {
   }) => (
     <button
       type="button"
-      onClick={() => setAccountType(type)}
+      onClick={() => {
+        setAccountType(type);
+        setHasSelectedAccountType(true);
+      }}
       className={`flex-1 p-5 rounded-2xl border-2 transition-all duration-200 text-left group hover:shadow-lg min-h-[140px] flex flex-col ${
         selected
           ? type === "patient"
@@ -181,7 +192,7 @@ function AuthPage({ onLogin, onSignup }) {
         <Icon
           size={24}
           weight={selected ? "fill" : "regular"}
-          color={selected ? colors.text.onPrimary : colors.icon.primary}
+          className={selected ? "text-white" : "text-icon-primary"}
         />
       </div>
       <h3 className="font-poppins font-bold text-lg text-text-primary mb-1">
@@ -235,7 +246,7 @@ function AuthPage({ onLogin, onSignup }) {
             <FirstAidKitIcon
               size={28}
               weight="fill"
-              color={colors.text.onPrimary}
+              className="text-white"
             />
           </div>
           <div>
@@ -269,7 +280,7 @@ function AuthPage({ onLogin, onSignup }) {
                   <feature.icon
                     size={20}
                     weight="fill"
-                    color={colors.text.onPrimary}
+                    className="text-white"
                   />
                 </div>
                 <div>
@@ -303,7 +314,7 @@ function AuthPage({ onLogin, onSignup }) {
               <FirstAidKitIcon
                 size={24}
                 weight="fill"
-                color={colors.text.onPrimary}
+                className="text-white"
               />
             </div>
             <h1 className="font-poppins font-bold text-xl text-text-primary">
@@ -541,7 +552,8 @@ function AuthPage({ onLogin, onSignup }) {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setErrors({});
-                setAccountType(null);
+                setAccountType("patient");
+                setHasSelectedAccountType(false);
               }}
               className={`font-semibold ${
                 isCaregiverSelected

@@ -10,7 +10,6 @@
  */
 
 import { SpinnerGapIcon } from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
 
 const sizeConfig = {
   sm: {
@@ -49,8 +48,7 @@ function LoadingState({
         <SpinnerGapIcon
           size={config.spinner}
           weight="bold"
-          color={colors.primary.DEFAULT}
-          className="animate-spin"
+          className="animate-spin text-primary"
         />
         {message && (
           <p
@@ -73,8 +71,7 @@ function LoadingState({
         <SpinnerGapIcon
           size={config.spinner}
           weight="bold"
-          color={colors.primary.DEFAULT}
-          className="animate-spin"
+          className="animate-spin text-primary"
         />
         {message && (
           <span

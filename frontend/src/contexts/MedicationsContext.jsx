@@ -15,6 +15,7 @@ import {
   getStoredUser,
   isReadOnlyPatientUser,
   to12HourDisplay,
+  toLocalIsoDay,
 } from "../utils";
 
 const MedicationsContext = createContext(null);
@@ -174,7 +175,7 @@ export function MedicationsProvider({ children }) {
             })()
           : null);
 
-      const targetDate = date || new Date().toISOString().split("T")[0];
+      const targetDate = date || toLocalIsoDay(new Date());
       const currentTime =
         takenTime || to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
@@ -255,7 +256,7 @@ export function MedicationsProvider({ children }) {
 
   const resetMedicationStatus = useCallback(
     async (medicationOrId, date = null, timeSlot = null) => {
-      const targetDate = date || new Date().toISOString().split("T")[0];
+      const targetDate = date || toLocalIsoDay(new Date());
       const medicationId =
         typeof medicationOrId === "object" && medicationOrId
           ? medicationOrId.id

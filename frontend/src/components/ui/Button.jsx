@@ -18,6 +18,7 @@ function Button({
   variant = "primary",
   size = "base",
   fullWidth = false,
+  mode = "Personal",
   disabled = false,
   loading = false,
   icon,
@@ -28,6 +29,12 @@ function Button({
   type = "button",
   ...props
 }) {
+  const isCaregiver = mode === "Caregiver";
+
+  const outlineClasses = isCaregiver
+    ? "bg-transparent hover:bg-secondary/5 text-secondary border-2 border-secondary"
+    : "bg-transparent hover:bg-primary/5 text-primary border-2 border-primary";
+
   // variant styles using tailwind classes - no js hover state needed
   // Note: Using Tailwind classes that reference design tokens from tailwind.config.js
   const variantVisualClasses = {
@@ -39,7 +46,9 @@ function Button({
       "bg-success hover:bg-success-hover text-text-onPrimary border-transparent",
     danger:
       "bg-danger hover:bg-danger-hover text-text-onPrimary border-transparent",
-    outline: "bg-transparent hover:bg-primary/5 text-primary border-2 border-primary",
+    outline: outlineClasses,
+    modalSecondary:
+      "bg-transparent hover:bg-background-hover text-text-primary border border-border-default",
     ghost: "bg-transparent hover:bg-black/5 text-text-primary border-transparent",
   };
 
@@ -61,6 +70,7 @@ function Button({
       base: "shadow-glow-danger hover:shadow-glow-danger-hover",
     },
     outline: { sm: "shadow-none", base: "shadow-none" },
+    modalSecondary: { sm: "shadow-none", base: "shadow-none" },
     ghost: { sm: "shadow-none", base: "shadow-none" },
   };
 
@@ -69,7 +79,8 @@ function Button({
     secondary: "focus-visible:ring-secondary/35",
     success: "focus-visible:ring-success/35",
     danger: "focus-visible:ring-danger/35",
-    outline: "focus-visible:ring-primary/35",
+    outline: isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35",
+    modalSecondary: "focus-visible:ring-primary/35",
     ghost: "focus-visible:ring-primary/25",
   };
 
@@ -94,8 +105,12 @@ function Button({
   const focusRingOffset = isSmall
     ? "focus-visible:ring-offset-1"
     : "focus-visible:ring-offset-2";
-  const focusRingColor =
-    focusRingColorByVariant[variant] || focusRingColorByVariant.primary;
+  const focusRingColor = (() => {
+    if (variant === "modalSecondary") {
+      return isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35";
+    }
+    return focusRingColorByVariant[variant] || focusRingColorByVariant.primary;
+  })();
 
   const glowKey = isSmall ? "sm" : "base";
   const glowClasses =

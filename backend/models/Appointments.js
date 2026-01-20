@@ -11,6 +11,9 @@ const appointmentSchema = new mongoose.Schema(
     },
     location: { type: String },
     date: { type: Date },
+    // Canonical day key for UI + filtering (timezone-safe)
+    // Stored as YYYY-MM-DD string.
+    dateDay: { type: String, index: true },
     time: {
       type: String,
     },

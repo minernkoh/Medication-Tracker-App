@@ -8,12 +8,15 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 import { useState, useEffect } from "react";
-import { Modal, FormField, Button, TimePickerDropdown, SelectMenu } from "../ui";
-import { Calendar } from "../features";
 import {
-  getNowTimeInputRounded,
-  toTimeInput,
-} from "../../utils";
+  Modal,
+  FormField,
+  Button,
+  TimePickerDropdown,
+  SelectMenu,
+} from "../ui";
+import { Calendar } from "../features";
+import { getNowTimeInputRounded, toTimeInput, toLocalIsoDay } from "../../utils";
 
 function AddAppointmentModal({
   isOpen,
@@ -45,7 +48,7 @@ function AddAppointmentModal({
     if (!value) return "";
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toISOString().split("T")[0];
+    return toLocalIsoDay(parsed);
   };
 
   useEffect(() => {
@@ -132,9 +135,6 @@ function AddAppointmentModal({
   if (!isOpen) return null;
   const isCaregiver = mode === "Caregiver";
   const submitVariant = isCaregiver ? "secondary" : "primary";
-  const cancelOverrideClassName = isCaregiver
-    ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
-    : "";
 
   const selectedDateObj = (() => {
     // Parse YYYY-MM-DD as a local date (avoid UTC off-by-one)
@@ -153,10 +153,10 @@ function AddAppointmentModal({
       footerContent={
         <>
           <Button
-            variant="outline"
+            variant="modalSecondary"
             onClick={onClose}
             fullWidth
-            className={cancelOverrideClassName}
+            mode={mode}
           >
             Cancel
           </Button>

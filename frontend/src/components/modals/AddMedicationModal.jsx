@@ -8,11 +8,13 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 import { useState, useEffect } from "react";
-import { Modal, Button, TimePickerDropdown, SelectMenu } from "../ui";
+import { Modal, Button, TimePickerDropdown, SelectMenu, AutocompleteInput } from "../ui";
 import { PlusIcon } from "@phosphor-icons/react";
 import {
   getModeHexColor,
   getNowTimeInputRounded,
+  findMedicationPresetByName,
+  MEDICATION_PRESETS,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
   toTimeInput,
@@ -168,11 +170,70 @@ function AddMedicationModal({
 
   const isCaregiver = mode === "Caregiver";
   const submitVariant = isCaregiver ? "secondary" : "primary";
-  const cancelOverrideClassName = isCaregiver
-    ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
-    : "";
   const accentColor = getModeHexColor(mode);
   const formId = isEditing ? "edit-medication-details-form" : "add-medication-form";
+
+  // Unit is derived from Type (and presets); keep the supply/quantity unit fields non-editable.
+  const readOnlyUnitInputClass =
+    "w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-secondary bg-background-subtle focus:outline-none focus:border-border-default transition-colors cursor-not-allowed";
+
+  const inputBaseClass =
+    "w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none transition-colors";
+  const inputFocusClass = isCaregiver
+    ? "focus:border-secondary focus:ring-2 focus:ring-secondary/20"
+    : "focus:border-primary focus:ring-2 focus:ring-primary/20";
+  const inputNormalClass = `${inputBaseClass} border-border-default ${inputFocusClass}`;
+  const inputErrorClass = `${inputBaseClass} border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
+  const getInputClass = (hasError) => (hasError ? inputErrorClass : inputNormalClass);
+
+  const renderError = (name) => {
+    if (!errors?.[name]) return null;
+    return (
+      <p
+        className="mt-1.5 font-poppins font-semibold text-xs text-danger flex items-center gap-1.5 animate-fade-in"
+        role="alert"
+        aria-live="polite"
+      >
+        <span className="inline-block w-1 h-1 rounded-full bg-danger flex-shrink-0" />
+        {errors[name]}
+      </p>
+    );
+  };
+
+  const applyPreset = (preset) => {
+    if (!preset || !preset.formData) return;
+    setFormData({
+      ...DEFAULT_FORM_DATA,
+      ...preset.formData,
+      // Ensure arrays exist
+      instructions: Array.isArray(preset.formData.instructions) ? preset.formData.instructions : [],
+      timeOfDay: Array.isArray(preset.formData.timeOfDay) ? preset.formData.timeOfDay : [],
+    });
+    setErrors({});
+  };
+
+  const isFormEmptyEnoughToAutofill = (fd) => {
+    // Only autofill from name suggestions when the user hasn't meaningfully started filling other fields.
+    return (
+      !String(fd?.dosage || "").trim() &&
+      !String(fd?.quantity || "").trim() &&
+      !String(fd?.recommendSupply || "").trim() &&
+      !String(fd?.frequencyValue || "").trim() &&
+      !String(fd?.frequencyText || "").trim() &&
+      (!Array.isArray(fd?.timeOfDay) || fd.timeOfDay.length === 0) &&
+      (!Array.isArray(fd?.instructions) || fd.instructions.length === 0) &&
+      !String(fd?.additionalInfo || "").trim()
+    );
+  };
+
+  const maybeAutofillFromName = (nextName, fdSnapshot) => {
+    if (isEditing) return;
+    if (!nextName) return;
+    const preset = findMedicationPresetByName(nextName);
+    if (!preset) return;
+    if (!isFormEmptyEnoughToAutofill(fdSnapshot)) return;
+    applyPreset(preset);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -189,7 +250,15 @@ function AddMedicationModal({
         };
       });
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => {
+        const next = { ...prev, [name]: value };
+        if (name === "name") {
+          // If the user picked a known medication from the datalist (exact match),
+          // autofill the rest of the form only if they haven't started filling it.
+          maybeAutofillFromName(value, prev);
+        }
+        return next;
+      });
     }
 
     // Clear error when user starts typing
@@ -339,6 +408,23 @@ function AddMedicationModal({
 
   if (!isOpen) return null;
 
+  const presetNameOptions = (() => {
+    const seen = new Set();
+    const list = [];
+    for (const preset of MEDICATION_PRESETS || []) {
+      const names = Array.isArray(preset?.names) ? preset.names : [];
+      for (const raw of names) {
+        const n = String(raw || "").trim();
+        if (!n) continue;
+        const key = n.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        list.push({ value: n, label: n });
+      }
+    }
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  })();
+
   return (
     <Modal
       isOpen={isOpen}
@@ -349,10 +435,10 @@ function AddMedicationModal({
       footerContent={
         <>
           <Button
-            variant="outline"
+            variant="modalSecondary"
             onClick={onClose}
             fullWidth
-            className={cancelOverrideClassName}
+            mode={mode}
           >
             Cancel
           </Button>
@@ -376,39 +462,31 @@ function AddMedicationModal({
           {/* Medication Name */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Medication Name *
+              Medication Name <span className="text-danger ml-1">*</span>
             </label>
-            <input
-              type="text"
+            <AutocompleteInput
+              id="presets"
               name="name"
               value={formData.name}
               onChange={handleChange}
               placeholder="e.g., Medication name"
-              list="common-medications"
-              className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                errors.name ? "border-red-500" : "border-border-default"
-              }`}
               required
+              disabled={false}
+              mode={mode}
+              options={presetNameOptions}
+              aria-label="Medication name"
+              ariaInvalid={Boolean(errors.name)}
+              ariaDescribedBy={errors.name ? "name-error" : undefined}
+              className={getInputClass(Boolean(errors.name))}
             />
-            <datalist id="common-medications">
-              <option value="Aspirin">Aspirin</option>
-              <option value="Ibuprofen">Ibuprofen</option>
-              <option value="Acetaminophen">Acetaminophen (Tylenol)</option>
-              <option value="Metformin">Metformin</option>
-              <option value="Lisinopril">Lisinopril</option>
-            </datalist>
-            {errors.name && (
-              <p className="font-poppins text-xs text-red-500 mt-1">
-                {errors.name}
-              </p>
-            )}
+            {renderError("name")}
           </div>
 
           {/* Dosage + Unit */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Dosage *
+                Dosage <span className="text-danger ml-1">*</span>
               </label>
               <input
                 type="text"
@@ -416,16 +494,10 @@ function AddMedicationModal({
                 value={formData.dosage}
                 onChange={handleChange}
                 placeholder="e.g., 2"
-                className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                  errors.dosage ? "border-red-500" : "border-border-default"
-                }`}
+                className={getInputClass(Boolean(errors.dosage))}
                 required
               />
-              {errors.dosage && (
-                <p className="font-poppins text-xs text-red-500 mt-1">
-                  {errors.dosage}
-                </p>
-              )}
+              {renderError("dosage")}
             </div>
 
             <div className="col-span-1">
@@ -438,7 +510,7 @@ function AddMedicationModal({
                 value={formData.unit}
                 onChange={handleChange}
                 placeholder="e.g., ml"
-                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                className={getInputClass(false)}
                 aria-label="Dosage unit"
               />
             </div>
@@ -456,7 +528,7 @@ function AddMedicationModal({
               onChange={handleChange}
               placeholder="e.g., pills, tablets, liquid"
               list="medication-types"
-              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+              className={getInputClass(false)}
             />
             <datalist id="medication-types">
               <option value="pills">Pills</option>
@@ -470,7 +542,7 @@ function AddMedicationModal({
           {/* Frequency */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Frequency *
+              Frequency <span className="text-danger ml-1">*</span>
             </label>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 items-start">
@@ -487,7 +559,7 @@ function AddMedicationModal({
                     }
                     min={1}
                     max={formData.frequencyType === "timesPerDay" ? 12 : 24}
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                    className={getInputClass(Boolean(errors.frequency))}
                     required
                     aria-label={
                       formData.frequencyType === "timesPerDay"
@@ -523,22 +595,18 @@ function AddMedicationModal({
                   value={formData.frequencyText}
                   onChange={handleChange}
                   placeholder="e.g., Every 6 hours, 3 times daily, As needed"
-                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                  className={getInputClass(Boolean(errors.frequency))}
                   required
                 />
               )}
             </div>
-            {errors.frequency && (
-              <p className="font-poppins text-xs text-red-500 mt-1">
-                {errors.frequency}
-              </p>
-            )}
+            {renderError("frequency")}
           </div>
 
           {/* Schedule Times */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Schedule Time(s) *
+              Schedule Time(s) <span className="text-danger ml-1">*</span>
             </label>
             <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
               <div className="flex flex-col sm:flex-row gap-3">
@@ -552,13 +620,15 @@ function AddMedicationModal({
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   onClick={() => addScheduleTimeFromInput(scheduleTimeInput)}
                   aria-label="Add schedule time"
                   title="Add schedule time"
+                  mode={mode}
                   icon={<PlusIcon size={18} weight="bold" />}
-                  className="px-3 border border-border-default text-text-primary hover:bg-background-hover"
+                  className="px-3"
                 >
+                  Add
                 </Button>
               </div>
 
@@ -586,18 +656,14 @@ function AddMedicationModal({
                 </div>
               )}
             </div>
-            {errors.timeOfDay && (
-              <p className="font-poppins text-xs text-red-500 mt-1">
-                {errors.timeOfDay}
-              </p>
-            )}
+            {renderError("timeOfDay")}
           </div>
 
           {/* Total Quantity */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-3">
+            <div className="col-span-2">
               <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Total Quantity *
+                Total Quantity <span className="text-danger ml-1">*</span>
               </label>
               <input
                 type="text"
@@ -605,23 +671,31 @@ function AddMedicationModal({
                 value={formData.quantity}
                 onChange={handleChange}
                 placeholder="e.g., 30"
-                className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                  errors.quantity ? "border-red-500" : "border-border-default"
-                }`}
+                className={getInputClass(Boolean(errors.quantity))}
                 required
               />
-              {errors.quantity && (
-                <p className="font-poppins text-xs text-red-500 mt-1">
-                  {errors.quantity}
-                </p>
-              )}
+              {renderError("quantity")}
+            </div>
+            <div className="col-span-1">
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Unit
+              </label>
+              <input
+                type="text"
+                name="unit"
+                value={formData.unit}
+                placeholder="e.g., pills"
+                readOnly
+                className={readOnlyUnitInputClass}
+                aria-label="Quantity unit"
+              />
             </div>
           </div>
 
           {/* Recommended Supply */}
           <div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-3">
+              <div className="col-span-2">
                 <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
                   Recommended Supply
                 </label>
@@ -631,7 +705,21 @@ function AddMedicationModal({
                   value={formData.recommendSupply}
                   onChange={handleChange}
                   placeholder="e.g., 30"
-                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                  className={getInputClass(false)}
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                  Unit
+                </label>
+                <input
+                  type="text"
+                  name="unit"
+                  value={formData.unit}
+                  placeholder="e.g., pills"
+                  readOnly
+                  className={readOnlyUnitInputClass}
+                  aria-label="Supply unit"
                 />
               </div>
             </div>
@@ -686,7 +774,7 @@ function AddMedicationModal({
               onChange={handleChange}
               placeholder="e.g., Take after meal, Before sleep"
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-colors"
+              className={`${getInputClass(false)} resize-none`}
             />
           </div>
         </div>

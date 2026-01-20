@@ -1,3 +1,6 @@
+import { getAuthData, getStoredToken, setAuthData, removeAuthData } from "./utils/storageUtils";
+import { toLocalIsoDay } from "./utils/dateUtils";
+
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
@@ -56,7 +59,7 @@ const formatMedicationForAPI = (medicationData) => {
 };
 
 const getHeaders = () => {
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -94,14 +97,18 @@ export const api = {
       });
       const data = await handleResponse(response);
       if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        const existing = getAuthData() || {};
+        setAuthData({
+          ...existing,
+          token: data.token,
+          user: data.user,
+          isAuthenticated: true,
+        });
       }
       return data;
     },
     logout: () => {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      removeAuthData();
     },
   },
 
@@ -211,7 +218,7 @@ export const api = {
         headers: getHeaders(),
         body: JSON.stringify({
           status: "taken",
-          date: date || new Date().toISOString().split("T")[0],
+          date: date || toLocalIsoDay(new Date()),
           takenTime:
             takenTime ||
             new Date().toLocaleTimeString("en-US", {
@@ -229,7 +236,7 @@ export const api = {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify({
-          date: date || new Date().toISOString().split("T")[0],
+          date: date || toLocalIsoDay(new Date()),
           ...(timeSlot ? { timeSlot } : {}),
         }),
       });

@@ -21,8 +21,7 @@ import {
   CaretRightIcon,
 } from "@phosphor-icons/react";
 import { SideMenuButtons } from "../ui";
-import { colors } from "../../../tailwind.config.js";
-import { getModeHexColor, isReadOnlyPatientUser } from "../../utils/modeUtils";
+import { isReadOnlyPatientUser } from "../../utils/modeUtils";
 
 function Sidebar({
   userName,
@@ -50,7 +49,7 @@ function Sidebar({
   const displayEmail = userEmail || userData?.email || "";
   const displayMode =
     mode || (userData?.role === "caregiver" ? "Caregiver" : "Personal");
-  const modeHexColor = getModeHexColor(displayMode);
+  const isCaregiverMode = displayMode === "Caregiver";
   const isReadOnly = isReadOnlyPatientUser(userData);
   const caregiverName = (() => {
     if (!isReadOnly) return null;
@@ -92,7 +91,7 @@ function Sidebar({
         className="md:hidden absolute top-4 right-4 p-2 hover:bg-background-hover rounded-lg transition-colors"
         aria-label="Close menu"
       >
-        <XIcon size={24} weight="regular" color={colors.icon.primary} />
+        <XIcon size={24} weight="regular" className="text-icon-primary" />
       </button>
 
       {/* Top section: Logo and menu */}
@@ -103,14 +102,12 @@ function Sidebar({
             isCollapsed ? "px-2.5" : "px-4"
           } justify-between`}
         >
-          <div
-            className="flex items-center gap-[0.8125rem] flex-1 min-w-0"
-          >
+          <div className="flex items-center gap-[0.8125rem] flex-1 min-w-0">
             <div className="flex-shrink-0 w-7 h-7">
               <FirstAidKitIcon
                 size={28}
                 weight="regular"
-                color={colors.icon.primary}
+                className="text-icon-primary"
               />
             </div>
             <div
@@ -122,11 +119,11 @@ function Sidebar({
                 MedTracker
               </p>
               <span
-                className="mt-1 px-3 py-1 rounded-full text-xs font-poppins font-semibold max-w-full truncate"
-                style={{
-                  backgroundColor: `${modeHexColor}15`,
-                  color: modeHexColor,
-                }}
+                className={`mt-1 px-3 py-1 rounded-full text-xs font-poppins font-semibold max-w-full truncate shadow-sm ring-1 ring-black/10 ${
+                  isCaregiverMode
+                    ? "bg-secondary text-text-onSecondary"
+                    : "bg-primary text-text-onPrimary"
+                }`}
               >
                 {displayMode}
               </span>
@@ -174,18 +171,23 @@ function Sidebar({
             <p className="font-poppins font-normal text-xs w-full text-text-secondary">
               {displayEmail}
             </p>
-            {isReadOnly && (
+            {!isCaregiverMode && isReadOnly && (
               <div className="mt-2 flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-full">
-                <EyeIcon size={12} weight="bold" color={colors.icon.primary} />
+                <EyeIcon size={12} weight="bold" className="text-blue-700" />
                 <p className="font-poppins font-semibold text-xs text-blue-700">
                   View Only
                 </p>
               </div>
             )}
-            {isReadOnly && caregiverName && (
-              <p className="font-poppins font-normal text-[11px] w-full text-text-secondary mt-1">
-                Caregiver: {caregiverName}
-              </p>
+            {!isCaregiverMode && isReadOnly && caregiverName && (
+              <div className="mt-1 w-full">
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-full border border-secondary/20 shadow-sm font-poppins font-semibold text-[11px] w-full truncate bg-secondary-light text-secondary"
+                  title={`Caregiver: ${caregiverName}`}
+                >
+                  Caregiver: {caregiverName}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -318,10 +320,8 @@ function Sidebar({
             <UsersIcon
               size={22}
               weight="regular"
-              color={
-                displayMode === "Personal"
-                  ? colors.icon.primary
-                  : colors.secondary.DEFAULT
+              className={
+                displayMode === "Personal" ? "text-icon-primary" : "text-secondary"
               }
             />
           </div>
@@ -335,13 +335,9 @@ function Sidebar({
             </p>
             <div className="flex items-center shrink-0">
               <p
-                className="font-poppins font-semibold leading-6 text-sm transition-colors"
-                style={{
-                  color:
-                    displayMode === "Personal"
-                      ? colors.text.primary
-                      : colors.secondary.DEFAULT,
-                }}
+                className={`font-poppins font-semibold leading-6 text-sm transition-colors ${
+                  displayMode === "Personal" ? "text-text-primary" : "text-secondary"
+                }`}
               >
                 {displayMode === "Personal"
                   ? "Caregiver Mode"

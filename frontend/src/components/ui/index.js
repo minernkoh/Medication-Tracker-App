@@ -14,6 +14,7 @@ export { default as FormField } from "./FormField";
 export { default as TimePicker } from "./TimePicker";
 export { default as TimePickerDropdown } from "./TimePickerDropdown";
 export { default as SelectMenu } from "./SelectMenu";
+export { default as AutocompleteInput } from "./AutocompleteInput";
 
 // Data Display
 export { default as Card } from "./Card";

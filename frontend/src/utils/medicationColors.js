@@ -1,13 +1,24 @@
 /**
  * Medication Color Utilities
- * Dynamically generates consistent, accessible pastel colors for medication pill icons
+ * Dynamically generates consistent, accessible vibrant colors for medication pill icons
  * based on medication names - no hardcoded palette needed!
  */
 
-import { colors } from "../../tailwind.config.js";
+import { colors } from "../theme/tokens";
 
 // WCAG AA contrast threshold
 const MIN_CONTRAST = 4.5;
+
+// Tuned for softer (lighter, less saturated) swatches while keeping good contrast for the icon.
+// Backgrounds are lighter than the "vibrant" set, but more colorful than ultra-pastel neutrals.
+const BG_SATURATION_MIN = 35;
+const BG_SATURATION_MAX = 60;
+const BG_LIGHTNESS_MIN = 74;
+const BG_LIGHTNESS_MAX = 88;
+
+// Neutral fallbacks if hue-based icon can't reach contrast (yellow-ish hues can be tricky).
+const FALLBACK_ICON_DARK = "#0f172a"; // slate-900-ish
+const FALLBACK_ICON_LIGHT = "#ffffff";
 
 /**
  * Enhanced hash function to convert string to number with better distribution
@@ -292,11 +303,13 @@ export function getMedicationColor(
     hue = hashes[0] % 360;
   }
 
-  // Pastel saturation: 25-50% (soft, not too vibrant)
-  const saturation = 25 + (hashes[1] % 26); // 25-50%
+  // Vibrant saturation: 55-85% (more saturated, less gray/dull)
+  const saturationRange = BG_SATURATION_MAX - BG_SATURATION_MIN + 1;
+  const saturation = BG_SATURATION_MIN + (hashes[1] % saturationRange);
 
-  // Pastel lightness for background: 80-92% (very light)
-  let bgLightness = 80 + (hashes[2] % 13); // 80-92%
+  // Mid-light background: 60-78% (not near-white pastels)
+  const lightnessRange = BG_LIGHTNESS_MAX - BG_LIGHTNESS_MIN + 1;
+  let bgLightness = BG_LIGHTNESS_MIN + (hashes[2] % lightnessRange);
 
   // Generate initial background color
   let bgRgb = hslToRgb(hue, saturation, bgLightness);
@@ -349,10 +362,10 @@ export function getMedicationColor(
 
   let bgLum = getLuminance(bgRgb.r, bgRgb.g, bgRgb.b);
 
-  // Generate icon color - darker version of same hue for contrast
-  // Icon needs to be dark enough for good contrast on light background
-  let iconLightness = 35 + (hashes[2] % 16); // 35-50% (darker)
-  let iconSaturation = Math.min(70, saturation + 20); // More saturated for visibility
+  // Generate icon color.
+  // Prefer a darker version of the same hue (looks cohesive), but guarantee contrast.
+  let iconLightness = 18 + (hashes[2] % 15); // 18-32% (dark)
+  let iconSaturation = Math.min(95, saturation + 10); // Slightly punchier than bg
 
   let iconRgb = hslToRgb(hue, iconSaturation, iconLightness);
   let iconHex = rgbToHex(iconRgb.r, iconRgb.g, iconRgb.b);
@@ -365,8 +378,8 @@ export function getMedicationColor(
 
   while (contrast < MIN_CONTRAST && attempts < maxAttempts) {
     // Make icon darker for better contrast
-    iconLightness = Math.max(20, iconLightness - 5);
-    iconSaturation = Math.min(85, iconSaturation + 5);
+    iconLightness = Math.max(10, iconLightness - 4);
+    iconSaturation = Math.min(98, iconSaturation + 3);
 
     iconRgb = hslToRgb(hue, iconSaturation, iconLightness);
     iconHex = rgbToHex(iconRgb.r, iconRgb.g, iconRgb.b);
@@ -375,13 +388,28 @@ export function getMedicationColor(
     attempts++;
   }
 
-  // If still insufficient, use a safe fallback
+  // If still insufficient (can happen for some hues), use safe neutral fallbacks.
   if (contrast < MIN_CONTRAST) {
-    // Use a darker version of the same hue
-    iconLightness = 30;
-    iconSaturation = 60;
-    iconRgb = hslToRgb(hue, iconSaturation, iconLightness);
-    iconHex = rgbToHex(iconRgb.r, iconRgb.g, iconRgb.b);
+    const darkRgb = {
+      r: parseInt(FALLBACK_ICON_DARK.slice(1, 3), 16),
+      g: parseInt(FALLBACK_ICON_DARK.slice(3, 5), 16),
+      b: parseInt(FALLBACK_ICON_DARK.slice(5, 7), 16),
+    };
+    const lightRgb = {
+      r: 255,
+      g: 255,
+      b: 255,
+    };
+    const darkContrast = getContrastRatio(
+      bgLum,
+      getLuminance(darkRgb.r, darkRgb.g, darkRgb.b),
+    );
+    const lightContrast = getContrastRatio(
+      bgLum,
+      getLuminance(lightRgb.r, lightRgb.g, lightRgb.b),
+    );
+    iconHex =
+      darkContrast >= lightContrast ? FALLBACK_ICON_DARK : FALLBACK_ICON_LIGHT;
   }
 
   return {

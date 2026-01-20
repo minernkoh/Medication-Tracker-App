@@ -29,6 +29,7 @@ import {
   removeAuthData,
   getAuthField,
   updateAuthField,
+  getStoredToken,
 } from "./utils/storageUtils";
 import { normalizeUser } from "./utils/normalization";
 import { Modal, Button } from "./components/ui";
@@ -261,7 +262,7 @@ function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     const storedUser = getAuthField("user");
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     return Boolean(token && storedUser);
   });
 
@@ -297,8 +298,11 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       const existing = getAuthData() || {};
+      const token = existing?.token || getStoredToken();
       setAuthData({
+        ...existing,
         isAuthenticated,
+        token,
         user,
         mode,
         onboardingSkipped: existing.onboardingSkipped || false,
@@ -318,7 +322,7 @@ function App() {
         const normalizedUser = normalizeUser(currentUser || null);
         if (!normalizedUser || !isActive) return;
         setUser(normalizedUser);
-        localStorage.setItem("user", JSON.stringify(normalizedUser));
+        updateAuthField("user", normalizedUser);
       } catch (error) {
         // Keep existing session if refresh fails
       }
@@ -477,7 +481,6 @@ function App() {
   const handleLogout = () => {
     // Clear localStorage first
     api.auth.logout();
-    removeAuthData();
 
     // Reset state - use functional updates to ensure they process
     setIsAuthenticated(false);

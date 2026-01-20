@@ -1,4 +1,4 @@
-import { colors } from "../../tailwind.config.js";
+import { colors } from "../theme/tokens";
 
 // Patient color palette using design tokens
 const PATIENT_COLORS = [
@@ -21,7 +21,8 @@ export function getPatientInitials(name = "") {
 function normalizeSeedValue(value) {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
 
   // Support Mongo Extended JSON: { $oid: "..." }
   if (typeof value === "object" && typeof value.$oid === "string") {
@@ -61,7 +62,14 @@ function fnv1a32(str) {
   for (let i = 0; i < str.length; i++) {
     hash ^= str.charCodeAt(i);
     // hash *= 16777619 (with 32-bit overflow)
-    hash = (hash + (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24)) >>> 0;
+    hash =
+      (hash +
+        (hash << 1) +
+        (hash << 4) +
+        (hash << 7) +
+        (hash << 8) +
+        (hash << 24)) >>>
+      0;
   }
   return hash >>> 0;
 }
@@ -71,15 +79,25 @@ function fnv1a32(str) {
  * Uses stable identifiers first (id/_id/email/name). Falls back to `fallbackIndex`.
  */
 export function getPatientAvatarColor(patient, fallbackIndex) {
-  const rawSeed =
-    patient?.id ??
-    patient?._id ??
-    patient?.email ??
-    patient?.name ??
-    fallbackIndex ??
-    "";
-  const seed = normalizeSeedValue(rawSeed);
+  const candidates = [
+    patient?.id,
+    patient?._id,
+    patient?.email,
+    patient?.name,
+    fallbackIndex,
+  ];
+
+  const normalizedCandidates = candidates
+    .map(normalizeSeedValue)
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    // Guard against common "bad" seeds that collapse to a single color.
+    .filter((s) => s !== "undefined" && s !== "[object Object]");
+
+  const seed =
+    normalizedCandidates[0] ??
+    // Last-resort: still return *a* color even if the object is malformed.
+    String(fallbackIndex ?? "");
   const hash = fnv1a32(seed);
   return PATIENT_COLORS[hash % PATIENT_COLORS.length] || colors.patient.blue;
 }
-

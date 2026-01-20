@@ -14,18 +14,26 @@ import {
   MapPinIcon,
   StethoscopeIcon,
   FunnelIcon,
+  MagnifyingGlassIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import {
   formatDateNumeric,
   formatTime,
   getModeHexColor,
   textStyles,
+  toLocalIsoDay,
 } from "../../../utils";
-import { Button, GradientBackground, PageHeader, SelectMenu } from "../../ui";
+import {
+  Button,
+  FormField,
+  GradientBackground,
+  PageHeader,
+  SelectMenu,
+} from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
-import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 import {
@@ -38,10 +46,11 @@ const normalizeDateInput = (value) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime()))
     return typeof value === "string" ? value : "";
-  return parsed.toISOString().split("T")[0];
+  return toLocalIsoDay(parsed);
 };
 
-const getPatientColor = (patient, index) => getPatientAvatarColor(patient, index);
+const getPatientColor = (patient, index) =>
+  getPatientAvatarColor(patient, index);
 
 const normalizeAppointment = (appointment, index) => {
   if (!appointment) return null;
@@ -76,6 +85,7 @@ function CaregiverAppointmentsPage() {
   const primaryColor = getModeHexColor("Caregiver");
   const [filterPatient, setFilterPatient] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [appointments, setAppointments] = useState([]);
   const [caregiverPatients, setCaregiverPatients] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -174,7 +184,26 @@ function CaregiverAppointmentsPage() {
       filterPatient === "all" || apt.patientName === filterPatient;
     const matchesStatus =
       filterStatus === "all" || getStatus(apt) === filterStatus;
-    return matchesPatient && matchesStatus;
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return matchesPatient && matchesStatus;
+
+    const searchable = [
+      apt.patientName,
+      apt.title,
+      apt.doctor,
+      apt.location,
+      apt.notes,
+      apt.date,
+      apt.time,
+      getStatus(apt),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch = searchable.includes(q);
+    return matchesPatient && matchesStatus && matchesSearch;
   });
 
   // Sort appointments
@@ -383,7 +412,7 @@ function CaregiverAppointmentsPage() {
                 <CaretLeftIcon
                   size={20}
                   weight="bold"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               </button>
 
@@ -408,7 +437,7 @@ function CaregiverAppointmentsPage() {
                 <CaretRightIcon
                   size={20}
                   weight="bold"
-                  color={colors.icon.primary}
+                  className="text-icon-primary"
                 />
               </button>
             </div>
@@ -442,43 +471,91 @@ function CaregiverAppointmentsPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-2">
-              <FunnelIcon
-                size={18}
-                weight="regular"
-                color={colors.text.secondary}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 w-full">
+            {/* Search (left) */}
+            <div className="w-full sm:max-w-sm">
+              <FormField
+                name="appointmentsSearch"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search appointments…"
+                icon={
+                  <MagnifyingGlassIcon
+                    size={18}
+                    weight="regular"
+                    className="text-icon-secondary"
+                  />
+                }
+                rightElement={
+                  searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="p-1.5 rounded-lg hover:bg-background-hover transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <XIcon
+                        size={16}
+                        weight="bold"
+                        className="text-icon-secondary"
+                      />
+                    </button>
+                  ) : null
+                }
+                inputMode="search"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="Search appointments"
               />
-              <span className="font-poppins text-sm text-text-secondary">
-                Filter:
-              </span>
             </div>
-            <SelectMenu
-              value={filterPatient}
-              onChange={(next) => setFilterPatient(next)}
-              options={[
-                { value: "all", label: "All Patients" },
-                ...patients.map((patient) => ({ value: patient, label: patient })),
-              ]}
-              mode="Caregiver"
-              aria-label="Filter by patient"
-              buttonClassName="px-4 py-2 rounded-xl text-sm"
-            />
-            <SelectMenu
-              value={filterStatus}
-              onChange={(next) => setFilterStatus(next)}
-              options={[
-                { value: "all", label: "All Status" },
-                { value: "Today", label: "Today" },
-                { value: "Scheduled", label: "Scheduled" },
-                { value: "Completed", label: "Completed" },
-                { value: "Missed", label: "Missed" },
-                { value: "Cancelled", label: "Cancelled" },
-              ]}
-              mode="Caregiver"
-              aria-label="Filter by status"
-              buttonClassName="px-4 py-2 rounded-xl text-sm"
-            />
+
+            {/* Filters (right, hug contents) */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:ml-auto">
+              <div className="flex items-center gap-2 shrink-0 sm:justify-end">
+                <FunnelIcon
+                  size={18}
+                  weight="regular"
+                  className="text-icon-secondary"
+                />
+                <span className="font-poppins text-sm text-text-secondary whitespace-nowrap">
+                  Filter:
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                <SelectMenu
+                  value={filterPatient}
+                  onChange={(next) => setFilterPatient(next)}
+                  options={[
+                    { value: "all", label: "All Patients" },
+                    ...patients.map((patient) => ({
+                      value: patient,
+                      label: patient,
+                    })),
+                  ]}
+                  mode="Caregiver"
+                  aria-label="Filter by patient"
+                  fullWidth={false}
+                  buttonClassName="px-4 py-2 rounded-xl text-sm whitespace-nowrap"
+                />
+                <SelectMenu
+                  value={filterStatus}
+                  onChange={(next) => setFilterStatus(next)}
+                  options={[
+                    { value: "all", label: "All Status" },
+                    { value: "Today", label: "Today" },
+                    { value: "Scheduled", label: "Scheduled" },
+                    { value: "Completed", label: "Completed" },
+                    { value: "Missed", label: "Missed" },
+                    { value: "Cancelled", label: "Cancelled" },
+                  ]}
+                  mode="Caregiver"
+                  aria-label="Filter by status"
+                  fullWidth={false}
+                  buttonClassName="px-4 py-2 rounded-xl text-sm whitespace-nowrap"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Appointments table */}
@@ -582,7 +659,7 @@ function CaregiverAppointmentsPage() {
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-poppins font-bold"
+                              className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold"
                               style={{ backgroundColor: apt.patientColor }}
                             >
                               {apt.patientInitials}
@@ -599,7 +676,9 @@ function CaregiverAppointmentsPage() {
                             >
                               {formatDateNumeric(apt.date)}
                             </span>
-                            <span className={`${textStyles.caption.small} mt-0.5`}>
+                            <span
+                              className={`${textStyles.caption.small} mt-0.5`}
+                            >
                               {formatTime(apt.time)}
                             </span>
                           </div>
@@ -625,7 +704,7 @@ function CaregiverAppointmentsPage() {
                             <StethoscopeIcon
                               size={16}
                               weight="regular"
-                              color={colors.icon.secondary}
+                              className="text-icon-secondary"
                             />
                             {apt.doctor}
                           </p>
@@ -635,7 +714,7 @@ function CaregiverAppointmentsPage() {
                             <MapPinIcon
                               size={16}
                               weight="regular"
-                              color={colors.icon.secondary}
+                              className="text-icon-secondary"
                             />
                             <span className="font-poppins text-sm text-text-primary max-w-[180px] truncate">
                               {apt.location}
@@ -656,9 +735,10 @@ function CaregiverAppointmentsPage() {
                                 { value: "Missed", label: "Missed" },
                                 { value: "Cancelled", label: "Cancelled" },
                               ]}
+                              variant="pill"
                               mode="Caregiver"
                               aria-label="Appointment status"
-                              buttonClassName={`w-full px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold border-none cursor-pointer ${statusClasses}`}
+                              buttonClassName={`w-full ${statusClasses}`}
                             />
                           </div>
                         </td>
@@ -686,8 +766,7 @@ function CaregiverAppointmentsPage() {
                 <CalendarCheckIcon
                   size={48}
                   weight="regular"
-                  color={colors.text.secondary}
-                  className="mx-auto mb-3 opacity-50"
+                  className="mx-auto mb-3 opacity-50 text-text-secondary"
                 />
                 <p className="font-poppins text-text-secondary">
                   No appointments found matching your filters

@@ -3,13 +3,20 @@
  * Supports editing all medication fields including: name, dosage, quantity, timeOfDay, additionalInfo
  */
 import { useState, useEffect } from "react";
-import { Modal, FormField, Button, TimePickerDropdown, SelectMenu } from "../ui";
+import {
+  Modal,
+  FormField,
+  Button,
+  TimePickerDropdown,
+  SelectMenu,
+} from "../ui";
 import {
   getModeHexColor,
   getNowTimeInputRounded,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
   toTimeInput,
+  toLocalIsoDay,
 } from "../../utils";
 
 const getUnitForType = (rawType) => {
@@ -115,7 +122,7 @@ function EditMedicationModal({
       );
       const takenForInput = toTimeInput(medication.takenTime || "");
       const defaultTakenDate =
-        medication.takenDate || new Date().toISOString().split("T")[0];
+        medication.takenDate || toLocalIsoDay(new Date());
       setFormData({
         name: medication.name || "",
         dosage: medication.dosage || "",
@@ -158,7 +165,9 @@ function EditMedicationModal({
     }
     // Frequency validation uses a shared `frequency` key
     if (
-      (name === "frequencyType" || name === "frequencyValue" || name === "frequencyText") &&
+      (name === "frequencyType" ||
+        name === "frequencyValue" ||
+        name === "frequencyText") &&
       errors.frequency
     ) {
       setErrors((prev) => ({ ...prev, frequency: "" }));
@@ -212,12 +221,16 @@ function EditMedicationModal({
       return Object.keys(newErrors).length === 0;
     }
 
-    if (!String(formData.name || "").trim()) newErrors.name = "Field is required";
-    if (!String(formData.dosage || "").trim()) newErrors.dosage = "Field is required";
-    if (!String(formData.quantity || "").trim()) newErrors.quantity = "Field is required";
+    if (!String(formData.name || "").trim())
+      newErrors.name = "Field is required";
+    if (!String(formData.dosage || "").trim())
+      newErrors.dosage = "Field is required";
+    if (!String(formData.quantity || "").trim())
+      newErrors.quantity = "Field is required";
 
     if (formData.frequencyType === "custom") {
-      if (!String(formData.frequencyText || "").trim()) newErrors.frequency = "Field is required";
+      if (!String(formData.frequencyText || "").trim())
+        newErrors.frequency = "Field is required";
     } else if (!formData.frequencyValue) {
       newErrors.frequency = "Field is required";
     }
@@ -240,8 +253,10 @@ function EditMedicationModal({
         takenDate:
           formData.takenDate ||
           medication?.takenDate ||
-          new Date().toISOString().split("T")[0],
-        takenTime: formData.takenTime ? to12HourDisplay(formData.takenTime) : "",
+          toLocalIsoDay(new Date()),
+        takenTime: formData.takenTime
+          ? to12HourDisplay(formData.takenTime)
+          : "",
       });
       return;
     }
@@ -291,9 +306,6 @@ function EditMedicationModal({
 
   const isCaregiver = mode === "Caregiver";
   const submitVariant = isCaregiver ? "secondary" : "primary";
-  const cancelOverrideClassName = isCaregiver
-    ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
-    : "";
   const accentColor = getModeHexColor(mode);
   const isTakenMode = medication?.status === "taken" || medication?.taken;
 
@@ -307,10 +319,10 @@ function EditMedicationModal({
       footerContent={
         <>
           <Button
-            variant="outline"
+            variant="modalSecondary"
             onClick={onClose}
             fullWidth
-            className={cancelOverrideClassName}
+            mode={mode}
           >
             Cancel
           </Button>
@@ -432,7 +444,9 @@ function EditMedicationModal({
 
                     <div
                       className={
-                        formData.frequencyType === "custom" ? "sm:col-span-2" : ""
+                        formData.frequencyType === "custom"
+                          ? "sm:col-span-2"
+                          : ""
                       }
                     >
                       <SelectMenu
@@ -489,7 +503,9 @@ function EditMedicationModal({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => addScheduleTimeFromInput(scheduleTimeInput)}
+                      onClick={() =>
+                        addScheduleTimeFromInput(scheduleTimeInput)
+                      }
                     >
                       Add
                     </Button>
@@ -529,7 +545,7 @@ function EditMedicationModal({
 
               <div className="grid grid-cols-3 gap-3">
                 <FormField
-                  className="col-span-3"
+                  className="col-span-2"
                   label="Total Quantity"
                   name="quantity"
                   type="text"
@@ -539,12 +555,22 @@ function EditMedicationModal({
                   error={errors.quantity}
                   required
                 />
+                <FormField
+                  className="col-span-1"
+                  label="Unit"
+                  name="unit"
+                  type="text"
+                  value={formData.unit}
+                  onChange={handleChange}
+                  placeholder="e.g., pills"
+                  inputProps={{ "aria-label": "Quantity unit" }}
+                />
               </div>
 
               <div>
                 <div className="grid grid-cols-3 gap-3">
                   <FormField
-                    className="col-span-3"
+                    className="col-span-2"
                     label="Recommended Supply"
                     name="recommendSupply"
                     type="text"
@@ -552,9 +578,20 @@ function EditMedicationModal({
                     onChange={handleChange}
                     placeholder="e.g., 30"
                   />
+                  <FormField
+                    className="col-span-1"
+                    label="Unit"
+                    name="unit"
+                    type="text"
+                    value={formData.unit}
+                    onChange={handleChange}
+                    placeholder="e.g., pills"
+                    inputProps={{ "aria-label": "Supply unit" }}
+                  />
                 </div>
                 <p className="font-poppins text-xs text-text-secondary mt-2">
-                  Used to calculate supply status and refill reminders. If left blank, we’ll use Total Quantity.
+                  Used to calculate supply status and refill reminders. If left
+                  blank, we’ll use Total Quantity.
                 </p>
               </div>
 

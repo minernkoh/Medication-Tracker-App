@@ -4,7 +4,16 @@ const MedicationLog = require("../models/MedicationLog");
 const Appointment = require("../models/Appointments");
 const mongoose = require("mongoose");
 
-const getTodayStr = () => new Date().toISOString().split("T")[0];
+// Convert a Date (or now) to a local YYYY-MM-DD string (server timezone).
+// Avoids UTC day shifts from Date#toISOString() when the date originates from local time.
+const toLocalIsoDay = (value = new Date()) => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  const tzOffsetMs = d.getTimezoneOffset() * 60 * 1000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+};
+
+const getTodayStr = () => toLocalIsoDay(new Date());
 const LOW_SUPPLY_THRESHOLD = 10;
 
 const getAppointmentDateTime = (appointment) => {
@@ -25,12 +34,15 @@ const getAppointmentDateTime = (appointment) => {
 };
 
 const getAppointmentDateString = (appointment) => {
+  if (appointment?.dateDay && typeof appointment.dateDay === "string") {
+    return appointment.dateDay;
+  }
   const baseDate =
     appointment?.date instanceof Date
       ? appointment.date
       : new Date(appointment?.date);
   if (!baseDate || Number.isNaN(baseDate.getTime())) return null;
-  return baseDate.toISOString().split("T")[0];
+  return toLocalIsoDay(baseDate);
 };
 
 const isScheduledMedication = (med) => {
@@ -60,6 +72,16 @@ const addUtcDays = (date, days) => {
 
 const addUtcMonthsStart = (date, months) => {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+};
+
+// Start of week (Monday) for a given UTC date (00:00Z assumed).
+const getStartOfWeekUtcMonday = (utcDate) => {
+  if (!(utcDate instanceof Date) || Number.isNaN(utcDate.getTime())) return null;
+  const d = new Date(utcDate.getTime());
+  const day = d.getUTCDay(); // 0 (Sun) .. 6 (Sat)
+  const offset = (day + 6) % 7; // 0 for Mon, 6 for Sun
+  d.setUTCDate(d.getUTCDate() - offset);
+  return d;
 };
 
 const countDaysInclusive = (startIsoDay, endIsoDay) => {
@@ -132,8 +154,8 @@ const buildAdherenceSummary = async (patientId, medications) => {
 
   const getTakenForDate = (isoDay) => takenCountByDate.get(isoDay) || 0;
 
-  // Weekly (last 7 days)
-  const weeklyStartUtc = addUtcDays(todayUtc, -6);
+  // Weekly (calendar week, Monday -> Sunday)
+  const weeklyStartUtc = getStartOfWeekUtcMonday(todayUtc) || addUtcDays(todayUtc, -6);
   const weeklyLabels = [];
   const weeklyValues = [];
   let weeklyTakenTotal = 0;
@@ -142,8 +164,8 @@ const buildAdherenceSummary = async (patientId, medications) => {
     const iso = toIsoDayUtc(d);
     const taken = getTakenForDate(iso);
     weeklyTakenTotal += taken;
-    const dayLetterByUtc = ["S", "M", "T", "W", "T", "F", "S"][d.getUTCDay()];
-    weeklyLabels.push(dayLetterByUtc);
+    // Always display Monday-first labels.
+    weeklyLabels.push(["M", "T", "W", "T", "F", "S", "S"][i]);
     weeklyValues.push(roundPercent(taken, expectedPerDay));
   }
   const weeklyExpectedTotal = expectedPerDay * 7;
@@ -253,7 +275,10 @@ const getPatients = async (req, res) => {
       patients.map(async (patient) => {
         const patientObj = patient.toObject();
         patientObj.id = patient._id;
-        const meds = await Medication.find({ patient: patient._id });
+        const meds = await Medication.find({
+          patient: patient._id,
+          isArchived: { $ne: true },
+        });
         const totalMeds = meds.length;
         const takenMeds = meds.filter(
           (m) => m.status === "taken" || m.taken,
@@ -336,11 +361,37 @@ const addPatient = async (req, res) => {
   try {
     const { email } = req.body;
 
+    if (req.user?.role !== "caregiver") {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
+
+    const requestedEmail = String(email).trim().toLowerCase();
+    if (!requestedEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const caregiver = await User.findById(req.user.id).select("email role");
+    if (!caregiver) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    if (caregiver.role !== "caregiver") {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const caregiverEmail = String(caregiver.email || "").trim().toLowerCase();
+    if (caregiverEmail && caregiverEmail === requestedEmail) {
+      return res.status(400).json({
+        message:
+          "You cannot add a patient with the same email as your caregiver account.",
+      });
+    }
+
     const patient = await User.findOne({
-      email: email.trim().toLowerCase(),
+      email: requestedEmail,
       role: "patient",
     });
 
@@ -381,7 +432,10 @@ const addPatient = async (req, res) => {
     const patientObj = patient.toObject();
     delete patientObj.password;
     patientObj.id = patientObj._id;
-    const meds = await Medication.find({ patient: patient._id });
+    const meds = await Medication.find({
+      patient: patient._id,
+      isArchived: { $ne: true },
+    });
     const totalMeds = meds.length;
     const takenMeds = meds.filter(
       (m) => m.status === "taken" || m.taken,
@@ -493,7 +547,10 @@ const getPatientById = async (req, res) => {
     }).select("-password");
     if (!patient) return res.status(404).json({ message: "Patient not found" });
 
-    const medications = await Medication.find({ patient: patient._id });
+    const medications = await Medication.find({
+      patient: patient._id,
+      isArchived: { $ne: true },
+    });
     const appointments = await Appointment.find({ patient: patient._id }).sort({
       date: 1,
     });
@@ -540,6 +597,7 @@ const getSchedule = async (req, res) => {
 
     const medications = await Medication.find({
       patient: { $in: patientIds },
+      isArchived: { $ne: true },
       $or: [
         { timeOfDay: { $ne: null } },
         { timesOfDay: { $exists: true, $ne: [] } },

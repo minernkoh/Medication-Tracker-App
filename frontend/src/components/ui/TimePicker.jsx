@@ -58,7 +58,9 @@ function WheelColumn({
     const clamped = Math.max(0, Math.min(items.length - 1, idx));
     isProgrammaticScrollRef.current = true;
     el.scrollTo({
-      top: SPACER_HEIGHT + clamped * ITEM_HEIGHT,
+      // With top/bottom spacer padding, the scroll position that centers item `idx`
+      // is simply idx * ITEM_HEIGHT.
+      top: clamped * ITEM_HEIGHT,
       behavior,
     });
     window.setTimeout(() => {
@@ -82,8 +84,7 @@ function WheelColumn({
     scrollStopTimerRef.current = window.setTimeout(() => {
       const el = scrollerRef.current;
       if (!el) return;
-      const raw = el.scrollTop - SPACER_HEIGHT;
-      const idx = Math.round(raw / ITEM_HEIGHT);
+      const idx = Math.round(el.scrollTop / ITEM_HEIGHT);
       const clamped = Math.max(0, Math.min(items.length - 1, idx));
       const next = items[clamped];
       if (next !== selected) onSelect?.(next);
@@ -102,7 +103,7 @@ function WheelColumn({
         <div
           ref={scrollerRef}
           onScroll={handleScroll}
-          className={`h-full overflow-y-scroll overscroll-contain pr-4 -mr-4 ${
+          className={`h-full overflow-y-auto overscroll-contain no-scrollbar ${
             disabled ? "cursor-not-allowed" : ""
           }`}
           style={{
@@ -128,7 +129,7 @@ function WheelColumn({
                     ? `font-semibold ${accentTextClass} bg-background-hover`
                     : "text-text-secondary hover:bg-background-hover"
                 }`}
-                style={{ scrollSnapAlign: "center" }}
+                style={{ scrollSnapAlign: "center", scrollSnapStop: "always" }}
               >
                 {format(item)}
               </button>
@@ -159,6 +160,10 @@ function TimePicker({
 }) {
   const isCaregiver = mode === "Caregiver";
   const accentTextClass = isCaregiver ? "text-secondary" : "text-primary";
+  const modeBgClass = isCaregiver ? "bg-secondary" : "bg-primary";
+  const modeRingClass = isCaregiver
+    ? "focus-visible:ring-secondary/35"
+    : "focus-visible:ring-primary/35";
 
   const step = Math.max(1, Math.min(60, Number(minuteStep) || 1));
   const fallback = getNowTimeInputRounded(step, "nearest");
@@ -213,38 +218,58 @@ function TimePicker({
       className={`w-full ${disabled ? "opacity-70" : ""} ${className}`.trim()}
       aria-label={ariaLabel}
     >
-      <div className="flex gap-2">
-        <WheelColumn
-          items={hours}
-          selected={use12Hour ? hour12 : hour24}
-          onSelect={setHour}
-          format={(h) => pad2(h)}
-          disabled={disabled}
-          ariaLabel="Hours"
-          accentTextClass={accentTextClass}
-        />
-        <WheelColumn
-          items={minutes}
-          selected={minute}
-          onSelect={setMinute}
-          format={(m) => pad2(m)}
-          disabled={disabled}
-          ariaLabel="Minutes"
-          accentTextClass={accentTextClass}
-        />
+      <div className="flex flex-col gap-2">
         {use12Hour && (
-          <div className="w-[5.5rem]">
-            <WheelColumn
-              items={["AM", "PM"]}
-              selected={period}
-              onSelect={setPeriod}
-              format={(p) => p}
-              disabled={disabled}
-              ariaLabel="AM/PM"
-              accentTextClass={accentTextClass}
-            />
+          <div
+            role="radiogroup"
+            aria-label="AM/PM"
+            className="inline-flex w-full p-1 rounded-xl border border-border-default bg-background-subtle"
+          >
+            {["AM", "PM"].map((p) => {
+              const isSelected = p === period;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  disabled={disabled}
+                  onClick={() => setPeriod(p)}
+                  className={`flex-1 py-2 rounded-lg font-poppins text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${modeRingClass} ${
+                    disabled ? "cursor-not-allowed" : ""
+                  } ${
+                    isSelected
+                      ? `${modeBgClass} text-text-onPrimary shadow-sm`
+                      : "text-text-secondary hover:bg-background-hover"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
           </div>
         )}
+
+        <div className="flex gap-2">
+          <WheelColumn
+            items={hours}
+            selected={use12Hour ? hour12 : hour24}
+            onSelect={setHour}
+            format={(h) => pad2(h)}
+            disabled={disabled}
+            ariaLabel="Hours"
+            accentTextClass={accentTextClass}
+          />
+          <WheelColumn
+            items={minutes}
+            selected={minute}
+            onSelect={setMinute}
+            format={(m) => pad2(m)}
+            disabled={disabled}
+            ariaLabel="Minutes"
+            accentTextClass={accentTextClass}
+          />
+        </div>
       </div>
     </div>
   );

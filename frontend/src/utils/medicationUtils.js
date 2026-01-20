@@ -85,10 +85,14 @@ export const filterMedsByStatus = (meds, targetStatus) => {
   if (targetStatus === "supply") {
     return meds.filter(
       (m) =>
+        !m?.isArchived &&
         m.quantity !== undefined &&
         m.quantity !== null &&
         String(m.quantity).trim() !== "",
     );
+  }
+  if (targetStatus === "pending") {
+    return meds.filter((m) => !m?.isArchived && m.status === targetStatus);
   }
   return meds.filter((m) => m.status === targetStatus);
 };

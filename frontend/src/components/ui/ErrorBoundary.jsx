@@ -11,8 +11,11 @@
  */
 
 import React from "react";
-import { WarningCircleIcon, ArrowClockwiseIcon, HouseIcon } from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
+import {
+  WarningCircleIcon,
+  ArrowClockwiseIcon,
+  HouseIcon,
+} from "@phosphor-icons/react";
 import Button from "./Button.jsx";
 
 class ErrorBoundary extends React.Component {
@@ -61,14 +64,11 @@ class ErrorBoundary extends React.Component {
           <div className="max-w-md w-full bg-background-default rounded-2xl shadow-elevated border border-border-default p-8 text-center">
             {/* Error Icon */}
             <div className="flex justify-center mb-6">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: colors.danger.light }}
-              >
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-danger-light">
                 <WarningCircleIcon
                   size={32}
                   weight="fill"
-                  color={colors.danger.DEFAULT}
+                  className="text-danger"
                 />
               </div>
             </div>
@@ -92,8 +92,7 @@ class ErrorBoundary extends React.Component {
                   <div className="mb-2">
                     <strong>Error:</strong>
                     <pre
-                      className="mt-1 whitespace-pre-wrap break-words"
-                      style={{ color: colors.danger.DEFAULT }}
+                      className="mt-1 whitespace-pre-wrap break-words text-danger"
                     >
                       {this.state.error.toString()}
                     </pre>

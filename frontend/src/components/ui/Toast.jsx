@@ -17,32 +17,31 @@ import {
   InfoIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
 
 const iconConfig = {
   success: {
     icon: CheckCircleIcon,
-    color: colors.success.DEFAULT,
     bgColor: "bg-success-light",
     borderColor: "border-success",
+    iconClassName: "text-success",
   },
   error: {
     icon: XCircleIcon,
-    color: colors.danger.DEFAULT,
     bgColor: "bg-danger-light",
     borderColor: "border-danger",
+    iconClassName: "text-danger",
   },
   warning: {
     icon: WarningCircleIcon,
-    color: colors.warning.DEFAULT,
     bgColor: "bg-warning-light",
     borderColor: "border-warning",
+    iconClassName: "text-warning",
   },
   info: {
     icon: InfoIcon,
-    color: colors.primary.DEFAULT,
     bgColor: "bg-primary-light",
     borderColor: "border-primary",
+    iconClassName: "text-primary",
   },
 };
 
@@ -77,8 +76,7 @@ function Toast({
       <Icon
         size={24}
         weight="fill"
-        color={config.color}
-        className="flex-shrink-0"
+        className={`flex-shrink-0 ${config.iconClassName}`}
       />
       <div className="flex-1 min-w-0">
         <p className="font-poppins font-semibold text-sm text-text-primary leading-snug text-left">
@@ -87,11 +85,12 @@ function Toast({
       </div>
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
           className="flex-shrink-0 p-1 rounded-lg hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           aria-label="Close notification"
         >
-          <XIcon size={18} weight="regular" color={colors.icon.secondary} />
+          <XIcon size={18} weight="regular" className="text-icon-secondary" />
         </button>
       )}
     </div>

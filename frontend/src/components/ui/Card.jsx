@@ -70,7 +70,7 @@ function Card({
         {...props}
       >
         {header && <div className="mb-4">{header}</div>}
-        <div>{children}</div>
+        {children}
         {footer && <div className="mt-4">{footer}</div>}
       </button>
     );
@@ -80,7 +80,7 @@ function Card({
   return (
     <div className={baseClasses} {...props}>
       {header && <div className="mb-4">{header}</div>}
-      <div>{children}</div>
+      {children}
       {footer && <div className="mt-4">{footer}</div>}
     </div>
   );

@@ -3,6 +3,17 @@
  * Centralized date formatting and calendar helper functions
  */
 
+/**
+ * Convert a Date (or parsable value) to a **local** YYYY-MM-DD string.
+ * Use this for API query params and day-based UI logic to avoid UTC day shifts.
+ */
+export const toLocalIsoDay = (value = new Date()) => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  const tzOffsetMs = d.getTimezoneOffset() * 60 * 1000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+};
+
 // Month names (full)
 export const MONTHS = [
   "January",
@@ -70,12 +81,12 @@ export const formatDateNumeric = (dateStr) => {
  */
 export const formatTime = (timeStr) => {
   if (!timeStr || typeof timeStr !== "string") return "";
-  
+
   const [hours, minutes] = timeStr.split(":");
   const hourNum = parseInt(hours, 10);
-  
+
   if (isNaN(hourNum) || isNaN(parseInt(minutes, 10))) return timeStr;
-  
+
   const ampm = hourNum >= 12 ? "PM" : "AM";
   const displayHour = hourNum % 12 || 12;
   return `${displayHour}:${minutes} ${ampm}`;

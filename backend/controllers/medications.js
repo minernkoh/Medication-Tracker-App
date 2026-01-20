@@ -3,6 +3,9 @@ const MedicationLog = require("../models/MedicationLog");
 const User = require("../models/User");
 const { checkPatientAccess } = require("../utils/auth");
 
+const escapeRegex = (value = "") =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const toLocalIsoDay = (value = new Date()) => {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
@@ -22,13 +25,25 @@ const getMedications = async (req, res) => {
         return res.status(403).json({ message: access.message });
     }
 
-    const query = { patient: patientId };
     const date = req.query.date || (req.query.status ? toLocalIsoDay() : null);
-
-    const meds = await Medication.find(query);
+    const isArchivedFilter = { isArchived: { $ne: true } };
 
     if (date) {
       const logs = await MedicationLog.find({ patient: patientId, date });
+      const loggedMedicationIds = Array.from(
+        new Set((Array.isArray(logs) ? logs : []).map((l) => String(l.medication))),
+      );
+
+      const meds = await Medication.find({
+        patient: patientId,
+        $or: [
+          isArchivedFilter,
+          ...(loggedMedicationIds.length > 0
+            ? [{ _id: { $in: loggedMedicationIds } }]
+            : []),
+        ],
+      });
+
       const logsByMedication = new Map();
       const takenAtByMedication = new Map();
 
@@ -92,6 +107,14 @@ const getMedications = async (req, res) => {
           medObj.taken = false;
         }
 
+        // Archived meds should only surface in history contexts; if they have any
+        // intake logs for the requested date, treat them as "taken" so they show
+        // under taken/history views (and not as pending/supply).
+        if (medObj.isArchived && takenSlots.size > 0) {
+          medObj.status = "taken";
+          medObj.taken = true;
+        }
+
         return medObj;
       });
       if (req.query.status) {
@@ -102,6 +125,7 @@ const getMedications = async (req, res) => {
       return res.json(medsWithStatus);
     }
 
+    const meds = await Medication.find({ patient: patientId, ...isArchivedFilter });
     res.json(meds);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -120,7 +144,10 @@ const getMedicationsDueToday = async (req, res) => {
 const getMedicationSupply = async (req, res) => {
   try {
     const patientId = req.params.patientId || req.user.id;
-    const meds = await Medication.find({ patient: patientId });
+    const meds = await Medication.find({
+      patient: patientId,
+      isArchived: { $ne: true },
+    });
     const supply = meds.filter(
       (m) =>
         m.quantity !== undefined &&
@@ -283,13 +310,47 @@ const createMedication = async (req, res) => {
       return res.status(403).json({ message: access.message });
     }
 
+    // If an archived medication with the same (name + dosage + unit) exists,
+    // revive it instead of creating a new record. This preserves historical logs.
+    const name = String(req.body?.name || "").trim();
+    const dosage = Number(req.body?.dosage);
+    const unit = String(req.body?.unit || "").trim() || "pills";
+
+    let revived = null;
+    if (name && Number.isFinite(dosage) && unit) {
+      revived = await Medication.findOne({
+        patient: patientId,
+        isArchived: true,
+        dosage,
+        unit,
+        name: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") },
+      }).sort({ archivedAt: -1, updatedAt: -1 });
+    }
+
+    if (revived) {
+      const updated = await Medication.findByIdAndUpdate(
+        revived._id,
+        {
+          ...req.body,
+          patient: patientId,
+          createdBy: req.user.id,
+          isArchived: false,
+          archivedAt: null,
+        },
+        { new: true, runValidators: true },
+      );
+      return res.status(201).json(updated);
+    }
+
     const med = await Medication.create({
       ...req.body,
       patient: patientId,
       createdBy: req.user.id,
+      isArchived: false,
+      archivedAt: null,
     });
 
-    res.status(201).json(med);
+    return res.status(201).json(med);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -334,7 +395,11 @@ const deleteMedication = async (req, res) => {
       return res.status(403).json({ message: access.message });
     }
 
-    await Medication.findByIdAndDelete(req.params.id);
+    await Medication.findByIdAndUpdate(
+      req.params.id,
+      { $set: { isArchived: true, archivedAt: new Date() } },
+      { new: false },
+    );
     res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ message: err.message });

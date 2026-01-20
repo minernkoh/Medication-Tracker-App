@@ -17,7 +17,6 @@ import {
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { formatDateNumeric } from "../../../utils";
-import { colors } from "../../../../tailwind.config.js";
 import {
   getPatientAvatarColor,
   getPatientInitials,
@@ -26,6 +25,7 @@ import ConfirmDialog from "../../ui/ConfirmDialog";
 import { Button, DataTable } from "../../ui";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
+import { getStoredUser } from "../../../utils/storageUtils";
 
 const normalizePatient = (patient, index) => {
   if (!patient) return null;
@@ -41,6 +41,9 @@ const normalizePatient = (patient, index) => {
 function PatientsPage() {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
+  const caregiverEmail = String(getStoredUser()?.email || "")
+    .trim()
+    .toLowerCase();
   const [patients, setPatients] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -59,8 +62,8 @@ function PatientsPage() {
       const data = await api.caregiver.getPatients();
       setPatients(
         (Array.isArray(data) ? data : []).map((patient, index) =>
-          normalizePatient(patient, index)
-        )
+          normalizePatient(patient, index),
+        ),
       );
     } catch (error) {
       showError(error.message || "Unable to load patients");
@@ -81,6 +84,14 @@ function PatientsPage() {
   const handleAddPatient = async (e) => {
     e.preventDefault();
     if (!newPatient.email.trim()) return;
+
+    const requestedEmail = newPatient.email.trim().toLowerCase();
+    if (caregiverEmail && requestedEmail === caregiverEmail) {
+      showError(
+        "You cannot add a patient with the same email as your caregiver account.",
+      );
+      return;
+    }
 
     try {
       const created = await api.caregiver.addPatient({
@@ -111,7 +122,7 @@ function PatientsPage() {
       try {
         await api.caregiver.deletePatient(deleteConfirm.patientId);
         setPatients((prev) =>
-          prev.filter((p) => p.id !== deleteConfirm.patientId)
+          prev.filter((p) => p.id !== deleteConfirm.patientId),
         );
       } catch (error) {
         showError(error.message || "Unable to remove patient");
@@ -128,7 +139,7 @@ function PatientsPage() {
       render: (value, row) => (
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-poppins font-bold"
+            className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold"
             style={{ backgroundColor: row.avatarColor }}
           >
             {row.avatarInitials}
@@ -155,10 +166,8 @@ function PatientsPage() {
       sortValue: (row) => Number(row?.medicationsTotal ?? 0),
       render: (value) => (
         <div className="flex items-center gap-2">
-          <PillIcon size={16} weight="regular" color={colors.text.secondary} />
-          <span className="font-poppins text-text-primary">
-            {value}
-          </span>
+          <PillIcon size={16} weight="regular" className="text-icon-secondary" />
+          <span className="font-poppins text-text-primary">{value}</span>
         </div>
       ),
     },
@@ -170,24 +179,18 @@ function PatientsPage() {
         <div className="flex items-center gap-2">
           <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full"
+              className={`h-full rounded-full ${
+                value >= 90 ? "bg-success" : value >= 70 ? "bg-warning" : "bg-danger"
+              }`}
               style={{
                 width: `${value}%`,
-                backgroundColor:
-                  value >= 90
-                    ? colors.success.DEFAULT
-                    : value >= 70
-                      ? colors.warning.DEFAULT
-                      : colors.danger.DEFAULT,
               }}
             />
           </div>
           <span
-            className="font-poppins text-sm font-medium"
-            style={{
-              color:
-                value >= 90 ? "#10b981" : value >= 70 ? "#f59e0b" : "#ef4444",
-            }}
+            className={`font-poppins text-sm font-medium ${
+              value >= 90 ? "text-success" : value >= 70 ? "text-warning" : "text-danger"
+            }`}
           >
             {value}%
           </span>
@@ -205,7 +208,7 @@ function PatientsPage() {
             <CalendarCheckIcon
               size={16}
               weight="regular"
-              color={colors.text.secondary}
+              className="text-icon-secondary"
             />
             <span className="font-poppins text-sm text-text-primary">
               {formatDateNumeric(value.date) || value.date}
@@ -265,8 +268,7 @@ function PatientsPage() {
             <MagnifyingGlassIcon
               size={20}
               weight="regular"
-              color={colors.text.secondary}
-              className="absolute left-4 top-1/2 -translate-y-1/2"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-icon-secondary"
             />
             <input
               type="text"
@@ -284,7 +286,6 @@ function PatientsPage() {
           data={filteredPatients}
           defaultSortConfig={{ key: "name", direction: "asc" }}
           onRowClick={(row) => navigate(`/patients/${row.id}`)}
-          onEdit={(row) => navigate(`/patients/${row.id}`)}
           onDelete={(row) => handleDeletePatient(row.id)}
           emptyMessage={
             searchQuery
@@ -316,7 +317,7 @@ function PatientsPage() {
             >
               <div className="flex items-center gap-3 mb-3">
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-poppins font-bold"
+                  className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold"
                   style={{ backgroundColor: patient.avatarColor }}
                 >
                   {patient.avatarInitials}
@@ -340,15 +341,13 @@ function PatientsPage() {
                   {patient.medicationsTotal}
                 </span>
                 <span
-                  className="font-poppins font-semibold"
-                  style={{
-                    color:
-                      patient.adherenceRate >= 90
-                        ? colors.success.DEFAULT
-                        : patient.adherenceRate >= 70
-                        ? colors.warning.DEFAULT
-                        : colors.danger.DEFAULT,
-                  }}
+                  className={`font-poppins font-semibold ${
+                    patient.adherenceRate >= 90
+                      ? "text-success"
+                      : patient.adherenceRate >= 70
+                        ? "text-warning"
+                        : "text-danger"
+                  }`}
                 >
                   {patient.adherenceRate}% today
                 </span>
@@ -375,19 +374,24 @@ function PatientsPage() {
                 onClick={() => setShowAddModal(false)}
                 className="absolute top-4 right-4 w-10 h-10 rounded-xl flex items-center justify-center hover:bg-black/5 transition-colors"
               >
-                <XIcon size={20} weight="bold" color={colors.text.primary} />
+                <XIcon size={20} weight="bold" className="text-icon-primary" />
               </button>
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
                 style={{ backgroundColor: modeHexColor }}
               >
-                <UsersIcon size={24} weight="fill" color={colors.text.onPrimary} />
+                <UsersIcon
+                  size={24}
+                  weight="fill"
+                  className="text-white"
+                />
               </div>
               <h2 className="font-poppins font-bold text-xl text-text-primary">
                 Add New Patient
               </h2>
               <p className="font-poppins text-sm text-text-secondary mt-1">
-                Add a patient by their email address. They must have an existing account.
+                Add a patient by their email address. They must have an existing
+                account.
               </p>
             </div>
 
@@ -401,8 +405,7 @@ function PatientsPage() {
                   <EnvelopeIcon
                     size={20}
                     weight="regular"
-                    color={colors.text.secondary}
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-icon-secondary"
                   />
                   <input
                     type="email"

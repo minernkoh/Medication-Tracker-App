@@ -6,11 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  PlusIcon,
-  PillIcon,
-  ArrowRightIcon,
-} from "@phosphor-icons/react";
+import { PlusIcon, PillIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import {
   TodayAdherencePieChart,
@@ -30,6 +26,7 @@ import {
   formatDate,
   formatTime,
   timeToMinutes,
+  toLocalIsoDay,
   textStyles,
   normalizeAppointment,
   filterMedsByStatus,
@@ -87,7 +84,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
 
   // Refresh medications when selected date changes
   useEffect(() => {
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dateStr = toLocalIsoDay(selectedDate);
     refreshMedications(dateStr);
   }, [selectedDate, refreshMedications]);
 
@@ -100,7 +97,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
       const days = Array.from({ length: 7 }, (_, idx) => {
         const d = new Date(visibleWeekStart);
         d.setDate(d.getDate() + idx);
-        return d.toISOString().split("T")[0];
+        return toLocalIsoDay(d);
       });
 
       const results = await limitConcurrency(
@@ -295,7 +292,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
           />
 
           {/* Stats and appointment cards */}
-          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 items-stretch w-full">
+          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 items-start w-full">
             {/* Today's Progress card */}
             <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl h-full self-stretch">
               <div className="flex items-center justify-between w-full">
@@ -401,7 +398,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                           markMedicationAsTaken(
                             med,
                             null,
-                            selectedDate.toISOString().split("T")[0],
+                            toLocalIsoDay(selectedDate),
                           )
                   }
                   showTimeGroups={true}
@@ -428,7 +425,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                       : (med) =>
                           resetMedicationStatus(
                             med,
-                            selectedDate.toISOString().split("T")[0],
+                            toLocalIsoDay(selectedDate),
                           )
                   }
                   showTimeGroups={true}
@@ -452,25 +449,31 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                     />
                   }
                   title="No medications yet"
-                  description="Start tracking your health journey by adding your first medication. You'll be able to track doses, manage supply, and stay on schedule."
+                  description={
+                    isReadOnlyPatient
+                      ? "No medications have been added for you yet. Once your caregiver adds them, they’ll show up here."
+                      : "Start tracking your health journey by adding your first medication. You'll be able to track doses, manage supply, and stay on schedule."
+                  }
                   size="lg"
                   action={
-                    <div className="flex flex-col items-center gap-4">
-                      <button
-                        onClick={handleAddMedication}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm bg-primary`}
-                      >
-                        <PlusIcon size={20} weight="bold" />
-                        <span>Add Your First Medication</span>
-                        <ArrowRightIcon size={20} weight="bold" />
-                      </button>
-                      <p
-                        className={`${textStyles.caption.small} max-w-md text-text-secondary`}
-                      >
-                        💡 <strong>Tip:</strong> You can also access the full
-                        medication management page from the sidebar menu
-                      </p>
-                    </div>
+                    isReadOnlyPatient ? null : (
+                      <div className="flex flex-col items-center gap-4">
+                        <button
+                          onClick={handleAddMedication}
+                          className={`flex items-center gap-2 px-6 py-3 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm bg-primary`}
+                        >
+                          <PlusIcon size={20} weight="bold" />
+                          <span>Add Your First Medication</span>
+                          <ArrowRightIcon size={20} weight="bold" />
+                        </button>
+                        <p
+                          className={`${textStyles.caption.small} max-w-md text-text-secondary`}
+                        >
+                          💡 <strong>Tip:</strong> You can also access the full
+                          medication management page from the sidebar menu
+                        </p>
+                      </div>
+                    )
                   }
                 />
               </div>

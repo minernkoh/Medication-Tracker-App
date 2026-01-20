@@ -86,6 +86,7 @@ export {
   MONTHS,
   MONTHS_SHORT,
   DAYS,
+  toLocalIsoDay,
   formatDate,
   formatDateNumeric,
   formatTime,
@@ -104,6 +105,7 @@ export {
   getAuthField,
   updateAuthField,
   getStoredUser,
+  getStoredToken,
   isReadOnlyPatientUser,
 } from "./storageUtils";
 
@@ -134,6 +136,14 @@ export {
   normalizeMedication,
   normalizeAppointment,
 } from "./normalization";
+
+// Appointment utilities
+export {
+  getAppointmentLocalDateTime,
+  getAppointmentDisplayStatus,
+  getAppointmentStatusPillClass,
+  getAppointmentStatusSortRank,
+} from "./appointmentUtils";
 // Request utilities (concurrency, debounce, cache, etc.)
 export {
   limitConcurrency,
@@ -142,3 +152,9 @@ export {
   createRequestCache,
   createAbortable,
 } from "./requestUtils";
+
+// Medication presets (autofill templates)
+export {
+  MEDICATION_PRESETS,
+  findMedicationPresetByName,
+} from "./medicationPresets";

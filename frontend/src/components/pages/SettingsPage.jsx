@@ -300,12 +300,13 @@ function SettingsPage({
         footerContent={
           <>
             <Button
-              variant="outline"
+              variant="modalSecondary"
               onClick={() => {
                 setShowChangePassword(false);
                 resetPasswordForm();
               }}
               fullWidth
+              mode={mode}
             >
               Cancel
             </Button>
@@ -314,6 +315,7 @@ function SettingsPage({
               onClick={submitChangePassword}
               fullWidth
               disabled={isChangingPassword}
+              mode={mode}
             >
               {isChangingPassword ? "Updating…" : "Update Password"}
             </Button>

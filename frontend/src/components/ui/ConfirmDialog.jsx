@@ -14,13 +14,9 @@
  */
 
 import React from "react";
-import {
-  WarningIcon,
-  TrashIcon,
-  InfoIcon,
-} from "@phosphor-icons/react";
-import { colors } from "../../../tailwind.config.js";
+import { WarningIcon, TrashIcon, InfoIcon } from "@phosphor-icons/react";
 import Modal from "./Modal";
+import Button from "./Button";
 
 function ConfirmDialog({
   isOpen,
@@ -34,29 +30,27 @@ function ConfirmDialog({
   icon,
   mode = "Personal",
 }) {
-  const isCaregiver = mode === "Caregiver";
-
   const variantConfig = {
     danger: {
       icon: TrashIcon,
-      iconColor: colors.danger.DEFAULT,
-      iconBg: colors.danger.light,
-      confirmBg: colors.danger.DEFAULT,
-      confirmHover: colors.danger.hover,
+      iconClassName: "text-danger",
+      iconBgClassName: "bg-danger-light",
+      confirmClassName:
+        "bg-danger hover:bg-danger-hover focus-visible:ring-danger/35",
     },
     warning: {
       icon: WarningIcon,
-      iconColor: colors.warning.DEFAULT,
-      iconBg: colors.warning.light,
-      confirmBg: colors.warning.DEFAULT,
-      confirmHover: colors.warning.hover,
+      iconClassName: "text-warning",
+      iconBgClassName: "bg-warning-light",
+      confirmClassName:
+        "bg-warning hover:bg-warning-hover focus-visible:ring-warning/35",
     },
     info: {
       icon: InfoIcon,
-      iconColor: colors.primary.DEFAULT,
-      iconBg: colors.primary.light,
-      confirmBg: colors.primary.DEFAULT,
-      confirmHover: colors.primary.hover,
+      iconClassName: "text-primary",
+      iconBgClassName: "bg-primary-light",
+      confirmClassName:
+        "bg-primary hover:bg-primary-hover focus-visible:ring-primary/35",
     },
   };
 
@@ -64,7 +58,7 @@ function ConfirmDialog({
   const DefaultIconComponent = config.icon;
 
   const handleConfirm = () => {
-    // Call onConfirm first - if it causes navigation/unmount, 
+    // Call onConfirm first - if it causes navigation/unmount,
     // onClose might not be needed, but we'll try to call it anyway
     if (onConfirm) {
       onConfirm();
@@ -83,10 +77,18 @@ function ConfirmDialog({
       }
       // If icon is provided as a component function, render it
       const IconComponent = icon;
-      return <IconComponent size={32} weight="fill" color={config.iconColor} />;
+      return (
+        <IconComponent size={32} weight="fill" className={config.iconClassName} />
+      );
     }
     // Use default icon component
-    return <DefaultIconComponent size={32} weight="fill" color={config.iconColor} />;
+    return (
+      <DefaultIconComponent
+        size={32}
+        weight="fill"
+        className={config.iconClassName}
+      />
+    );
   };
 
   return (
@@ -101,8 +103,7 @@ function ConfirmDialog({
         <div className="flex flex-col items-center text-center">
           {/* Icon */}
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{ backgroundColor: config.iconBg }}
+            className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${config.iconBgClassName}`}
           >
             {renderIcon()}
           </div>
@@ -119,23 +120,19 @@ function ConfirmDialog({
 
           {/* Actions */}
           <div className="flex gap-3 w-full">
-            <button
+            <Button
+              type="button"
+              variant="modalSecondary"
               onClick={onClose}
-              className={`flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-text-primary border border-border-default hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 ${
-                isCaregiver
-                  ? "focus-visible:ring-secondary/35"
-                  : "focus-visible:ring-primary/35"
-              } focus-visible:ring-offset-2`}
+              mode={mode}
+              className="flex-1"
             >
               {cancelText}
-            </button>
+            </Button>
             <button
+              type="button"
               onClick={handleConfirm}
-              className="flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{
-                backgroundColor: config.confirmBg,
-                "--tw-ring-color": config.confirmBg,
-              }}
+              className={`flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-text-onPrimary transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${config.confirmClassName}`}
             >
               {confirmText}
             </button>
