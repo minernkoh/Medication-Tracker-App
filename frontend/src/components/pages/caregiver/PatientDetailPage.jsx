@@ -303,29 +303,6 @@ function PatientDetailPage() {
         </span>
       ),
     },
-<<<<<<< Updated upstream
-=======
-    {
-      key: "refill",
-      label: "Refill?",
-      render: (value, row) => {
-        const status = getSupplyStatus(row);
-        const refillNeeded =
-          status && (status.label === "Low" || status.label === "Empty");
-        return (
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${
-              refillNeeded
-                ? "bg-red-50 text-red-600"
-                : "bg-emerald-50 text-emerald-700"
-            }`}
-          >
-            {refillNeeded ? "Yes" : "No"}
-          </span>
-        );
-      },
-    },
->>>>>>> Stashed changes
   ];
 
   // Today's adherence (Caregiver): scheduled medications only.
@@ -333,7 +310,7 @@ function PatientDetailPage() {
   // which is exactly what GET /patients/:id/medications?date=YYYY-MM-DD encodes
   // via `status === "taken"` for that day.
   const scheduledMedsToday = (patient?.medications || []).filter(isScheduledMedication);
-  const totalScheduledToday = scheduledMedsToday.length;
+  const totalScheduledToday = scheduledMedsToday.length; 
   const takenScheduledToday = scheduledMedsToday.filter(
     (m) => String(m?.status || "").toLowerCase() === "taken",
   ).length;

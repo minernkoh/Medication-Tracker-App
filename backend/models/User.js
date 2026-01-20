@@ -7,23 +7,12 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ["patient", "caregiver"], required: true },
   caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+  caregiver: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   nickname: String,
   phone: String,
   relationship: String,
   color: String,
   initials: String,
->>>>>>> Stashed changes
 });
 
 userSchema.pre("save", async function () {
