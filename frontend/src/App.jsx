@@ -143,7 +143,7 @@ function AppLayout({
       {/* Main content area - scrollable, moves to accommodate sidebar on desktop */}
       <main
         className={`flex-1 w-full ml-0 ${
-          isSidebarCollapsed ? "md:ml-20" : "md:ml-[256px]"
+          isSidebarCollapsed ? "md:ml-[4.5rem]" : "md:ml-[240px]"
         } overflow-y-auto overflow-x-hidden min-h-0`}
       >
         <Routes>
@@ -495,14 +495,9 @@ function App() {
 
   // Handle delete account
   const handleDeleteAccount = async () => {
-    try {
-      await api.users.delete(user.id);
-      // Account deleted successfully, log out
-      handleLogout();
-    } catch (error) {
-      // Error handling is done by ErrorContext in SettingsPage
-      throw error;
-    }
+    await api.users.delete(user.id);
+    // Account deleted successfully, log out
+    handleLogout();
   };
 
   // Show onboarding tutorial for new users

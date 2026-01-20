@@ -5,41 +5,28 @@
  * @param {string} mode - "Personal" or "Caregiver" (default: "Personal")
  */
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  CaretLeftIcon,
-  CaretRightIcon,
-  CaretUpIcon,
-  CaretDownIcon,
-  CalendarIcon,
   PlusIcon,
   PillIcon,
   ArrowRightIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import {
-  CalendarDateButton,
-  PieChart,
+  TodayAdherencePieChart,
   EmptyState,
   PageHeader,
   GradientBackground,
-  Button,
 } from "../../ui";
 import { AppointmentCard, MedicationSection, Calendar } from "../../features";
 import EditMedicationModal from "../../modals/EditMedicationModal";
 import { useMedications } from "../../../contexts/MedicationsContext";
 import { useError } from "../../../contexts/ErrorContext";
-import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { limitConcurrency } from "../../../utils/requestUtils";
 import {
-  hexToRgba,
   MONTHS,
-  DAYS,
-  getDaysInMonth,
   getStartOfWeek,
-  formatMonthYear,
-  formatShortMonthYear,
   formatDate,
   formatTime,
   timeToMinutes,
@@ -48,12 +35,11 @@ import {
   filterMedsByStatus,
 } from "../../../utils";
 
-function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
+function DashboardPage({ userName = "", mode = "Personal" }) {
   const navigate = useNavigate();
   const {
     medications,
     markMedicationAsTaken,
-    deleteMedication,
     updateMedication,
     resetMedicationStatus,
     refreshMedications,
@@ -330,10 +316,9 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
                   {/* Pie Chart */}
                   <div className="flex-shrink-0">
-                    <PieChart
+                    <TodayAdherencePieChart
                       taken={stats.taken}
                       notTaken={stats.notTaken}
-                      size={140}
                     />
                   </div>
 

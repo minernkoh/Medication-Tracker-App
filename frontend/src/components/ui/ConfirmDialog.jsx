@@ -16,7 +16,6 @@
 import React from "react";
 import {
   WarningIcon,
-  SignOutIcon,
   TrashIcon,
   InfoIcon,
 } from "@phosphor-icons/react";

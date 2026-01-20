@@ -3,11 +3,10 @@
  * Supports editing all medication fields including: name, dosage, quantity, timeOfDay, additionalInfo
  */
 import { useState, useEffect } from "react";
-import { Modal, FormField, Button } from "../ui";
+import { Modal, FormField, Button, TimePickerDropdown, SelectMenu } from "../ui";
 import {
-  buildTimeOptions,
   getModeHexColor,
-  roundTimeToInterval,
+  getNowTimeInputRounded,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
   toTimeInput,
@@ -21,8 +20,6 @@ const getUnitForType = (rawType) => {
   if (t === "liquid") return "ml";
   return t;
 };
-
-const TIME_OPTIONS_15 = buildTimeOptions(15);
 
 function EditMedicationModal({
   isOpen,
@@ -116,11 +113,7 @@ function EditMedicationModal({
       const { frequencyType, frequencyValue, frequencyText } = parseFrequency(
         medication.frequency,
       );
-      const takenForInput = roundTimeToInterval(
-        toTimeInput(medication.takenTime || ""),
-        15,
-        "nearest",
-      );
+      const takenForInput = toTimeInput(medication.takenTime || "");
       const defaultTakenDate =
         medication.takenDate || new Date().toISOString().split("T")[0];
       setFormData({
@@ -139,7 +132,7 @@ function EditMedicationModal({
         takenDate: defaultTakenDate,
         takenTime: takenForInput,
       });
-      setScheduleTimeInput("");
+      setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
     }
   }, [medication]);
 
@@ -202,10 +195,10 @@ function EditMedicationModal({
   };
 
   const addScheduleTimeFromInput = (rawValue) => {
-    const rounded = roundTimeToInterval(rawValue, 15, "nearest");
-    if (!rounded) return;
-    handleTimeOfDayChange(rounded);
-    setScheduleTimeInput("");
+    const normalized = String(rawValue || "").trim();
+    if (!/^\d{2}:\d{2}$/.test(normalized)) return;
+    handleTimeOfDayChange(normalized);
+    setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
     if (errors.timeOfDay) {
       setErrors((prev) => ({ ...prev, timeOfDay: "" }));
     }
@@ -242,14 +235,13 @@ function EditMedicationModal({
 
     if (isTakenMode) {
       if (!validate()) return;
-      const roundedTaken = roundTimeToInterval(formData.takenTime, 15, "nearest");
       onSave({
         ...medication,
         takenDate:
           formData.takenDate ||
           medication?.takenDate ||
           new Date().toISOString().split("T")[0],
-        takenTime: roundedTaken ? to12HourDisplay(roundedTaken) : "",
+        takenTime: formData.takenTime ? to12HourDisplay(formData.takenTime) : "",
       });
       return;
     }
@@ -341,17 +333,28 @@ function EditMedicationModal({
         <div className="space-y-4">
           {isTakenMode ? (
             <>
-              <FormField
-                label="Time Taken"
-                name="takenTime"
-                as="select"
-                value={formData.takenTime}
-                onChange={handleChange}
-                options={TIME_OPTIONS_15}
-                placeholder="Select a time…"
-                error={errors.takenTime}
-                required
-              />
+              <div>
+                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                  Time Taken <span className="text-danger">*</span>
+                </label>
+                <TimePickerDropdown
+                  value={formData.takenTime}
+                  onChange={(time) => {
+                    setFormData((prev) => ({ ...prev, takenTime: time }));
+                    if (errors.takenTime) {
+                      setErrors((prev) => ({ ...prev, takenTime: "" }));
+                    }
+                  }}
+                  minuteStep={15}
+                  mode={mode}
+                />
+                {errors.takenTime && (
+                  <p className="mt-1.5 font-poppins font-semibold text-xs text-danger flex items-center gap-1.5 animate-fade-in">
+                    <span className="inline-block w-1 h-1 rounded-full bg-danger flex-shrink-0" />
+                    {errors.takenTime}
+                  </p>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -427,18 +430,27 @@ function EditMedicationModal({
                       />
                     )}
 
-                    <select
-                      name="frequencyType"
-                      value={formData.frequencyType}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
+                    <div
+                      className={
                         formData.frequencyType === "custom" ? "sm:col-span-2" : ""
-                      }`}
+                      }
                     >
-                      <option value="timesPerDay">Times per day</option>
-                      <option value="everyHours">Every X hours</option>
-                      <option value="custom">Custom</option>
-                    </select>
+                      <SelectMenu
+                        value={formData.frequencyType}
+                        onChange={(nextValue) =>
+                          handleChange({
+                            target: { name: "frequencyType", value: nextValue },
+                          })
+                        }
+                        options={[
+                          { value: "timesPerDay", label: "Times per day" },
+                          { value: "everyHours", label: "Every X hours" },
+                          { value: "custom", label: "Custom" },
+                        ]}
+                        mode={mode}
+                        aria-label="Frequency type"
+                      />
+                    </div>
                   </div>
 
                   {formData.frequencyType === "custom" && (
@@ -466,19 +478,14 @@ function EditMedicationModal({
                 </label>
                 <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <select
-                      value={scheduleTimeInput}
-                      onChange={(e) => setScheduleTimeInput(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                      aria-label="Schedule time"
-                    >
-                      <option value="">Select a time…</option>
-                      {TIME_OPTIONS_15.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="w-full" aria-label="Schedule time">
+                      <TimePickerDropdown
+                        value={scheduleTimeInput}
+                        onChange={(time) => setScheduleTimeInput(time)}
+                        minuteStep={15}
+                        mode={mode}
+                      />
+                    </div>
                     <Button
                       type="button"
                       variant="outline"

@@ -25,11 +25,9 @@ import {
 } from "../../../utils";
 import { MedicationSection } from "../../features";
 import {
-  Card,
   DataTable,
-  PieChart,
+  TodayAdherencePieChart,
   SectionHeader,
-  StatCard,
   Button,
 } from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
@@ -41,32 +39,10 @@ import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 import { getMedicationColor } from "../../../utils/medicationColors";
-
-const PATIENT_COLORS = [
-  colors.patient.pink,
-  colors.patient.blue,
-  colors.patient.green,
-  colors.patient.amber,
-  colors.patient.purple,
-];
-
-const getInitials = (name = "") => {
-  const trimmed = name.trim();
-  if (!trimmed) return "";
-  const parts = trimmed.split(" ");
-  return parts.length === 1
-    ? parts[0].charAt(0).toUpperCase()
-    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-};
-
-const getPatientColor = (patient) => {
-  const base =
-    patient?.id || patient?._id || patient?.email || patient?.name || "";
-  const str = String(base);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
-  return PATIENT_COLORS[hash % PATIENT_COLORS.length];
-};
+import {
+  getPatientAvatarColor,
+  getPatientInitials,
+} from "../../../utils/patientUtils";
 
 // Convert a Date (or now) to a local YYYY-MM-DD string.
 // Avoids UTC day shifts from Date#toISOString() in non-UTC timezones.
@@ -120,8 +96,8 @@ function PatientDetailPage() {
       const normalized = {
         ...data,
         id: data.id || data._id,
-        avatarInitials: getInitials(data.name || ""),
-        avatarColor: getPatientColor(data),
+        avatarInitials: getPatientInitials(data.name || ""),
+        avatarColor: getPatientAvatarColor(data),
         adherence: data.adherence || null,
         medications: (Array.isArray(medsForToday) ? medsForToday : [])
           .map(normalizeMedication)
@@ -202,6 +178,9 @@ function PatientDetailPage() {
 
       const buildSlotEntry = (slot, status) => ({
         ...med,
+        // Keep a stable reference to the real medication id (Mongo ObjectId string).
+        // `id` below is intentionally made unique per slot for React list keys.
+        medicationId: med.id,
         id: `${med.id}-${slot}-${status}`,
         status,
         timeOfDay: slot,
@@ -232,7 +211,6 @@ function PatientDetailPage() {
   const splitMeds = splitMedicationsBySlot(patient?.medications || []);
   const pendingMeds = splitMeds.pending;
   const takenMeds = splitMeds.taken;
-  const activeMedications = [...pendingMeds, ...takenMeds];
   const supplyMeds = filterMedsByStatus(patient?.medications || [], "supply");
 
   const parseQuantity = (quantityStr = "") => {
@@ -406,6 +384,52 @@ function PatientDetailPage() {
     0,
   );
 
+  const scrollToSection = (id) => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const { upcomingAppointmentsCount, nextUpcomingAppointment } = (() => {
+    const list = Array.isArray(patient?.appointments) ? patient.appointments : [];
+    const now = new Date();
+    const parsed = list
+      .map((apt) => {
+        const dateStr = apt?.date;
+        if (!dateStr) return null;
+        const time24 = toTimeInput(apt?.time || "");
+        const dt = time24 ? new Date(`${dateStr}T${time24}`) : new Date(dateStr);
+        if (Number.isNaN(dt.getTime())) return null;
+        return {
+          ...apt,
+          _dateTime: dt,
+          _dateStr: dateStr,
+          _displayTime: time24 ? to12HourDisplay(time24) : "",
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a._dateTime - b._dateTime);
+
+    const upcoming = parsed.filter((apt) => apt._dateTime >= now);
+    return {
+      upcomingAppointmentsCount: upcoming.length,
+      nextUpcomingAppointment: upcoming[0] || null,
+    };
+  })();
+
+  const { lowSupplyCount, lowSupplyPreview } = (() => {
+    const list = Array.isArray(supplyMeds) ? supplyMeds : [];
+    const flagged = list
+      .map((m) => ({ med: m, status: getSupplyStatus(m) }))
+      .filter(({ status }) => status && (status.label === "Low" || status.label === "Empty"))
+      .sort((a, b) => (a.status?.ratio ?? 999) - (b.status?.ratio ?? 999));
+    return {
+      lowSupplyCount: flagged.length,
+      lowSupplyPreview: flagged.slice(0, 3),
+    };
+  })();
+
   const adherence = patient?.adherence?.[adherenceRange] || null;
   const adherenceLabels = Array.isArray(adherence?.labels)
     ? adherence.labels
@@ -431,18 +455,17 @@ function PatientDetailPage() {
     const currentTime = to12HourDisplay(getNowTimeInputRounded(15, "nearest"));
 
     try {
-      const timeSlots =
-        Array.isArray(med?.timesOfDay) && med.timesOfDay.length
-          ? med.timesOfDay
-          : med?.timeOfDay
-            ? [med.timeOfDay]
-            : [null];
+      const medicationId = med?.sourceMedication?.id || med?.medicationId || med?.id;
+      const timeSlot =
+        med?.slot ||
+        med?.timeOfDay ||
+        (Array.isArray(med?.timesOfDay) && med.timesOfDay.length
+          ? med.timesOfDay[0]
+          : null);
 
-      await Promise.all(
-        timeSlots.map((slot) =>
-          api.medications.markAsTaken(med.id, currentTime, todayStr, slot),
-        ),
-      );
+      // In Caregiver patient view, each card represents a single schedule slot.
+      // Mark only that slot as taken (not all daily slots).
+      await api.medications.markAsTaken(medicationId, currentTime, todayStr, timeSlot);
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to update medication status");
@@ -469,18 +492,30 @@ function PatientDetailPage() {
       ) {
         const todayStr = toLocalIsoDay();
         const targetDate = updatedMedication.takenDate;
+        const medicationId =
+          updatedMedication?.sourceMedication?.id ||
+          updatedMedication?.medicationId ||
+          updatedMedication?.id;
+        const timeSlot =
+          updatedMedication?.slot ||
+          updatedMedication?.timeOfDay ||
+          updatedMedication?.timesOfDay?.[0] ||
+          null;
         if (targetDate !== todayStr) {
-          await api.medications.undoMarkAsTaken(updatedMedication.id, todayStr);
+          await api.medications.undoMarkAsTaken(medicationId, todayStr, timeSlot);
         }
         await api.medications.markAsTaken(
-          updatedMedication.id,
+          medicationId,
           updatedMedication.takenTime,
           targetDate,
+          timeSlot,
         );
       } else {
         const updated = await api.medications.updateForPatient(
           patientId,
-          updatedMedication.id,
+          updatedMedication?.sourceMedication?.id ||
+            updatedMedication?.medicationId ||
+            updatedMedication.id,
           updatedMedication,
         );
         const normalized = normalizeMedication(updated);
@@ -517,8 +552,14 @@ function PatientDetailPage() {
   // Undo "taken" for today (restores quantity + removes today's log entry)
   const handleUndoTakenMedication = async (med) => {
     try {
-      const timeSlot = med?.timeOfDay || med?.timesOfDay?.[0];
-      await api.medications.undoMarkAsTaken(med.id, todayStr, timeSlot);
+      const medicationId = med?.sourceMedication?.id || med?.medicationId || med?.id;
+      const timeSlot =
+        med?.slot ||
+        med?.timeOfDay ||
+        (Array.isArray(med?.timesOfDay) && med.timesOfDay.length
+          ? med.timesOfDay[0]
+          : null);
+      await api.medications.undoMarkAsTaken(medicationId, todayStr, timeSlot);
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to undo medication");
@@ -713,23 +754,13 @@ function PatientDetailPage() {
 
         {/* Stats cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <StatCard
-            icon={<PillIcon size={20} weight="fill" />}
-            iconColor={modeHexColor}
-            label="Today"
-            value={`${takenMeds.length}/${activeMedications.length}`}
-            description="Medications"
-            className="h-full"
-          />
-          <StatCard
-            icon={<CalendarCheckIcon size={20} weight="fill" />}
-            iconColor={colors.primary.DEFAULT}
-            label="Upcoming"
-            value={patient.appointments?.length || 0}
-            description="Appointments"
-            className="h-full"
-          />
-          <Card className="p-4 h-full flex flex-col">
+          {/* Today's adherence */}
+          <button
+            type="button"
+            onClick={() => scrollToSection("patient-medications")}
+            className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
+            aria-label="View today's adherence"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50">
                 <CheckCircleIcon
@@ -740,35 +771,143 @@ function PatientDetailPage() {
                 />
               </div>
               <div className="min-w-0">
-                <p className="font-poppins text-xs text-text-secondary leading-tight">
-                  Today
-                </p>
-                <p className="font-poppins text-sm font-semibold text-text-primary leading-tight">
-                  Adherence
-                </p>
-                <p className="font-poppins text-xs text-text-secondary leading-tight">
-                  {totalScheduledToday > 0
-                    ? `${takenScheduledToday}/${totalScheduledToday} medications taken`
-                    : "No scheduled medications"}
+                <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
+                  Today&apos;s Adherence
                 </p>
               </div>
             </div>
 
             <div className="flex-1 flex items-center justify-center pt-4">
-              <PieChart
+              <TodayAdherencePieChart
                 taken={takenScheduledToday}
                 notTaken={pendingScheduledToday}
-                size={120}
-                label="Adherence"
-                showLabel={false}
               />
             </div>
-          </Card>
+          </button>
+
+          {/* Low Supply Alerts */}
+          <button
+            type="button"
+            onClick={() => scrollToSection("patient-supply")}
+            className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
+            aria-label="View low supply alerts"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-50">
+                <WarningCircleIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.danger.DEFAULT}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
+                  Low Supply Alerts
+                </p>
+                <span className="sr-only">
+                  {lowSupplyCount} low supply alert{lowSupplyCount === 1 ? "" : "s"} total
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-4 flex-1">
+              {lowSupplyPreview.length > 0 ? (
+                <ul className="space-y-2">
+                  {lowSupplyPreview.map(({ med, status }) => {
+                    const qtyNum = Number(med?.quantity);
+                    const qtyLabel = Number.isFinite(qtyNum)
+                      ? `${qtyNum} left`
+                      : status?.label || "Low";
+                    return (
+                      <li
+                        key={med?.id || med?._id || med?.name}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-poppins text-sm font-semibold text-text-primary truncate">
+                            {med?.name || "Medication"}
+                          </p>
+                          <p className="font-poppins text-xs text-text-secondary truncate">
+                            {status?.label ? `${status.label} supply` : "Low supply"}
+                          </p>
+                        </div>
+                        <span className="font-poppins text-xs font-semibold text-red-600 tabular-nums whitespace-nowrap">
+                          {qtyLabel}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="font-poppins text-sm text-text-secondary">
+                  No low supply alerts.
+                </p>
+              )}
+            </div>
+          </button>
+
+          {/* Next Appointment */}
+          <button
+            type="button"
+            onClick={() => scrollToSection("patient-appointments")}
+            className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
+            aria-label="View next appointment"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                <CalendarCheckIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.primary.DEFAULT}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
+                  Next Appointment
+                </p>
+                <span className="sr-only">
+                  {upcomingAppointmentsCount} upcoming appointment
+                  {upcomingAppointmentsCount === 1 ? "" : "s"} total
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-4 flex-1">
+              {nextUpcomingAppointment ? (
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
+                  <p className="font-poppins text-sm font-semibold text-text-primary truncate">
+                    {nextUpcomingAppointment?.title || "Appointment"}
+                  </p>
+                  <p className="font-poppins text-xs text-text-secondary truncate">
+                    {nextUpcomingAppointment?.doctorName || "Doctor"}{" "}
+                    {nextUpcomingAppointment?.location
+                      ? `• ${nextUpcomingAppointment.location}`
+                      : ""}
+                  </p>
+                  <p className="font-poppins text-xs font-semibold text-blue-700 mt-1">
+                    {formatDateLocale(nextUpcomingAppointment._dateStr) || "—"}
+                    {nextUpcomingAppointment._displayTime
+                      ? ` • ${nextUpcomingAppointment._displayTime}`
+                      : ""}
+                  </p>
+                </div>
+              ) : (
+                <p className="font-poppins text-sm text-text-secondary">
+                  No appointments scheduled.
+                </p>
+              )}
+            </div>
+          </button>
         </div>
 
         {/* Medications section */}
 
-        <div className="bg-background-default border border-border-default rounded-2xl p-6 mb-6">
+        <div
+          id="patient-medications"
+          className="bg-background-default border border-border-default rounded-2xl p-6 mb-6"
+        >
           <SectionHeader
             icon={
               <PillIcon
@@ -866,7 +1005,10 @@ function PatientDetailPage() {
         />
 
         {/* Current supply */}
-        <div className="bg-background-default border border-border-default rounded-2xl p-6 mb-6">
+        <div
+          id="patient-supply"
+          className="bg-background-default border border-border-default rounded-2xl p-6 mb-6"
+        >
           <SectionHeader
             icon={
               <PillIcon
@@ -900,7 +1042,10 @@ function PatientDetailPage() {
         </div>
 
         {/* Appointments section */}
-        <div className="bg-background-default border border-border-default rounded-2xl p-6">
+        <div
+          id="patient-appointments"
+          className="bg-background-default border border-border-default rounded-2xl p-6"
+        >
           <SectionHeader
             icon={
               <CalendarCheckIcon

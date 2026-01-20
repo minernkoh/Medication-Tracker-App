@@ -4,7 +4,6 @@
  * @param {number} opacity - Opacity of the gradient (default: 0.1)
  * @param {string} className - Additional CSS classes
  */
-import React from "react";
 import { getGradientBackground } from "../../utils";
 
 function GradientBackground({ opacity = 0.1, className = "" }) {

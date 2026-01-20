@@ -6,12 +6,11 @@
  * @param {function} onClick - Optional click handler (makes card interactive)
  * @param {string} variant - "default" | "elevated" | "outlined" (default: "default")
  * @param {boolean} interactive - Whether card is interactive (default: false if onClick provided, true if onClick is provided)
+ * @param {string} accent - "primary" | "secondary" | "success" | "danger" (default: "primary") - interactive ring/border accent
  * @param {string} className - Additional CSS classes
  * @param {React.ReactNode} header - Optional header content
  * @param {React.ReactNode} footer - Optional footer content
  */
-
-import React from "react";
 
 const variantClasses = {
   default: "bg-background-default border border-border-default",
@@ -19,22 +18,37 @@ const variantClasses = {
   outlined: "bg-transparent border-2 border-border-default",
 };
 
+const interactiveClassesByAccent = {
+  primary:
+    "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-primary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+  secondary:
+    "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2",
+  success:
+    "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-success hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2",
+  danger:
+    "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-danger hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2",
+};
+
 function Card({
   children,
   onClick,
   variant = "default",
   interactive = !!onClick,
+  accent = "primary",
   className = "",
   header,
   footer,
   ...props
 }) {
+  const interactiveClasses =
+    interactiveClassesByAccent[accent] || interactiveClassesByAccent.primary;
+
   const baseClasses = `
     rounded-2xl p-5
     ${variantClasses[variant]}
     ${
       interactive
-        ? "cursor-pointer ring-inset hover:bg-background-hover hover:border-primary/30 hover:ring-2 hover:ring-primary/25 hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        ? interactiveClasses
         : ""
     }
     ${className}

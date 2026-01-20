@@ -9,7 +9,6 @@
  * @param {React.ReactNode} children - Custom skeleton content (for type="skeleton")
  */
 
-import React from "react";
 import { SpinnerGapIcon } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
 

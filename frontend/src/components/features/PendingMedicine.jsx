@@ -12,7 +12,6 @@
  * @param {function} onEdit - Called when edit button is clicked
  * @param {function} onDelete - Called when delete button is clicked
  */
-import React from "react";
 import {
   PillIcon,
   CheckCircleIcon,
@@ -29,7 +28,6 @@ function PendingMedicine({
   frequency,
   scheduleGroups,
   additionalInfo,
-  pillColor,
   onCheck,
   onEdit,
   onDelete,

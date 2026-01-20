@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   CaretLeftIcon,
   CaretRightIcon,
@@ -6,16 +6,14 @@ import {
   CaretDownIcon,
   CalendarIcon,
 } from "@phosphor-icons/react";
-import { CalendarDateButton } from "../ui";
+import { CalendarDateButton, SelectMenu } from "../ui";
 import {
-  hexToRgba,
   MONTHS,
   DAYS,
   getDaysInMonth,
   getStartOfWeek,
   formatShortMonthYear,
 } from "../../utils";
-import { colors } from "../../../tailwind.config.js";
 import { textStyles } from "../../utils/typography";
 
 function Calendar({
@@ -25,6 +23,9 @@ function Calendar({
   adherence = {},
   onWeekChange,
   mode = "Personal",
+  showWeekStrip = true,
+  variant = "default", // "default" | "modal"
+  className = "",
 }) {
   const isCaregiver = mode === "Caregiver";
   const modeTextClass = isCaregiver ? "text-secondary" : "text-primary";
@@ -33,6 +34,7 @@ function Calendar({
   const modeRingClass = isCaregiver ? "ring-secondary/30" : "ring-primary/30";
 
   const today = new Date();
+  const effectiveSelectedDate = selectedDate || today;
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(selectedDate || today));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [pickerMonth, setPickerMonth] = useState((selectedDate || today).getMonth());
@@ -53,7 +55,7 @@ function Calendar({
 
   // Sync week start when selectedDate changes from outside (e.g. Go to Today)
   useEffect(() => {
-    setCurrentWeekStart(getStartOfWeek(selectedDate));
+    setCurrentWeekStart(getStartOfWeek(selectedDate || today));
   }, [selectedDate]);
 
   // Emit visible week start to parent (for dashboard-level data fetching)
@@ -158,9 +160,9 @@ function Calendar({
 
   const isSelected = (item) => {
     return (
-      selectedDate.getDate() === item.date &&
-      selectedDate.getMonth() === item.month &&
-      selectedDate.getFullYear() === item.year
+      effectiveSelectedDate.getDate() === item.date &&
+      effectiveSelectedDate.getMonth() === item.month &&
+      effectiveSelectedDate.getFullYear() === item.year
     );
   };
 
@@ -170,23 +172,52 @@ function Calendar({
     return formatShortMonthYear(midWeek.getMonth(), midWeek.getFullYear());
   };
 
+  const getModalDisplayDate = () => {
+    const dd = String(effectiveSelectedDate.getDate()).padStart(2, "0");
+    const month = MONTHS[effectiveSelectedDate.getMonth()] || "";
+    const yyyy = effectiveSelectedDate.getFullYear();
+    return `${dd} ${month} ${yyyy}`.trim();
+  };
+
+  const containerClassName =
+    variant === "modal"
+      ? `w-full relative overflow-visible ${className}`.trim()
+      : `bg-background-default border border-border-default flex flex-col gap-2 items-center p-4 rounded-2xl shrink-0 w-full relative overflow-visible ${className}`.trim();
+
+  const triggerClassName =
+    variant === "modal"
+      ? `w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm bg-background-default hover:bg-background-hover transition-colors flex items-center justify-between gap-2 focus:outline-none ${
+          isCaregiver ? "focus-visible:ring-2 focus-visible:ring-secondary/35" : "focus-visible:ring-2 focus-visible:ring-primary/35"
+        } focus-visible:ring-offset-2`
+      : "flex items-center justify-center gap-2 w-full group hover:bg-background-hover rounded-lg py-1 px-2 transition-all duration-200";
+
   return (
-    <div className="bg-background-default border border-border-default flex flex-col gap-2 items-center p-4 rounded-2xl shrink-0 w-full relative overflow-visible">
+    <div className={containerClassName}>
       <div className="relative w-full" ref={datePickerRef}>
         <button
           onClick={() => {
-            setPickerMonth(selectedDate.getMonth());
-            setPickerYear(selectedDate.getFullYear());
+            setPickerMonth(effectiveSelectedDate.getMonth());
+            setPickerYear(effectiveSelectedDate.getFullYear());
             setIsDatePickerOpen(!isDatePickerOpen);
           }}
-          className="flex items-center justify-center gap-2 w-full group hover:bg-background-hover rounded-lg py-1 px-2 transition-all duration-200"
+          className={triggerClassName}
         >
-          <CalendarIcon
-            size={18}
-            weight="regular"
-            className={`${modeTextClass} opacity-0 group-hover:opacity-100 transition-opacity`}
-          />
-          <p className={`${textStyles.heading.small} text-text-primary text-center`}>{getDisplayMonthYear()}</p>
+          {variant !== "modal" && (
+            <CalendarIcon
+              size={18}
+              weight="regular"
+              className={`${modeTextClass} opacity-0 group-hover:opacity-100 transition-opacity`}
+            />
+          )}
+          <p
+            className={
+              variant === "modal"
+                ? "font-poppins text-sm text-text-primary"
+                : `${textStyles.heading.small} text-text-primary text-center`
+            }
+          >
+            {variant === "modal" ? getModalDisplayDate() : getDisplayMonthYear()}
+          </p>
           {isDatePickerOpen ? (
             <CaretUpIcon size={16} weight="bold" className={modeTextClass} />
           ) : (
@@ -210,18 +241,42 @@ function Calendar({
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <button onClick={goToPrevMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={goToPrevMonth}
+                className="p-2 hover:bg-background-hover rounded-lg transition-colors"
+              >
                 <CaretLeftIcon size={20} weight="bold" className="text-text-primary" />
               </button>
               <div className="flex items-center gap-2">
-                <select value={pickerMonth} onChange={(e) => setPickerMonth(parseInt(e.target.value))} className={`${textStyles.heading.small} bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 border-none outline-none text-text-primary`}>
-                  {MONTHS.map((month, idx) => <option key={month} value={idx}>{month}</option>)}
-                </select>
-                <select value={pickerYear} onChange={(e) => setPickerYear(parseInt(e.target.value))} className={`${textStyles.heading.small} bg-transparent hover:bg-gray-100 rounded-lg px-2 py-1 border-none outline-none text-text-primary`}>
-                  {Array.from({ length: 20 }, (_, i) => 2020 + i).map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
+                <SelectMenu
+                  value={String(pickerMonth)}
+                  onChange={(next) => setPickerMonth(parseInt(next, 10))}
+                  options={MONTHS.map((month, idx) => ({
+                    value: String(idx),
+                    label: month,
+                  }))}
+                  mode={mode}
+                  aria-label="Month"
+                  buttonClassName={`${textStyles.heading.small} w-auto px-2 py-1 rounded-lg border-none bg-transparent hover:bg-background-hover`}
+                />
+                <SelectMenu
+                  value={String(pickerYear)}
+                  onChange={(next) => setPickerYear(parseInt(next, 10))}
+                  options={Array.from({ length: 20 }, (_, i) => 2020 + i).map(
+                    (year) => ({
+                      value: String(year),
+                      label: String(year),
+                    }),
+                  )}
+                  mode={mode}
+                  aria-label="Year"
+                  buttonClassName={`${textStyles.heading.small} w-auto px-2 py-1 rounded-lg border-none bg-transparent hover:bg-background-hover`}
+                />
               </div>
-              <button onClick={goToNextMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={goToNextMonth}
+                className="p-2 hover:bg-background-hover rounded-lg transition-colors"
+              >
                 <CaretRightIcon size={20} weight="bold" className="text-text-primary" />
               </button>
             </div>
@@ -232,7 +287,7 @@ function Calendar({
 
             <div className="grid grid-cols-7 gap-1">
               {getCalendarGrid().flat().map((cell, idx) => {
-                const isCellSelected = selectedDate.getDate() === cell.day && selectedDate.getMonth() === cell.month && selectedDate.getFullYear() === cell.year;
+                const isCellSelected = effectiveSelectedDate.getDate() === cell.day && effectiveSelectedDate.getMonth() === cell.month && effectiveSelectedDate.getFullYear() === cell.year;
                 const isCellToday = today.getDate() === cell.day && today.getMonth() === cell.month && today.getFullYear() === cell.year;
                 return (
                   <button
@@ -244,8 +299,8 @@ function Calendar({
                         : isCellToday
                           ? `font-semibold ring-1 ${modeRingClass} ${modeBgLightClass} ${modeTextClass}`
                           : !cell.isCurrentMonth
-                            ? "text-text-secondary/40 hover:bg-gray-100"
-                            : "text-text-primary hover:bg-gray-100"
+                            ? "text-text-secondary/40 hover:bg-background-hover"
+                            : "text-text-primary hover:bg-background-hover"
                     }`}
                   >
                     {cell.day}
@@ -269,23 +324,39 @@ function Calendar({
         )}
       </div>
 
-      <div className="flex gap-1 md:gap-2 min-h-[4.5rem] items-center shrink-0 w-full overflow-x-auto overflow-y-visible pb-4">
-        <button onClick={goToPreviousWeek} className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all"><CaretLeftIcon size={20} className="text-icon-primary" /></button>
-        {getWeekDates().map((item, idx) => (
-          <CalendarDateButton
-            key={idx}
-            day={item.day}
-            date={item.date}
-            isSelected={isSelected(item)}
-            isToday={today.getDate() === item.date && today.getMonth() === item.month && today.getFullYear() === item.year}
-            hasAppointment={item.hasAppointment}
-            hasFullAdherence={item.hasFullAdherence}
-            onClick={() => onDateChange(item.fullDate)}
-            mode={mode}
-          />
-        ))}
-        <button onClick={goToNextWeek} className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all"><CaretRightIcon size={20} className="text-icon-primary" /></button>
-      </div>
+      {showWeekStrip && (
+        <div className="flex gap-1 md:gap-2 min-h-[4.5rem] items-center shrink-0 w-full overflow-x-auto overflow-y-visible pb-4">
+          <button
+            onClick={goToPreviousWeek}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all"
+          >
+            <CaretLeftIcon size={20} className="text-icon-primary" />
+          </button>
+          {getWeekDates().map((item, idx) => (
+            <CalendarDateButton
+              key={idx}
+              day={item.day}
+              date={item.date}
+              isSelected={isSelected(item)}
+              isToday={
+                today.getDate() === item.date &&
+                today.getMonth() === item.month &&
+                today.getFullYear() === item.year
+              }
+              hasAppointment={item.hasAppointment}
+              hasFullAdherence={item.hasFullAdherence}
+              onClick={() => onDateChange(item.fullDate)}
+              mode={mode}
+            />
+          ))}
+          <button
+            onClick={goToNextWeek}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all"
+          >
+            <CaretRightIcon size={20} className="text-icon-primary" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,41 +20,23 @@ import {
   to12HourDisplay,
   timeToMinutes,
 } from "../../../utils";
-import { DataTable, GradientBackground, PieChart, PageHeader } from "../../ui";
+import {
+  DataTable,
+  GradientBackground,
+  TodayAdherencePieChart,
+  PageHeader,
+  Card,
+  SelectMenu,
+} from "../../ui";
 import { Calendar } from "../../features";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 import { limitConcurrency } from "../../../utils/requestUtils";
-
-const PATIENT_COLORS = [
-  colors.patient.pink,
-  colors.patient.blue,
-  colors.patient.green,
-  colors.patient.amber,
-  colors.patient.purple,
-];
-
-const getInitials = (name = "") => {
-  const trimmed = name.trim();
-  if (!trimmed) return "";
-  const parts = trimmed.split(" ");
-  return parts.length === 1
-    ? parts[0].charAt(0).toUpperCase()
-    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-};
-
-const getPatientColor = (patient, index) => {
-  const seed =
-    patient?.id || patient?._id || patient?.email || patient?.name || index || "";
-  const str = String(seed);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
-  if (typeof index === "number") {
-    return PATIENT_COLORS[hash % PATIENT_COLORS.length];
-  }
-  return PATIENT_COLORS[hash % PATIENT_COLORS.length] || colors.patient.blue;
-};
+import {
+  getPatientAvatarColor,
+  getPatientInitials,
+} from "../../../utils/patientUtils";
 
 const normalizePatient = (patient, index) => {
   if (!patient) return null;
@@ -64,8 +46,8 @@ const normalizePatient = (patient, index) => {
     ...patient,
     id,
     name,
-    avatarInitials: getInitials(patient.name || ""),
-    avatarColor: getPatientColor({ ...patient, id }, index),
+    avatarInitials: getPatientInitials(patient.name || ""),
+    avatarColor: getPatientAvatarColor({ ...patient, id }, index),
   };
 };
 
@@ -371,8 +353,29 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const scheduleColumns = useMemo(
     () => [
       {
+        key: "__rowNumber",
+        label: "#",
+        align: "center",
+        sortable: false,
+        render: (_value, _row, rowIndex) => (
+          <span className="font-poppins text-sm text-text-secondary tabular-nums">
+            {rowIndex + 1}
+          </span>
+        ),
+      },
+      {
+        key: "time",
+        label: "Time",
+        sortValue: (row) => timeSortValue(row?.time),
+        render: (value) => (
+          <span className="font-poppins text-sm font-semibold text-text-primary">
+            {formatScheduleTime(value)}
+          </span>
+        ),
+      },
+      {
         key: "medicationName",
-        label: "Medication",
+        label: "Name",
         sortValue: (row) => row?.medicationName,
         render: (value) => (
           <span className="font-poppins font-semibold text-text-primary">
@@ -387,16 +390,6 @@ const CaregiverDashboard = ({ userName = "" }) => {
         render: (value) => (
           <span className="font-poppins text-sm text-text-primary">
             {value || "—"}
-          </span>
-        ),
-      },
-      {
-        key: "time",
-        label: "Time",
-        sortValue: (row) => timeSortValue(row?.time),
-        render: (value) => (
-          <span className="font-poppins text-sm font-semibold text-text-primary">
-            {formatScheduleTime(value)}
           </span>
         ),
       },
@@ -458,9 +451,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
         : colors[adherenceTone].DEFAULT;
 
     return (
-      <div
-        role="button"
-        tabIndex={0}
+      <Card
         onClick={() => {
           if (!patientId) {
             showError("Unable to open patient details (missing patient id).");
@@ -468,17 +459,8 @@ const CaregiverDashboard = ({ userName = "" }) => {
           }
           navigate(`/patients/${patientId}`);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            if (!patientId) {
-              showError("Unable to open patient details (missing patient id).");
-              return;
-            }
-            navigate(`/patients/${patientId}`);
-          }
-        }}
-        className="bg-background-default border border-border-default rounded-2xl pt-5 px-5 pb-4 cursor-pointer ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 group"
+        accent="secondary"
+        className="pt-5 px-5 pb-4 group"
         aria-label={`View patient ${patient?.name || ""}`.trim()}
       >
         {/* Patient header */}
@@ -494,11 +476,6 @@ const CaregiverDashboard = ({ userName = "" }) => {
               <h3 className="font-poppins font-bold text-text-primary">
                 {patient.name}
               </h3>
-              <p className="font-poppins text-xs text-text-secondary">
-                {total > 0
-                  ? `${taken}/${total} medications`
-                  : "No medications scheduled"}
-              </p>
             </div>
           </div>
           {patient.alerts > 0 && (
@@ -546,7 +523,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     );
   };
 
@@ -577,10 +554,10 @@ const CaregiverDashboard = ({ userName = "" }) => {
           {/* Stats cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Today's adherence */}
-            <button
-              type="button"
+            <Card
               onClick={() => navigate("/patients")}
-              className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
+              accent="secondary"
+              className="text-left h-full flex flex-col"
               aria-label="View adherence by patient"
             >
               <div className="flex items-center gap-3">
@@ -592,8 +569,8 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-poppins text-sm font-semibold text-text-primary leading-tight">
-                    Today&apos;s adherence
+                  <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
+                    Today&apos;s Adherence
                   </p>
                   <span className="sr-only">
                     {totalMedicationsDate > 0
@@ -604,24 +581,21 @@ const CaregiverDashboard = ({ userName = "" }) => {
               </div>
 
               <div className="flex-1 flex items-center justify-center pt-4">
-                <PieChart
+                <TodayAdherencePieChart
                   taken={totalMedicationsTakenDate}
                   notTaken={Math.max(
                     totalMedicationsDate - totalMedicationsTakenDate,
                     0,
                   )}
-                  size={120}
-                  label="Adherence"
-                  showLabel={false}
                 />
               </div>
-            </button>
+            </Card>
 
             {/* Low supply */}
-            <button
-              type="button"
+            <Card
               onClick={() => navigate("/patients")}
-              className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
+              accent="secondary"
+              className="text-left h-full flex flex-col"
               aria-label="View low supply alerts by patient"
             >
               <div className="flex items-center gap-3">
@@ -634,7 +608,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
-                    Low supply alerts
+                    Low Supply Alerts
                   </p>
                 </div>
               </div>
@@ -673,17 +647,17 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   </ul>
                 ) : (
                   <p className="font-poppins text-sm text-text-secondary">
-                    No low supply medications right now.
+                    No low supply alerts.
                   </p>
                 )}
               </div>
-            </button>
+            </Card>
 
             {/* Upcoming appointments */}
-            <button
-              type="button"
+            <Card
               onClick={() => navigate("/appointments")}
-              className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
+              accent="secondary"
+              className="text-left h-full flex flex-col"
               aria-label="View next appointment"
             >
               <div className="flex items-center gap-3">
@@ -696,7 +670,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
-                    Next appointment
+                    Next Appointment
                   </p>
                 </div>
               </div>
@@ -725,11 +699,11 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   </div>
                 ) : (
                   <p className="font-poppins text-sm text-text-secondary">
-                    No next appointment scheduled.
+                    No appointments scheduled.
                   </p>
                 )}
               </div>
-            </button>
+            </Card>
           </div>
 
           {/* Patients section */}
@@ -744,7 +718,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
             </div>
             <button
               onClick={() => navigate("/patients")}
-              className="font-poppins text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"
+              className="font-poppins text-sm font-semibold flex items-center gap-1 hover:opacity-90 transition-all"
               style={{ color: modeHexColor }}
             >
               View All
@@ -753,7 +727,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
           </div>
 
           {/* Patient cards grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {patients.map((patient) => (
               <PatientCard key={patient.id} patient={patient} />
             ))}
@@ -776,30 +750,37 @@ const CaregiverDashboard = ({ userName = "" }) => {
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     {/* Patient filter */}
-                    <select
+                    <SelectMenu
                       value={scheduleFilter}
-                      onChange={(e) => setScheduleFilter(e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-border-default bg-background-default text-sm font-poppins text-text-primary"
-                    >
-                      <option value="all">All patients</option>
-                      {patients.map((patient) => (
-                        <option key={patient.id} value={patient.id}>
-                          {patient.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(next) => setScheduleFilter(next)}
+                      options={[
+                        { value: "all", label: "All patients" },
+                        ...patients.map((patient) => ({
+                          value: patient.id,
+                          label: patient.name,
+                        })),
+                      ]}
+                      mode="Caregiver"
+                      aria-label="Filter schedule by patient"
+                      buttonClassName="px-3 py-2 rounded-lg text-sm"
+                    />
 
                     {/* Status filter (dropdown) */}
-                    <select
+                    <SelectMenu
                       value={scheduleStatusFilter}
-                      onChange={(e) => setScheduleStatusFilter(e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-border-default bg-background-default text-sm font-poppins text-text-primary"
+                      onChange={(next) => setScheduleStatusFilter(next)}
+                      options={[
+                        { value: "all", label: `All (${scheduleCounts.all})` },
+                        {
+                          value: "pending",
+                          label: `Pending (${scheduleCounts.pending})`,
+                        },
+                        { value: "taken", label: `Taken (${scheduleCounts.taken})` },
+                      ]}
+                      mode="Caregiver"
                       aria-label="Filter schedule by status"
-                    >
-                      <option value="all">All ({scheduleCounts.all})</option>
-                      <option value="pending">Pending ({scheduleCounts.pending})</option>
-                      <option value="taken">Taken ({scheduleCounts.taken})</option>
-                    </select>
+                      buttonClassName="px-3 py-2 rounded-lg text-sm"
+                    />
                   </div>
                 </div>
               </div>
@@ -817,7 +798,17 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   defaultSortConfig={scheduleDefaultSortConfig}
                   showActions={false}
                   emptyMessage="No medication schedule available yet."
-                  emptySubMessage="Try another date or add medications for your patients."
+                  emptySubMessage="Add medications for your patients in their profiles"
+                  emptyAction={
+                    <button
+                      type="button"
+                      onClick={() => navigate("/patients")}
+                      className="font-poppins font-semibold text-sm"
+                      style={{ color: modeHexColor }}
+                    >
+                      To Patients Page
+                    </button>
+                  }
                   EmptyIcon={ClockIcon}
                   mode="Caregiver"
                   variant="compact"

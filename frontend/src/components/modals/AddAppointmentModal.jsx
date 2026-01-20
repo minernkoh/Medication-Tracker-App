@@ -7,16 +7,13 @@
  * @param {object} appointment - Existing appointment for editing (null for new)
  * @param {string} mode - "Personal" or "Caregiver"
  */
-import React, { useState, useEffect } from "react";
-import { Modal, FormField, Button } from "../ui";
+import { useState, useEffect } from "react";
+import { Modal, FormField, Button, TimePickerDropdown, SelectMenu } from "../ui";
+import { Calendar } from "../features";
 import {
-  buildTimeOptions,
   getNowTimeInputRounded,
-  roundTimeToInterval,
   toTimeInput,
 } from "../../utils";
-
-const TIME_OPTIONS_15 = buildTimeOptions(15);
 
 function AddAppointmentModal({
   isOpen,
@@ -53,11 +50,7 @@ function AddAppointmentModal({
 
   useEffect(() => {
     if (appointment) {
-      const timeForInput = roundTimeToInterval(
-        toTimeInput(appointment.time || ""),
-        15,
-        "nearest",
-      );
+      const timeForInput = toTimeInput(appointment.time || "");
       setFormData({
         title: appointment.title || "",
         doctorName: appointment.doctorName || "",
@@ -68,8 +61,12 @@ function AddAppointmentModal({
       });
     } else {
       const now = new Date();
-      const defaultDate = now.toISOString().split("T")[0];
-      const defaultTime = getNowTimeInputRounded(15, "ceil");
+      const defaultDate = new Date(
+        now.getTime() - now.getTimezoneOffset() * 60 * 1000,
+      )
+        .toISOString()
+        .split("T")[0];
+      const defaultTime = getNowTimeInputRounded(15, "nearest");
       setFormData({
         title: "",
         doctorName: "",
@@ -123,10 +120,9 @@ function AddAppointmentModal({
 
     if (!validate()) return;
 
-    const roundedTime = roundTimeToInterval(formData.time, 15, "nearest");
     const appointmentData = {
       ...formData,
-      time: roundedTime || "",
+      time: formData.time || "",
       ...(isEditing && { id: appointment.id }),
     };
 
@@ -139,6 +135,13 @@ function AddAppointmentModal({
   const cancelOverrideClassName = isCaregiver
     ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
     : "";
+
+  const selectedDateObj = (() => {
+    // Parse YYYY-MM-DD as a local date (avoid UTC off-by-one)
+    const parsed = new Date(`${formData.date}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return new Date();
+    return parsed;
+  })();
 
   return (
     <Modal
@@ -180,23 +183,23 @@ function AddAppointmentModal({
               <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
                 Patient <span className="text-danger">*</span>
               </label>
-              <select
+              <SelectMenu
                 value={patientId}
-                onChange={(e) => onPatientIdChange?.(e.target.value)}
-                className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none transition-colors ${
-                  errors.patientId
-                    ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"
-                    : "border-border-default focus:border-primary focus:ring-2 focus:ring-primary/20"
-                }`}
+                onChange={(next) => onPatientIdChange?.(next)}
+                options={(patients || []).map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+                placeholder="Select a patient…"
                 required
-              >
-                <option value="">Select a patient…</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                mode={mode}
+                aria-label="Patient"
+                buttonClassName={
+                  errors.patientId
+                    ? "border-danger focus-visible:ring-danger/20"
+                    : ""
+                }
+              />
               {errors.patientId && (
                 <p className="mt-1.5 font-poppins font-semibold text-xs text-danger">
                   {errors.patientId}
@@ -249,26 +252,57 @@ function AddAppointmentModal({
 
           {/* Date and Time row */}
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label="Date"
-              name="date"
-              type="date"
-              value={formData.date}
-              onChange={handleChange}
-              error={errors.date}
-              required
-            />
-            <FormField
-              label="Time"
-              name="time"
-              as="select"
-              value={formData.time}
-              onChange={handleChange}
-              options={TIME_OPTIONS_15}
-              placeholder="Select a time…"
-              error={errors.time}
-              required
-            />
+            <div>
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Date <span className="text-danger">*</span>
+              </label>
+              <Calendar
+                selectedDate={selectedDateObj}
+                onDateChange={(date) => {
+                  // Convert Date -> YYYY-MM-DD in local time (avoid timezone shifting)
+                  const next = new Date(
+                    date.getTime() - date.getTimezoneOffset() * 60 * 1000,
+                  )
+                    .toISOString()
+                    .split("T")[0];
+                  setFormData((prev) => ({ ...prev, date: next }));
+                  if (errors.date) {
+                    setErrors((prev) => ({ ...prev, date: "" }));
+                  }
+                }}
+                mode={mode}
+                showWeekStrip={false}
+                variant="modal"
+              />
+              {errors.date && (
+                <p className="mt-1.5 font-poppins font-semibold text-xs text-danger flex items-center gap-1.5 animate-fade-in">
+                  <span className="inline-block w-1 h-1 rounded-full bg-danger flex-shrink-0" />
+                  {errors.date}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Time <span className="text-danger">*</span>
+              </label>
+              <TimePickerDropdown
+                value={formData.time}
+                onChange={(time) => {
+                  setFormData((prev) => ({ ...prev, time }));
+                  if (errors.time) {
+                    setErrors((prev) => ({ ...prev, time: "" }));
+                  }
+                }}
+                minuteStep={15}
+                mode={mode}
+              />
+              {errors.time && (
+                <p className="mt-1.5 font-poppins font-semibold text-xs text-danger flex items-center gap-1.5 animate-fade-in">
+                  <span className="inline-block w-1 h-1 rounded-full bg-danger flex-shrink-0" />
+                  {errors.time}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Notes */}

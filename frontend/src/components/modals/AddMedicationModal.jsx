@@ -8,12 +8,11 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 import { useState, useEffect } from "react";
-import { Modal, Button } from "../ui";
+import { Modal, Button, TimePickerDropdown, SelectMenu } from "../ui";
 import { PlusIcon } from "@phosphor-icons/react";
 import {
-  buildTimeOptions,
   getModeHexColor,
-  roundTimeToInterval,
+  getNowTimeInputRounded,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
   toTimeInput,
@@ -44,8 +43,6 @@ const DEFAULT_FORM_DATA = {
   timeOfDay: [],
   additionalInfo: "",
 };
-
-const TIME_OPTIONS_15 = buildTimeOptions(15);
 
 function AddMedicationModal({
   isOpen,
@@ -103,14 +100,14 @@ function AddMedicationModal({
   useEffect(() => {
     if (!isOpen) {
       setFormData(DEFAULT_FORM_DATA);
-      setScheduleTimeInput("");
+      setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
       setErrors({});
       return;
     }
 
     if (!medication) {
       setFormData(DEFAULT_FORM_DATA);
-      setScheduleTimeInput("");
+      setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
       setErrors({});
       return;
     }
@@ -165,7 +162,7 @@ function AddMedicationModal({
       timeOfDay: normalizedTimesOfDay,
       additionalInfo: medication.additionalInfo || "",
     });
-    setScheduleTimeInput("");
+    setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
     setErrors({});
   }, [isOpen, medication]);
 
@@ -235,10 +232,10 @@ function AddMedicationModal({
   };
 
   const addScheduleTimeFromInput = (rawValue) => {
-    const rounded = roundTimeToInterval(rawValue, 15, "nearest");
-    if (!rounded) return;
-    handleTimeOfDayChange(rounded);
-    setScheduleTimeInput("");
+    const normalized = String(rawValue || "").trim();
+    if (!/^\d{2}:\d{2}$/.test(normalized)) return;
+    handleTimeOfDayChange(normalized);
+    setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
     if (errors.timeOfDay) {
       setErrors((prev) => ({ ...prev, timeOfDay: "" }));
     }
@@ -501,18 +498,22 @@ function AddMedicationModal({
                 )}
 
                 {/* Frequency Type Selector */}
-                <select
-                  name="frequencyType"
-                  value={formData.frequencyType}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                    formData.frequencyType === "custom" ? "sm:col-span-2" : ""
-                  }`}
-                >
-                  <option value="timesPerDay">Times per day</option>
-                  <option value="everyHours">Every X hours</option>
-                  <option value="custom">Custom</option>
-                </select>
+                <div className={formData.frequencyType === "custom" ? "sm:col-span-2" : ""}>
+                  <SelectMenu
+                    value={formData.frequencyType}
+                    onChange={(nextValue) =>
+                      handleChange({ target: { name: "frequencyType", value: nextValue } })
+                    }
+                    options={[
+                      { value: "timesPerDay", label: "Times per day" },
+                      { value: "everyHours", label: "Every X hours" },
+                      { value: "custom", label: "Custom" },
+                    ]}
+                    mode={mode}
+                    aria-label="Frequency type"
+                    buttonClassName="w-full"
+                  />
+                </div>
               </div>
 
               {formData.frequencyType === "custom" && (
@@ -541,19 +542,14 @@ function AddMedicationModal({
             </label>
             <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
               <div className="flex flex-col sm:flex-row gap-3">
-                <select
-                  value={scheduleTimeInput}
-                  onChange={(e) => setScheduleTimeInput(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                  aria-label="Schedule time"
-                >
-                  <option value="">Select a time…</option>
-                  {TIME_OPTIONS_15.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full" aria-label="Schedule time">
+                  <TimePickerDropdown
+                    value={scheduleTimeInput}
+                    onChange={(time) => setScheduleTimeInput(time)}
+                    minuteStep={15}
+                    mode={mode}
+                  />
+                </div>
                 <Button
                   type="button"
                   variant="ghost"

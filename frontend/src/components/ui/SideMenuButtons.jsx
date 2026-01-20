@@ -1,4 +1,3 @@
-import React from "react";
 import {
   SquaresFourIcon,
   PillIcon,
@@ -38,14 +37,14 @@ function SideMenuButtons({
 
   // base classes for the button
   const baseClasses = `
-    flex gap-2 items-center px-4 py-3 rounded-lg transition-colors cursor-pointer w-full text-left border-none
+    flex gap-2 items-center px-3.5 py-2.5 rounded-lg transition-colors cursor-pointer w-full text-left border-none
     focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
     ${
       mode === "Personal"
         ? "focus-visible:ring-primary"
         : "focus-visible:ring-secondary"
     }
-    ${collapsed ? "justify-center px-3" : ""}
+    ${collapsed ? "justify-center px-2.5" : ""}
   `;
 
   // state-based classes
@@ -56,7 +55,7 @@ function SideMenuButtons({
   // get icon component
   const getIcon = () => {
     const weight = isSelected ? "fill" : "regular";
-    const size = 24;
+    const size = 22;
 
     switch (type) {
       case "Dashboard":

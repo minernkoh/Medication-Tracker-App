@@ -12,7 +12,6 @@
  * @param {string} className - Additional CSS classes
  * @param {function} onClick - Click handler
  */
-import React from "react";
 import { SpinnerGapIcon } from "@phosphor-icons/react";
 
 function Button({

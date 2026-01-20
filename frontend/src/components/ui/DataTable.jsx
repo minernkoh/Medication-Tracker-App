@@ -12,7 +12,7 @@
  * @param {string} mode - "Personal" or "Caregiver"
  * @param {string} variant - "default" | "compact"
  */
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CaretUpIcon, CaretDownIcon, PillIcon } from "@phosphor-icons/react";
 import { getModeClasses } from "../../utils/modeUtils";
 import ActionButtons from "./ActionButtons";
@@ -252,7 +252,7 @@ function DataTable({
                         className={`${cellPadding} ${alignTextClass}`}
                       >
                         {col.render
-                          ? col.render(row[col.key], row)
+                          ? col.render(row[col.key], row, rowIndex)
                           : row[col.key]}
                       </td>
                     );

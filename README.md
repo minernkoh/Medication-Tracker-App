@@ -1,618 +1,142 @@
 # Medication Tracker App
 
-A full-stack web app for tracking medications and appointments, with patient and caregiver modes.
+Full-stack web app for tracking medications and appointments, with **patient** and **caregiver** modes.
 
-## Table of Contents
+## Table of contents
 
 - [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [How the Frontend & Backend Work Together](#how-the-frontend--backend-work-together)
-- [Getting Started](#getting-started)
-- [Design System](#design-system)
-- [API Endpoints](#api-endpoints)
-- [Development](#development)
-- [Testing](#testing)
-- [What We Learned](#what-we-learned)
-- [Future Enhancements](#future-enhancements)
+- [Tech stack](#tech-stack)
+- [Getting started (dev)](#getting-started-dev)
+- [API overview](#api-overview)
+- [Scripts](#scripts)
 - [License](#license)
 
-## 🚀 Features
+## Features
 
-### Core Functionality
+- **Medication tracking**: create/update meds with schedules and inventory (low-supply alerts)
+- **Medication logs**: mark a dose as taken and undo
+- **Appointments**: create/update upcoming appointments
+- **Caregiver mode**: link patients, see consolidated schedules/appointments and adherence summaries
+- **Auth + onboarding**: JWT auth, onboarding tutorial accessible from Settings
 
-- **Medication Management**: Track medications with dosage, frequency, and timing information
-- **Appointment Tracking**: View and manage upcoming medical appointments
-- **Daily Progress**: Monitor medication completion status throughout the day
-- **Calendar Integration**: Weekly calendar view with date picker and today indicator
-- **Supply Management**: Track medication inventory with refill reminders
-- **Low Supply Alerts**: Visual indicators for medications running low
+## Tech stack
 
-### Dual Mode Support
+- **Frontend**: React, Vite, Tailwind CSS, React Router, Phosphor Icons
+- **Backend**: Node.js, Express, MongoDB/Mongoose, JWT, Helmet, rate limiting
 
-- **Personal Mode**: Individual medication and appointment tracking
-- **Caregiver Mode**: Manage multiple patients with consolidated views
-  - Patient overview dashboard
-  - Aggregate medication schedules
-  - Multi-patient appointment management
-
-### Authentication & Onboarding
-
-- **Sign Up/Login**: Email authentication with form validation
-- **Account Types**: Choose between Patient or Caregiver accounts
-- **Onboarding Tutorial**: Step-by-step guide for new users (can be skipped and accessed later from Settings)
-- **Mode Switching**: Seamlessly switch between Personal and Caregiver modes
-
-### Settings & Preferences
-
-- **Account Management**: Profile display, password change
-- **Privacy Controls**: Account deletion with data cleanup
-- **Help & Support**: Access tutorial from Settings
-- **Logout Confirmation**: Prevents accidental logouts with confirmation dialog
-
-### User Interface
-
-- **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
-- **Interactive Components**: Hover states with glow effects, smooth transitions
-- **Modern UI**: Clean design with Tailwind CSS and Phosphor Icons
-- **Accessibility**: Screen reader friendly with proper ARIA labels
-
-## 🛠️ Technology Stack
-
-### Frontend
-
-- React
-- Vite
-- Tailwind CSS
-- React Router
-- Phosphor Icons
-
-### Backend
-
-- Node.js
-- Express
-- MongoDB
-- Mongoose
-- JWT
-- Helmet
-- express-rate-limit
-- express-validator
-- bcrypt
-
-## 📁 Project Structure
-
-```
-Medication-Tracker-App/
-├── backend/
-│   ├── config/
-│   │   └── db.js                    # MongoDB connection
-│   ├── controllers/
-│   │   ├── appointments.js          # Appointment logic
-│   │   ├── auth.js                  # Authentication
-│   │   ├── caregiver.js             # Caregiver mode logic
-│   │   ├── medications.js           # Medication CRUD
-│   │   └── users.js                 # User management
-│   ├── middleware/
-│   │   ├── auth.js                  # Auth middleware
-│   │   └── permissions.js           # Authorization
-│   ├── models/
-│   │   ├── Appointments.js          # Appointment model
-│   │   ├── Medication.js            # Medication model
-│   │   ├── MedicationLog.js         # Medication log model
-│   │   └── User.js                  # User model
-│   ├── routes/
-│   │   ├── appointments.js          # Appointment routes
-│   │   ├── auth.js                  # Auth routes
-│   │   ├── caregiver.js             # Caregiver routes
-│   │   ├── medications.js           # Medication routes
-│   │   └── users.js                 # User routes
-│   ├── server.js                    # Express entry point
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── ui/                  # Reusable UI components
-│   │   │   │   ├── ActionButtons.jsx
-│   │   │   │   ├── Button.jsx
-│   │   │   │   ├── CalendarDateButton.jsx
-│   │   │   │   ├── Card.jsx
-│   │   │   │   ├── ConfirmDialog.jsx
-│   │   │   │   ├── DataTable.jsx
-│   │   │   │   ├── EmptyState.jsx
-│   │   │   │   ├── ErrorBoundary.jsx
-│   │   │   │   ├── FormField.jsx
-│   │   │   │   ├── GradientBackground.jsx
-│   │   │   │   ├── LoadingState.jsx
-│   │   │   │   ├── Modal.jsx
-│   │   │   │   ├── PageHeader.jsx
-│   │   │   │   ├── PieChart.jsx
-│   │   │   │   ├── SectionHeader.jsx
-│   │   │   │   ├── SideMenuButtons.jsx
-│   │   │   │   ├── StatCard.jsx
-│   │   │   │   ├── Toast.jsx
-│   │   │   │   └── index.js
-│   │   │   ├── features/            # Feature-specific components
-│   │   │   │   ├── AppointmentCard.jsx
-│   │   │   │   ├── MedicationSection.jsx
-│   │   │   │   ├── OnboardingTutorial.jsx
-│   │   │   │   ├── PendingMedicine.jsx
-│   │   │   │   └── index.js
-│   │   │   ├── layout/             # Layout components
-│   │   │   │   ├── Sidebar.jsx
-│   │   │   │   └── index.js
-│   │   │   ├── modals/             # Modal components
-│   │   │   │   ├── AddAppointmentModal.jsx
-│   │   │   │   ├── AddMedicationModal.jsx
-│   │   │   │   ├── CaregiverAuthModal.jsx
-│   │   │   │   ├── EditMedicationModal.jsx
-│   │   │   │   └── index.js
-│   │   │   ├── pages/              # Page components
-│   │   │   │   ├── caregiver/      # Caregiver mode pages
-│   │   │   │   │   ├── CaregiverAppointmentsPage.jsx
-│   │   │   │   │   ├── CaregiverDashboard.jsx
-│   │   │   │   │   ├── PatientDetailPage.jsx
-│   │   │   │   │   ├── PatientsPage.jsx
-│   │   │   │   │   └── index.js
-│   │   │   │   ├── patient/        # Patient mode pages
-│   │   │   │   │   ├── AppointmentsPage.jsx
-│   │   │   │   │   ├── Dashboard.jsx
-│   │   │   │   │   ├── MedicationPage.jsx
-│   │   │   │   │   └── index.js
-│   │   │   │   ├── AuthPage.jsx
-│   │   │   │   ├── NotFoundPage.jsx
-│   │   │   │   ├── SettingsPage.jsx
-│   │   │   │   └── index.js
-│   │   │   └── index.js            # Central barrel export
-│   │   ├── contexts/
-│   │   │   └── ErrorContext.jsx    # Error handling context
-│   │   ├── utils/
-│   │   │   ├── apiErrorHandler.js
-│   │   │   ├── dateUtils.js
-│   │   │   ├── emptyStates.jsx
-│   │   │   ├── medicationColors.js
-│   │   │   ├── modeUtils.js
-│   │   │   ├── storageUtils.js
-│   │   │   ├── timeUtils.js
-│   │   │   ├── typography.js
-│   │   │   ├── validation.js
-│   │   │   └── index.js
-│   │   ├── App.jsx                 # Root component
-│   │   ├── main.jsx                # React entry point
-│   │   └── index.css               # Global styles
-│   ├── index.html
-│   ├── tailwind.config.js          # Tailwind + design tokens
-│   ├── vite.config.js
-│   ├── postcss.config.js
-│   └── package.json
-│
-└── README.md
-```
-
-## 🧠 How the Frontend & Backend Work Together
-
-### High-level request flow
-
-- **Frontend calls `/api/*`**: The React app uses a centralized API client in `frontend/src/api.js` and makes requests to relative URLs like `/api/auth/signin`.
-- **Vite proxies API requests in dev**: `frontend/vite.config.js` proxies `/api` to the backend (default `http://127.0.0.1:5001`) and **rewrites** the path by stripping the `/api` prefix.
-  - Example: `GET /api/medications` (browser → Vite) becomes `GET /medications` (Vite → Express).
-- **Backend handles routes at the root**: `backend/server.js` mounts Express routes like `/auth`, `/medications`, `/appointments`, `/users`, and `/caregiver`.
-- **Controllers → Models → MongoDB**: Route handlers call controller functions in `backend/controllers/*`, which use Mongoose models in `backend/models/*` to read/write data in MongoDB.
-
-### Frontend (React + Vite)
-
-- **App entry + routing**: `frontend/src/main.jsx` boots the app; `frontend/src/App.jsx` renders pages under `frontend/src/components/pages/*`.
-- **API client + auth token**: `frontend/src/api.js`:
-  - Stores the JWT in `localStorage` under `token` after sign-in
-  - Sends `Authorization: Bearer <token>` automatically on authenticated requests
-- **UI organization**:
-  - `frontend/src/components/ui/*`: reusable UI primitives (buttons, tables, modals, etc.)
-  - `frontend/src/components/features/*`: feature-focused components (medications, appointments, onboarding)
-  - `frontend/src/components/pages/*`: route-level pages for patient/caregiver modes
-
-### Backend (Express + MongoDB)
-
-- **Server entrypoint**: `backend/server.js` loads `.env`, enables security middleware (Helmet, rate limiting), and mounts route modules.
-- **Routing layer**: `backend/routes/*` defines the HTTP endpoints and wires them to controllers.
-- **Authentication**:
-  - `POST /auth/signup` and `POST /auth/signin` live in `backend/routes/auth.js`
-  - Successful sign-in returns `{ token, user }` (see `backend/controllers/auth.js`)
-  - Protected endpoints use `backend/middleware/auth.js` to verify the JWT and attach `req.user`
-- **Authorization (patient vs caregiver)**: caregiver/patient access rules are enforced via middleware in `backend/middleware/permissions.js` on patient-scoped routes.
-
-### JSON files (sample data) and what to ignore
-
-This repo includes example JSON under `sample data/` for reference. **Do not put real exports/production-like data there**. If you create local JSON dumps, add a targeted ignore rule (don’t ignore all `*.json`, since files like `package-lock.json` must stay tracked).
-
-Example `.gitignore` entries:
-
-```gitignore
-# Local/sample JSON exports (keep package-lock.json tracked)
-sample data/*.json
-*.local.json
-```
-
-## 🚦 Getting Started
+## Getting started (dev)
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher)
-- **npm**
-- **MongoDB** (local or Atlas)
+- Node.js 18+
+- MongoDB (local or Atlas)
 
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd Medication-Tracker-App
-   ```
-
-2. **Install backend dependencies**
-
-   ```bash
-   cd backend
-   npm install
-   ```
-
-3. **Install frontend dependencies**
-
-   ```bash
-   cd ../frontend
-   npm install
-   ```
-
-4. **Set up environment variables**
-
-   Copy the environment template, then edit values:
-
-   ```bash
-   cp backend/env.example backend/.env
-   ```
-   
-   Optional (frontend): set a custom API target for the Vite dev proxy by creating `frontend/.env`:
-   
-   ```env
-   VITE_API_TARGET=http://127.0.0.1:5001
-   ```
-
-### Running the Application
-
-#### Development Mode
-
-1. **Start the backend server**
-
-   ```bash
-   cd backend
-   npm run dev
-   ```
-
-   The backend will run on `http://127.0.0.1:5001` by default
-
-2. **Start the frontend development server**
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-   The frontend will run on `http://localhost:5173`
-   
-   In development, the frontend calls the API via `/api/*` and Vite proxies requests to the backend (the `/api` prefix is stripped).
-
-#### Production Build
-
-1. **Build the frontend**
-
-   ```bash
-   cd frontend
-   npm run build
-   ```
-
-2. **Start the backend server**
-   ```bash
-   cd backend
-   npm start
-   ```
-   
-   Serve the frontend build from `frontend/dist` using any static host.
-
-## 🎨 Design System
-
-### Architecture
-
-The design system follows a **single source of truth** pattern. All design tokens are defined in `frontend/tailwind.config.js`:
-
-- **Color tokens** are exported and imported directly in components
-- **No duplicate color definitions** - all colors reference the config
-- **Tailwind classes** automatically use the same tokens via the config
-- **Consistent design language** across all components
-
-### Semantic Color Tokens
-
-Colors are defined and exported from `tailwind.config.js`:
-
-| Token                | Value                   | Usage                   |
-| -------------------- | ----------------------- | ----------------------- |
-| `primary.DEFAULT`    | `#155dfc`               | Personal mode actions   |
-| `primary.hover`      | `#1350e0`               | Personal hover state    |
-| `primary.light`      | `#e8f0fe`               | Personal light variant  |
-| `secondary.DEFAULT`  | `#da7488`               | Caregiver mode actions  |
-| `secondary.hover`    | `#c86478`               | Caregiver hover state   |
-| `secondary.light`    | `#fce8ec`               | Caregiver light variant |
-| `text.primary`       | `#181818`               | Main text               |
-| `text.secondary`     | `#646464`               | Subdued text            |
-| `icon.primary`       | `#181818`               | Default icon color      |
-| `icon.secondary`     | `#646464`               | Secondary icon color    |
-| `background.default` | `#ffffff`               | Page background         |
-| `background.subtle`  | `#f9f9f9`               | Card backgrounds        |
-| `background.hover`   | `#f9f9f9`               | Hover backgrounds       |
-| `border.default`     | `rgba(100,100,100,0.2)` | Default borders         |
-| `border.subtle`      | `rgba(100,100,100,0.1)` | Subtle borders          |
-
-**Usage in Components:**
-
-```javascript
-import { colors } from "../../../tailwind.config.js";
-
-// Use in JSX (e.g., for icon colors)
-<Icon color={colors.icon.primary} />;
-```
-
-**Usage in Tailwind Classes:**
-
-```jsx
-// Tailwind automatically uses the same tokens
-<div className="bg-primary text-text-onPrimary" />
-```
-
-### Button Variants
-
-The `Button` component (`frontend/src/components/ui/Button.jsx`) supports these variants:
-
-| Variant     | Use Case                      |
-| ----------- | ----------------------------- |
-| `primary`   | Main actions (blue glow)      |
-| `secondary` | Caregiver actions (pink glow) |
-| `success`   | Positive actions (green)      |
-| `danger`    | Destructive actions (red)     |
-| `outline`   | Secondary actions             |
-| `ghost`     | Tertiary/subtle actions       |
-
-### Action Buttons
-
-The `ActionButtons` component (`frontend/src/components/ui/ActionButtons.jsx`) provides consistent edit/delete actions:
-
-| Size   | Icon Size | Padding | Use Case             |
-| ------ | --------- | ------- | -------------------- |
-| `sm`   | 16px      | p-1.5   | Compact table rows   |
-| `base` | 18px      | p-2     | Default (tables)     |
-| `lg`   | 20px      | p-2.5   | Large interactive UI |
-
-- **Edit**: Blue hover state (`hover:bg-blue-50`, `text-blue-500`)
-- **Delete**: Red hover state (`hover:bg-red-50`, `text-red-500`)
-
-### Typography
-
-- **Font Family**: Poppins
-- **Weights**: 400 (Regular), 600 (SemiBold), 700 (Bold)
-- **Sizes**: xs (12px), sm (14px), base (16px), lg (18px), xl+ (20-40px)
-
-### Spacing & Sizing
-
-All values use rem units for accessibility:
-
-- **Spacing Scale**: xs (0.25rem) → 5xl (5rem)
-- **Border Radius**: sm (4px) → 2xl (24px)
-- **Icon Sizes**: xs (12px) → lg (32px)
-
-## 🔌 API Endpoints
-
-### Authentication
-
-| Endpoint       | Method | Description       |
-| -------------- | ------ | ----------------- |
-| `/auth/signup` | POST   | User registration |
-| `/auth/signin` | POST   | User login        |
-
-### Users
-
-| Endpoint                      | Method | Description                 |
-| ----------------------------- | ------ | --------------------------- |
-| `/users/me`                   | GET    | Get current user profile    |
-| `/users/:id`                  | PUT    | Update user profile         |
-| `/users/:id/assign-caregiver` | PUT    | Assign caregiver to patient |
-
-### Medications
-
-| Endpoint                               | Method | Description                   |
-| -------------------------------------- | ------ | ----------------------------- |
-| `/medications/:id`                     | GET    | Get medication by ID          |
-| `/medications/:id`                     | PUT    | Update medication             |
-| `/medications/:id`                     | DELETE | Delete medication             |
-| `/patients/:patientId/medications`     | GET    | List patient medications      |
-| `/patients/:patientId/medications`     | POST   | Create medication for patient |
-| `/patients/:patientId/medications/:id` | PUT    | Update patient medication     |
-| `/patients/:patientId/medications/:id` | DELETE | Delete patient medication     |
-
-### Appointments
-
-| Endpoint                                | Method | Description                    |
-| --------------------------------------- | ------ | ------------------------------ |
-| `/appointments/:id`                     | GET    | Get appointment by ID          |
-| `/appointments/:id`                     | PUT    | Update appointment             |
-| `/appointments/:id`                     | DELETE | Delete appointment             |
-| `/patients/:patientId/appointments`     | GET    | List patient appointments      |
-| `/patients/:patientId/appointments`     | POST   | Create appointment for patient |
-| `/patients/:patientId/appointments/:id` | GET    | Get patient appointment by ID  |
-| `/patients/:patientId/appointments/:id` | PUT    | Update patient appointment     |
-| `/patients/:patientId/appointments/:id` | DELETE | Delete patient appointment     |
-
-**Note:** All endpoints (except authentication) require JWT token authentication via the `Authorization` header.
-
-## 🧪 Development
-
-### Code Style
-
-- ES6+ JavaScript with React best practices
-- Functional components with hooks
-- JSDoc comments for component documentation
-- Consistent naming: PascalCase components, camelCase functions
-
-### Linting (Frontend)
-
-The frontend uses **ESLint** (`frontend/.eslintrc.json`) to catch common issues (unused imports/vars, undefined variables, and React JSX rules).
-
-Run from `frontend/`:
+### Install
 
 ```bash
-npm run lint
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-Auto-fix (safe fixes only):
+### Environment variables
+
+Backend:
 
 ```bash
-npm run lint:fix
+cp backend/env.example backend/.env
 ```
 
-### Codebase evaluation report
+Required values in `backend/.env`:
 
-See `codebase evaluation.md` for a focused review of **frontend efficiency**, **duplication**, and the current **lint** backlog, with prioritized recommendations.
+- `MONGODB_URI`
+- `JWT_SECRET`
 
-### State Management
+Optional:
 
-- React `useState`/`useEffect` for local state
-- `localStorage` for session persistence (via `storageUtils.js`)
-- React Context API (`ErrorContext`) for global error handling
-- Props for component communication
-- Callback functions for parent-child interaction
+- `PORT` (defaults to `5001`)
+- `HOST` (defaults to `127.0.0.1`)
 
-### Component Guidelines
+Frontend (optional): override the Vite dev proxy target by creating `frontend/.env`:
 
-1. **Keep components focused**: Single responsibility principle
-2. **Use design tokens from config**:
-   - Import colors directly: `import { colors } from "../../../tailwind.config.js"`
-   - Use Tailwind classes when possible (they reference the same tokens)
-   - Never hardcode color values - always use tokens
-3. **CSS-only hover states**: Use Tailwind `hover:` variants, not JS `useState`
-4. **Accessible components**: Use semantic HTML (`<button>` not `<div onClick>`)
-5. **Mode-aware styling**: Use Tailwind classes like `bg-primary` vs `bg-secondary`
-6. **Reuse shared components**: `DataTable`, `MedicationSection`, `Button`, `ActionButtons`
-7. **Error handling**: Use `ErrorContext` for global error management
-8. **Loading states**: Use `LoadingState` component for async operations
-9. **Empty states**: Use `EmptyState` component with appropriate messaging
+```env
+VITE_API_TARGET=http://127.0.0.1:5001
+```
 
-### Design System Best Practices
+### Run
 
-- ✅ **Single source of truth**: All design tokens in `tailwind.config.js`
-- ✅ **Import colors directly**: `import { colors } from "../tailwind.config.js"`
-- ✅ **Use Tailwind classes first**: Prefer Tailwind utility classes over inline styles
-- ✅ **Consistent spacing**: Use the defined rem-based spacing scale
-- ✅ **Semantic tokens**: Use semantic names (e.g., `text.primary` not `#181818`)
-- ❌ **Don't hardcode colors**: Always use tokens from the config
-- ❌ **Don't duplicate definitions**: Reference shared config/components, don’t re-create variants in multiple folders
+```bash
+cd backend && npm run dev
+```
 
+```bash
+cd frontend && npm run dev
+```
 
-## 🎯 Key Features & Improvements
+- Backend runs on `http://127.0.0.1:5001` by default
+- Frontend runs on `http://localhost:5173`
+- In dev, the frontend calls the API via `/api/*` and Vite proxies to the backend (stripping the `/api` prefix)
 
-**Recent Improvements:**
+## API overview
 
-- ✅ Onboarding flow: Skip option and Settings access
-- ✅ Medication management: Prominent CTAs and empty states
-- ✅ Appointment management: Improved editing/deletion flows with confirmation dialogs
-- ✅ Error recovery: Custom 404 page and enhanced error handling
-- ✅ Logout flow: Confirmation dialog to prevent accidental logouts
-- ✅ Settings organization: Logically grouped sections
-- ✅ Design token system: Centralized color and design tokens in Tailwind config
-- ✅ Component organization: Clear separation between UI, features, layout, and pages
+Base URL:
 
-## 🧪 Testing
+- **From the frontend (dev)**: `/api`
+- **Directly**: `http://127.0.0.1:5001`
 
-Currently, the project does not include automated tests. To add testing:
+Auth:
 
-1. **Backend**: Consider adding Jest or Mocha for API endpoint testing
-2. **Frontend**: Consider adding React Testing Library for component testing
-3. **E2E**: Consider adding Cypress or Playwright for end-to-end testing
+- `POST /auth/signup`
+- `POST /auth/signin`
 
-## 💡 What We Learned
+Users:
 
-Building this Medication Tracker App provided valuable insights and learning experiences:
+- `GET /users/me`
+- `POST /users/me/change-password`
+- `PUT /users/:id`
+- `PUT /users/:id/assign-caregiver`
+- `DELETE /users/:id`
 
-### Full-Stack Development
-- **Full-Stack Development**: Gained hands-on experience building a complete application with MongoDB, Express, React, and Node.js
-- **RESTful API Design**: Learned to structure REST endpoints with proper HTTP methods, status codes, and error handling
-- **Authentication & Security**: Implemented JWT-based authentication with secure password hashing using bcrypt
-- **Database Modeling**: Designed MongoDB schemas with Mongoose, including relationships between users, medications, and appointments
+Medications:
 
-### Frontend Architecture
-- **Component Organization**: Developed a scalable folder structure separating UI components, features, layouts, and pages
-- **State Management**: Utilized React Context API for global error handling alongside local state for component-specific data
-- **Design System Architecture**: Created a single source of truth for design tokens in Tailwind config, eliminating color duplication
-- **Mode-Based UI**: Implemented dual-mode functionality (Patient/Caregiver) with dynamic styling and routing
+- `GET /medications` (current user)
+- `GET /medications/today`
+- `GET /medications/supply`
+- `GET /medications/date/:date` (date format: `YYYY-MM-DD`)
+- `POST /medications`
+- `GET|PUT|DELETE /medications/:id`
+- `PATCH /medications/:id/taken`
+- `PATCH /medications/:id/undo`
+- Patient-scoped (caregiver permissions):
+  - `GET|POST /patients/:patientId/medications`
+  - `PUT|DELETE /patients/:patientId/medications/:id`
 
-### Design & UX
-- **Responsive Design**: Built a fully responsive application using Tailwind CSS that works across mobile, tablet, and desktop
-- **Accessibility**: Learned the importance of semantic HTML, ARIA labels, and keyboard navigation
-- **User Onboarding**: Created an interactive tutorial system that can be skipped and re-accessed, improving user experience
-- **Error Handling**: Implemented comprehensive error boundaries and user-friendly error messages
+Appointments:
 
-### Development Practices
-- **Code Organization**: Practiced separation of concerns with controllers, models, routes, and middleware
-- **Environment Configuration**: Used environment variables for sensitive data and configuration management
-- **Version Control**: Managed feature branches and coordinated frontend/backend development
-- **Documentation**: Maintained comprehensive README documentation for project setup and architecture
+- `GET /appointments` (current user)
+- `POST /appointments`
+- `GET|PUT|DELETE /appointments/:id`
+- Patient-scoped:
+  - `GET|POST /patients/:patientId/appointments`
+  - `GET|PUT|DELETE /patients/:patientId/appointments/:id`
 
-### Technical Challenges Solved
-- **Dual-Mode Architecture**: Designed a flexible system allowing users to switch between personal and caregiver modes
-- **Real-Time Updates**: Implemented medication tracking with daily progress monitoring
-- **Data Relationships**: Managed complex relationships between users, patients, medications, and appointments
-- **Form Validation**: Created client-side and server-side validation for user inputs
+Caregiver:
 
-## 🚀 Future Enhancements
+- `GET /caregiver/patients`
+- `POST /caregiver/patients`
+- `GET /caregiver/patients/:id`
+- `DELETE /caregiver/patients/:id`
+- `GET /caregiver/appointments`
+- `GET /caregiver/schedule?date=YYYY-MM-DD`
 
-The following features and improvements are planned for future releases:
+Notes:
 
-### Notifications & Reminders
-- **Push Notifications**: Browser push notifications for medication reminders
-- **Email/SMS Alerts**: Automated email and SMS reminders for medications and appointments
-- **Smart Scheduling**: AI-powered scheduling suggestions based on user patterns
-- **Refill Reminders**: Automated notifications when medications are running low
+- All endpoints except `/auth/*` require `Authorization: Bearer <token>`.
 
-### Enhanced Features
-- **Medication Interactions**: Drug interaction checker and warnings
-- **Health Analytics**: Detailed charts and reports on medication adherence
-- **Export/Import**: Ability to export medication lists and import from pharmacy records
-- **QR Code Scanning**: Scan medication bottles to auto-populate information
-- **Prescription Integration**: Connect with pharmacies for automatic prescription tracking
+## Scripts
 
-### Technical Improvements
-- **Automated Testing**: Unit, integration, and E2E tests for reliability
-- **Performance Optimization**: Code splitting, lazy loading, and caching strategies
-- **Progressive Web App (PWA)**: Offline functionality and installable app experience
-- **API Rate Limiting**: Enhanced security with rate limiting and request throttling
-- **Database Indexing**: Optimize queries with strategic database indexing
+- Backend (from `backend/`): `npm run dev`, `npm start`
+- Frontend (from `frontend/`): `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`, `npm run lint:fix`
 
-### User Experience
-- **Dark Mode**: Theme toggle for dark mode support
-- **Multi-Language Support**: Internationalization (i18n) for multiple languages
-- **Accessibility Improvements**: Enhanced screen reader support and keyboard navigation
-- **Mobile App**: Native iOS and Android applications using React Native
-- **Voice Commands**: Voice-activated medication logging and reminders
+## License
 
-### Integration & Collaboration
-- **Healthcare Provider Portal**: Integration with doctor's offices and clinics
-- **Family Sharing**: Share medication schedules with family members
-- **Care Team Communication**: Messaging system between patients and caregivers
-- **Insurance Integration**: Connect with insurance providers for coverage information
-- **Wearable Integration**: Sync with fitness trackers and smartwatches
-
-### Advanced Analytics
-- **Adherence Reports**: Detailed compliance reports for healthcare providers
-- **Trend Analysis**: Long-term medication effectiveness tracking
-- **Health Dashboard**: Comprehensive health metrics and progress visualization
-- **Predictive Alerts**: Machine learning-based predictions for medication needs
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
+No license file is currently included in this repository.

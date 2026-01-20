@@ -21,7 +21,7 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     // Update state so the next render will show the fallback UI
     return { hasError: true };
   }
@@ -54,6 +54,7 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const isDev = Boolean(import.meta?.env?.DEV);
       // Custom fallback UI with design tokens
       return (
         <div className="min-h-screen bg-background-default flex items-center justify-center p-4">
@@ -77,12 +78,12 @@ class ErrorBoundary extends React.Component {
               Something went wrong
             </h1>
             <p className="font-poppins text-base text-text-secondary mb-6">
-              We're sorry, but something unexpected happened. Please try
+              We&apos;re sorry, but something unexpected happened. Please try
               refreshing the page or return to the home page.
             </p>
 
             {/* Error Details (only in development) */}
-            {process.env.NODE_ENV === "development" && this.state.error && (
+            {isDev && this.state.error && (
               <details className="mb-6 text-left bg-background-subtle rounded-lg p-4 border border-border-default">
                 <summary className="cursor-pointer font-poppins font-semibold text-sm text-text-secondary mb-2">
                   Error Details (Development Only)

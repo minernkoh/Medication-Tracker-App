@@ -15,8 +15,7 @@
  * @param {string} className - Additional CSS classes
  * @param {object} inputProps - Additional props to pass to input element
  */
-
-import React from "react";
+import SelectMenu from "./SelectMenu";
 
 function FormField({
   label,
@@ -27,6 +26,7 @@ function FormField({
   onChange,
   error,
   required = false,
+  mode = "Personal",
   placeholder,
   icon,
   rightElement,
@@ -44,6 +44,14 @@ function FormField({
   const inputErrorClass = `${inputBaseClass} text-text-primary bg-background-default border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
 
   const inputClass = `${error ? inputErrorClass : isReadOnly ? inputReadOnlyClass : inputNormalClass} ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
+
+  const selectButtonClass = `${inputBaseClass} ${
+    error
+      ? "text-text-primary bg-background-default border-danger focus-visible:ring-danger/20"
+      : isReadOnly
+        ? "text-text-secondary bg-background-subtle border-border-default"
+        : "text-text-primary bg-background-default border-border-default"
+  } ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
 
   return (
     <div className={className}>
@@ -68,30 +76,24 @@ function FormField({
           </div>
         )}
         {as === "select" ? (
-          <select
+          <SelectMenu
             id={name}
             name={name}
             value={value || ""}
-            onChange={onChange}
+            onChange={(nextValue) => {
+              // Preserve native <select> onChange signature expected by callers
+              onChange?.({ target: { name, value: nextValue } });
+            }}
+            options={options}
+            placeholder={placeholder}
             required={required}
-            className={inputClass}
-            aria-invalid={!!error}
-            aria-describedby={error ? `${name}-error` : undefined}
-            {...inputProps}
-          >
-            {placeholder ? (
-              <option value="" disabled={required}>
-                {placeholder}
-              </option>
-            ) : null}
-            {Array.isArray(options)
-              ? options.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))
-              : null}
-          </select>
+            disabled={Boolean(inputProps?.disabled || inputProps?.readOnly)}
+            mode={mode}
+            aria-label={label || name}
+            ariaInvalid={!!error}
+            ariaDescribedBy={error ? `${name}-error` : undefined}
+            buttonClassName={selectButtonClass}
+          />
         ) : (
           <input
             type={type}

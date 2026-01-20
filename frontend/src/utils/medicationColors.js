@@ -148,18 +148,6 @@ function rgbToHex(r, g, b) {
 }
 
 /**
- * Convert hex color to RGB
- * @param {string} hex - Hex color string
- * @returns {{r: number, g: number, b: number}} RGB values
- */
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
-/**
  * Calculate relative luminance for WCAG contrast calculation
  * @param {number} r - Red component (0-255)
  * @param {number} g - Green component (0-255)

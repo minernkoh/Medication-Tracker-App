@@ -11,7 +11,6 @@
  * @param {boolean} compact - Use compact styling (for Dashboard)
  * @param {string} dateLabel - Optional date label to replace "Today" (e.g., "Mon, Jan 13")
  */
-import React from "react";
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -43,6 +42,7 @@ function MedicationSection({
   mode = "Personal",
 }) {
   const { formatQuantity } = useMedications();
+  const isCaregiver = mode === "Caregiver";
   const isPending = variant === "pending";
   const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
 
@@ -287,7 +287,9 @@ function MedicationSection({
         compact ? "p-4 md:p-5" : "p-6"
       } ${
         onCardClick
-          ? "cursor-pointer ring-inset hover:bg-background-hover hover:border-primary/30 hover:ring-2 hover:ring-primary/25 hover:shadow-card-hover transition-all duration-200"
+          ? isCaregiver
+            ? "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200"
+            : "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-primary hover:shadow-card-hover transition-all duration-200"
           : ""
       } ${
         "h-full min-h-0"
@@ -459,7 +461,9 @@ function MedicationSection({
                   e.stopPropagation();
                   onAddMedication();
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm mt-4 bg-primary`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${textStyles.label.medium} text-white transition-all hover:opacity-90 active:scale-95 shadow-sm mt-4 ${
+                  isCaregiver ? "bg-secondary" : "bg-primary"
+                }`}
               >
                 <PlusIcon size={16} weight="bold" />
                 <span>Add Medication</span>

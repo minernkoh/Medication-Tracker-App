@@ -13,7 +13,6 @@
  * @param {boolean} showEdit - Whether to show edit button (default: true)
  * @param {boolean} showDelete - Whether to show delete button (default: true)
  */
-import React from "react";
 import {
   PencilSimpleIcon,
   TrashIcon,

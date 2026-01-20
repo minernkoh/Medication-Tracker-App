@@ -81,7 +81,7 @@ function Sidebar({
   return (
     <div
       className={`fixed left-0 top-0 h-screen bg-background-default border-r border-border-default flex flex-col items-center justify-between ${
-        isCollapsed ? "w-20" : "w-[16rem]"
+        isCollapsed ? "w-[4.5rem]" : "w-[15rem]"
       } z-40 transform ${
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       } transition-transform duration-300 ease-in-out`}
@@ -99,16 +99,16 @@ function Sidebar({
       <div className="flex flex-col items-start shrink-0 w-full pt-16 md:pt-0">
         {/* Logo section */}
         <div
-          className={`flex items-center opacity-80 pb-6 pt-8 shrink-0 w-full ${
-            isCollapsed ? "px-3" : "px-5"
+          className={`flex items-center opacity-80 pb-5 pt-6 shrink-0 w-full ${
+            isCollapsed ? "px-2.5" : "px-4"
           } justify-between`}
         >
           <div
             className="flex items-center gap-[0.8125rem] flex-1 min-w-0"
           >
-            <div className="flex-shrink-0 w-8 h-8">
+            <div className="flex-shrink-0 w-7 h-7">
               <FirstAidKitIcon
-                size={32}
+                size={28}
                 weight="regular"
                 color={colors.icon.primary}
               />
@@ -153,7 +153,7 @@ function Sidebar({
         {/* User profile section */}
         <div
           className={`border-t border-b border-border-default flex gap-4 items-center py-4 shrink-0 w-full ${
-            isCollapsed ? "px-3 justify-center" : "px-5"
+            isCollapsed ? "px-2.5 justify-center" : "px-4"
           }`}
         >
           <div className="bg-primary flex flex-col items-center justify-center p-2 rounded-full shrink-0 w-8 h-8">
@@ -192,13 +192,13 @@ function Sidebar({
 
         {/* Navigation menu buttons */}
         <div
-          className={`flex flex-col gap-4 py-5 shrink-0 w-full ${
+          className={`flex flex-col gap-3 py-4 shrink-0 w-full ${
             isCollapsed ? "items-center px-2" : "items-start px-2"
           }`}
         >
           <Link
             to="/dashboard"
-            onClick={(e) => {
+            onClick={() => {
               onMenuClick?.("Dashboard");
               onClose?.();
             }}
@@ -209,7 +209,7 @@ function Sidebar({
               isSelected={currentMenu === "Dashboard"}
               mode={displayMode}
               collapsed={isCollapsed}
-              onClick={(e) => {
+              onClick={() => {
                 // Let Link handle navigation, just close sidebar if needed
                 onClose?.();
               }}
@@ -220,7 +220,7 @@ function Sidebar({
           {mode === "Caregiver" && (
             <Link
               to="/patients"
-              onClick={(e) => {
+              onClick={() => {
                 onMenuClick?.("Patients");
                 onClose?.();
               }}
@@ -231,7 +231,7 @@ function Sidebar({
                 isSelected={currentMenu === "Patients"}
                 mode={displayMode}
                 collapsed={isCollapsed}
-                onClick={(e) => {
+                onClick={() => {
                   onClose?.();
                 }}
               />
@@ -242,7 +242,7 @@ function Sidebar({
           {mode === "Personal" && (
             <Link
               to="/medications"
-              onClick={(e) => {
+              onClick={() => {
                 onMenuClick?.("Medications");
                 onClose?.();
               }}
@@ -253,7 +253,7 @@ function Sidebar({
                 isSelected={currentMenu === "Medications"}
                 mode={displayMode}
                 collapsed={isCollapsed}
-                onClick={(e) => {
+                onClick={() => {
                   onClose?.();
                 }}
               />
@@ -262,7 +262,7 @@ function Sidebar({
 
           <Link
             to="/appointments"
-            onClick={(e) => {
+            onClick={() => {
               onMenuClick?.("Appointments");
               onClose?.();
             }}
@@ -273,7 +273,7 @@ function Sidebar({
               isSelected={currentMenu === "Appointments"}
               mode={displayMode}
               collapsed={isCollapsed}
-              onClick={(e) => {
+              onClick={() => {
                 onClose?.();
               }}
             />
@@ -282,7 +282,7 @@ function Sidebar({
           {/* Settings */}
           <Link
             to="/settings"
-            onClick={(e) => {
+            onClick={() => {
               onMenuClick?.("Settings");
               onClose?.();
             }}
@@ -293,7 +293,7 @@ function Sidebar({
               isSelected={currentMenu === "Settings"}
               mode={displayMode}
               collapsed={isCollapsed}
-              onClick={(e) => {
+              onClick={() => {
                 onClose?.();
               }}
             />
@@ -305,8 +305,8 @@ function Sidebar({
       <div className="w-full">
         {/* Switch mode button */}
         <div
-          className={`border-t border-border-default flex gap-4 items-center py-4 shrink-0 w-full cursor-pointer hover:bg-background-hover transition-colors group ${
-            isCollapsed ? "justify-center px-3" : "px-5"
+          className={`border-t border-border-default flex gap-4 items-center py-3 shrink-0 w-full cursor-pointer hover:bg-background-hover transition-colors group ${
+            isCollapsed ? "justify-center px-2.5" : "px-4"
           }`}
           onClick={() => {
             onSwitchMode?.();
@@ -316,7 +316,7 @@ function Sidebar({
         >
           <div className="flex-shrink-0 w-6 h-6">
             <UsersIcon
-              size={24}
+              size={22}
               weight="regular"
               color={
                 displayMode === "Personal"

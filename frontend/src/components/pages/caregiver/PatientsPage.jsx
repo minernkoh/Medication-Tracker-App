@@ -18,37 +18,14 @@ import {
 import { getModeHexColor } from "../../../utils/modeUtils";
 import { formatDateNumeric } from "../../../utils";
 import { colors } from "../../../../tailwind.config.js";
+import {
+  getPatientAvatarColor,
+  getPatientInitials,
+} from "../../../utils/patientUtils";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import { Button, DataTable } from "../../ui";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
-
-// Patient color palette using design tokens
-const PATIENT_COLORS = [
-  colors.patient.pink,
-  colors.patient.blue,
-  colors.patient.green,
-  colors.patient.amber,
-  colors.patient.purple,
-];
-
-const getInitials = (name = "") => {
-  const trimmed = name.trim();
-  if (!trimmed) return "";
-  const parts = trimmed.split(" ");
-  return parts.length === 1
-    ? parts[0].charAt(0).toUpperCase()
-    : `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-};
-
-const getPatientColor = (patient, index) => {
-  const seed =
-    patient?.id || patient?._id || patient?.email || patient?.name || index || "";
-  const str = String(seed);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
-  return PATIENT_COLORS[hash % PATIENT_COLORS.length];
-};
 
 const normalizePatient = (patient, index) => {
   if (!patient) return null;
@@ -56,8 +33,8 @@ const normalizePatient = (patient, index) => {
   return {
     ...patient,
     id,
-    avatarInitials: getInitials(patient.name || ""),
-    avatarColor: getPatientColor({ ...patient, id }, index),
+    avatarInitials: getPatientInitials(patient.name || ""),
+    avatarColor: getPatientAvatarColor({ ...patient, id }, index),
   };
 };
 

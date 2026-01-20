@@ -3,7 +3,6 @@
  * Displays when user navigates to a non-existent route
  */
 
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { HouseIcon, ArrowLeftIcon } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
@@ -34,7 +33,8 @@ function NotFoundPage() {
 
         {/* Description */}
         <p className="font-poppins text-text-secondary mb-8 max-w-sm mx-auto">
-          The page you're looking for doesn't exist or has been moved. Let's get you back on track.
+          The page you&apos;re looking for doesn&apos;t exist or has been moved.
+          Let&apos;s get you back on track.
         </p>
 
         {/* Actions */}

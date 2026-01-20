@@ -4,7 +4,7 @@
  * @param {function} onComplete - Callback when onboarding is completed
  * @param {object} user - User object with name, email, mode
  */
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   PillIcon,
   CalendarCheckIcon,
@@ -22,7 +22,6 @@ import {
   HeartIcon,
   SunIcon,
   SunDimIcon,
-  MoonIcon,
   CalendarBlankIcon,
   StethoscopeIcon,
   MapPinIcon,
@@ -525,7 +524,7 @@ function OnboardingTutorial({ onComplete, user }) {
             {/* Progress card matching Dashboard */}
             <div className="bg-background-default border border-border-default flex flex-col gap-4 p-4 rounded-2xl w-64">
               <p className="font-poppins font-semibold text-sm text-text-primary w-full">
-                Today's Progress
+                Today&apos;s Progress
               </p>
               {/* Pie Chart and Stats */}
               <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full">
@@ -627,7 +626,9 @@ function OnboardingTutorial({ onComplete, user }) {
                           {/* Progress bar */}
                           <div className="mb-4">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-poppins text-xs text-text-secondary">Today's Progress</span>
+                              <span className="font-poppins text-xs text-text-secondary">
+                                Today&apos;s Progress
+                              </span>
                               <span
                                 className="font-poppins text-xs font-semibold"
                                 style={{ color: completionPercent === 100 ? colors.success.DEFAULT : colors.secondary.DEFAULT }}

@@ -9,7 +9,6 @@
  * @param {string} variant - "default" | "compact" - Card size variant
  * @param {string} className - Additional CSS classes
  */
-import React from "react";
 
 function StatCard({
   icon,

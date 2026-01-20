@@ -9,7 +9,7 @@
  * @param {boolean} isVisible - Whether toast is visible
  */
 
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
   CheckCircleIcon,
   XCircleIcon,

@@ -2,38 +2,33 @@
  * AppointmentsPage Component - Full appointments management for Personal mode
  * Shows all appointments for the year in a table format
  *
- * @param {string} userName - User's name
  * @param {string} mode - "Personal" or "Caregiver"
  * @param {function} onMenuClick - Navigation callback
  */
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   PlusIcon,
   CalendarBlankIcon,
   StethoscopeIcon,
   MapPinIcon,
-  ClockIcon,
   PencilSimpleIcon,
   TrashIcon,
-  NoteBlankIcon,
   CaretLeftIcon,
   CaretRightIcon,
-  CheckCircleIcon,
   CalendarCheckIcon,
   CaretUpIcon,
   CaretDownIcon,
 } from "@phosphor-icons/react";
 import {
   getModeHexColor,
-  formatDate,
   formatDateNumeric,
   formatTime,
   textStyles,
   getStoredUser,
   isReadOnlyPatientUser,
 } from "../../../utils";
-import { PageHeader, GradientBackground, Button, EmptyState } from "../../ui";
+import { PageHeader, GradientBackground, Button, EmptyState, SelectMenu } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import { colors } from "../../../../tailwind.config.js";
@@ -42,7 +37,7 @@ import { useError } from "../../../contexts/ErrorContext";
 
 import { normalizeAppointment } from "../../../utils";
 
-function AppointmentsPage({ userName = "", mode = "Personal" }) {
+function AppointmentsPage({ mode = "Personal" }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
@@ -212,9 +207,6 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   const todayCount = sortedAppointments.filter(
     (apt) => getStatus(apt) === "Today",
   ).length;
-  const missedCount = sortedAppointments.filter(
-    (apt) => (apt.status || getStatus(apt)) === "Missed",
-  ).length;
 
   // Handle add appointment
   const handleAddAppointment = async (newAppointment) => {
@@ -306,38 +298,6 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
   // Navigate years
   const goToPreviousYear = () => setSelectedYear(selectedYear - 1);
   const goToNextYear = () => setSelectedYear(selectedYear + 1);
-
-  // Status badge component
-  const StatusBadge = ({ status }) => {
-    const styles = {
-      today: {
-        bg: "bg-amber-100",
-        text: "text-amber-700",
-        label: "Today",
-      },
-      upcoming: {
-        bg: "bg-blue-50",
-        text: "text-blue-600",
-        label: "Upcoming",
-      },
-      past: {
-        bg: "bg-gray-100",
-        text: "text-gray-500",
-        label: "Completed",
-      },
-    };
-
-    const style = styles[status];
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-poppins font-medium ${style.bg} ${style.text}`}
-      >
-        {status === "past" && <CheckCircleIcon size={12} weight="fill" />}
-        {style.label}
-      </span>
-    );
-  };
 
   return (
     <div className="bg-background-default w-full overflow-x-hidden relative">
@@ -566,29 +526,28 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <select
+                            <SelectMenu
                               value={apt.status || "Scheduled"}
-                              onChange={(e) =>
-                                handleUpdateStatus(apt.id, e.target.value)
-                              }
+                              onChange={(next) => handleUpdateStatus(apt.id, next)}
                               disabled={isReadOnlyPatient}
-                              className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
-                                (apt.status || "Scheduled") === "Scheduled" ||
-                                isToday
+                              options={[
+                                { value: "Scheduled", label: "Scheduled" },
+                                { value: "Completed", label: "Completed" },
+                                { value: "Missed", label: "Missed" },
+                                { value: "Cancelled", label: "Cancelled" },
+                              ]}
+                              mode={mode}
+                              aria-label="Appointment status"
+                              buttonClassName={`w-auto px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold border-none cursor-pointer ${
+                                (apt.status || "Scheduled") === "Scheduled" || isToday
                                   ? "bg-blue-50 text-blue-600"
                                   : (apt.status || "Scheduled") === "Completed"
                                     ? "bg-emerald-50 text-emerald-700"
-                                    : (apt.status || "Scheduled") ===
-                                        "Cancelled"
+                                    : (apt.status || "Scheduled") === "Cancelled"
                                       ? "bg-gray-100 text-gray-600"
                                       : "bg-red-50 text-red-600"
                               }`}
-                            >
-                              <option value="Scheduled">Scheduled</option>
-                              <option value="Completed">Completed</option>
-                              <option value="Missed">Missed</option>
-                              <option value="Cancelled">Cancelled</option>
-                            </select>
+                            />
                           </td>
                           {!isReadOnlyPatient && (
                             <td className="px-5 py-4">

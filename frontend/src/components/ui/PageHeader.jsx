@@ -8,7 +8,6 @@
  * @param {string} variant - "default" | "compact" - Header size variant
  * @param {string} className - Additional CSS classes
  */
-import React from "react";
 
 function PageHeader({
   title,

@@ -4,7 +4,7 @@
  * @param {function} onLogin - Callback when user successfully logs in
  * @param {boolean} isNewUser - Whether to show onboarding after login
  */
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   FirstAidKitIcon,
   UserIcon,

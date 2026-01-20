@@ -12,8 +12,7 @@
  * @param {React.ReactNode} headerContent - Custom header content (optional, overrides title)
  * @param {React.ReactNode} footerContent - Footer content (optional)
  */
-
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { XIcon } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";

@@ -1,9 +1,8 @@
 /**
  * SettingsPage Component - User settings and preferences
  */
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  GearIcon,
   UserIcon,
   ShieldCheckIcon,
   SignOutIcon,
@@ -11,7 +10,7 @@ import {
   GraduationCapIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { getModeHexColor, getModeClasses } from "../../utils/modeUtils";
+import { getModeHexColor } from "../../utils/modeUtils";
 import { GradientBackground, Modal, FormField, Button } from "../ui";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import { api } from "../../api";
@@ -25,7 +24,6 @@ function SettingsPage({
   onDeleteAccount,
 }) {
   const modeHexColor = getModeHexColor(mode);
-  const modeClasses = getModeClasses(mode);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);

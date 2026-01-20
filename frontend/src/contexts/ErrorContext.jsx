@@ -3,7 +3,7 @@
  * Provides error state and handlers for displaying errors throughout the app
  */
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import Toast from "../components/ui/Toast";
 import { getErrorMessage } from "../utils/apiErrorHandler";
 

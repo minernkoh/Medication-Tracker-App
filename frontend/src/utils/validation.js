@@ -202,7 +202,7 @@ export const validationSchemas = {
       validators.password,
     ],
     confirmPassword: [
-      (value, formData) => validators.required(value, "Confirm Password"),
+      (value) => validators.required(value, "Confirm Password"),
       (value, formData) => validators.passwordMatch(formData.password, value),
     ],
   },

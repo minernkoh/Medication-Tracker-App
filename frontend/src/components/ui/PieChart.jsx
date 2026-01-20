@@ -6,7 +6,6 @@
  * @param {number} size - Size of the chart (default: 120)
  */
 
-import React from "react";
 import { colors } from "../../../tailwind.config.js";
 
 // Color constants using design tokens

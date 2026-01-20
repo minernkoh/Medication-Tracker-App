@@ -1,5 +1,3 @@
-import React from "react";
-
 /**
  * CalendarDateButton Component - Accessible clickable date button in calendar
  *
@@ -29,7 +27,7 @@ function CalendarDateButton({
     focus:outline-none focus-visible:ring-2 ${
       isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35"
     } focus-visible:ring-offset-2
-    ring-inset relative
+    relative
   `;
 
   // state-based classes using tailwind - no js hover needed
@@ -38,17 +36,19 @@ function CalendarDateButton({
       ? "bg-secondary border-transparent shadow-glow-secondary-sm"
       : "bg-primary border-transparent shadow-glow-primary-sm"
     : hasFullAdherence
-    ? "bg-background-default border-success hover:bg-success-light/30 hover:border-success-hover hover:ring-2 hover:ring-success/20"
+    ? `bg-background-default border-success hover:border-transparent hover:ring-2 ${
+        isCaregiver ? "hover:ring-secondary" : "hover:ring-primary"
+      }`
     : isToday
     ? `bg-background-default ${
         isCaregiver
-          ? "border-secondary hover:border-secondary hover:ring-2 hover:ring-secondary/25"
-          : "border-primary hover:border-primary hover:ring-2 hover:ring-primary/25"
+          ? "border-secondary hover:border-transparent hover:ring-2 hover:ring-secondary"
+          : "border-primary hover:border-transparent hover:ring-2 hover:ring-primary"
       }`
     : `bg-background-default border-border-default ${
         isCaregiver
-          ? "hover:border-secondary hover:ring-2 hover:ring-secondary/25"
-          : "hover:border-primary hover:ring-2 hover:ring-primary/25"
+          ? "hover:border-transparent hover:ring-2 hover:ring-secondary"
+          : "hover:border-transparent hover:ring-2 hover:ring-primary"
       }`;
 
   // text color classes based on state

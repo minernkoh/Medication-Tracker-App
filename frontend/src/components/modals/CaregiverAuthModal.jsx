@@ -119,26 +119,6 @@ function CaregiverAuthModal({
   const isPatient = role === "patient";
   const ctaVariant = isPatient ? "primary" : "secondary";
 
-  // Helper function for box shadow (if needed)
-  const getBoxShadow = (color, opacity, size) => {
-    const shadows = {
-      sm: `0 1px 2px 0 ${color}${Math.round(opacity * 255)
-        .toString(16)
-        .padStart(2, "0")}`,
-      md: `0 4px 6px -1px ${color}${Math.round(opacity * 255)
-        .toString(16)
-        .padStart(2, "0")}, 0 2px 4px -1px ${color}${Math.round(opacity * 200)
-        .toString(16)
-        .padStart(2, "0")}`,
-      lg: `0 10px 15px -3px ${color}${Math.round(opacity * 255)
-        .toString(16)
-        .padStart(2, "0")}, 0 4px 6px -2px ${color}${Math.round(opacity * 200)
-        .toString(16)
-        .padStart(2, "0")}`,
-    };
-    return shadows[size] || shadows.md;
-  };
-
   const roleLabel = role === "patient" ? "Patient" : "Caregiver";
   const headerIcon = role === "patient" ? HeartIcon : UsersIcon;
   const headerSubtitle = isLogin
