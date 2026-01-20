@@ -8,12 +8,15 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 import { useState, useEffect } from "react";
-import { Modal, FormField, Button, TimePickerDropdown, SelectMenu } from "../ui";
-import { Calendar } from "../features";
 import {
-  getNowTimeInputRounded,
-  toTimeInput,
-} from "../../utils";
+  Modal,
+  FormField,
+  Button,
+  TimePickerDropdown,
+  SelectMenu,
+} from "../ui";
+import { Calendar } from "../features";
+import { getNowTimeInputRounded, toTimeInput } from "../../utils";
 
 function AddAppointmentModal({
   isOpen,
@@ -43,9 +46,17 @@ function AddAppointmentModal({
   // Populate form when editing
   const normalizeDateInput = (value) => {
     if (!value) return "";
+    // Handle already-normalized YYYY-MM-DD format
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toISOString().split("T")[0];
+    if (Number.isNaN(parsed.getTime()))
+      return typeof value === "string" ? value : "";
+    // Convert to local YYYY-MM-DD (avoid UTC timezone shifts)
+    return new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
   };
 
   useEffect(() => {
