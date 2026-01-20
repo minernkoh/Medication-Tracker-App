@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ListIcon } from "@phosphor-icons/react";
+import { ListIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import {
   DashboardPage,
   AppointmentsPage,
@@ -57,23 +57,55 @@ function AppLayout({
 }) {
   const firstName = user?.name ? user.name.split(" ")[0] : "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("sidebarCollapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const modeColor = getModeHexColor(mode);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("sidebarCollapsed", String(isSidebarCollapsed));
+    } catch {
+      // ignore storage errors
+    }
+  }, [isSidebarCollapsed]);
 
   return (
     <div className="h-screen bg-white flex flex-col md:flex-row overflow-hidden overflow-x-hidden">
       {/* Mobile header */}
       <header className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setIsSidebarOpen(true)}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          aria-label="Open navigation menu"
-          aria-expanded={isSidebarOpen}
-        >
-          <ListIcon size={22} weight="bold" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Open navigation menu"
+            aria-expanded={isSidebarOpen}
+          >
+            <ListIcon size={22} weight="bold" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-pressed={isSidebarCollapsed}
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? (
+              <CaretRightIcon size={18} weight="bold" />
+            ) : (
+              <CaretLeftIcon size={18} weight="bold" />
+            )}
+          </button>
+        </div>
         <div className="flex flex-col items-center">
-          <span className="text-sm font-semibold text-text-primary">
+          <span className="text-xs font-semibold text-text-primary">
             MedTracker
           </span>
           <span className="text-xs font-medium" style={{ color: modeColor }}>
@@ -104,10 +136,16 @@ function AppLayout({
         onLogout={onLogout}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={setIsSidebarCollapsed}
       />
 
       {/* Main content area - scrollable, moves to accommodate sidebar on desktop */}
-      <main className="flex-1 w-full ml-0 md:ml-[256px] overflow-y-auto overflow-x-hidden min-h-0">
+      <main
+        className={`flex-1 w-full ml-0 ${
+          isSidebarCollapsed ? "md:ml-20" : "md:ml-[256px]"
+        } overflow-y-auto overflow-x-hidden min-h-0`}
+      >
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 

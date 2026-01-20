@@ -35,7 +35,10 @@ function Modal({
   className = "",
   headerContent,
   footerContent,
+  mode = "Personal",
 }) {
+  const isCaregiver = mode === "Caregiver";
+
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e) => {
@@ -55,20 +58,12 @@ function Modal({
     }
   }, [isOpen, onClose]);
 
-  // Handle backdrop click
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose?.();
-    }
-  };
-
   if (!isOpen) return null;
   if (typeof document === "undefined") return null;
 
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? "modal-title" : undefined}
@@ -76,6 +71,7 @@ function Modal({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={() => onClose?.()}
         aria-hidden="true"
       />
 
@@ -84,30 +80,34 @@ function Modal({
         className={`relative bg-background-default rounded-2xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col shadow-xl animate-scale-in ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close button (pinned top-right, no header bar) */}
+        {showCloseButton && !headerContent && (
+          <button
+            onClick={onClose}
+            className={`absolute top-4 right-4 p-2 rounded-lg hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 ${
+              isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35"
+            } focus-visible:ring-offset-2 z-10`}
+            aria-label="Close modal"
+          >
+            <XIcon size={24} weight="regular" color={colors.icon.primary} />
+          </button>
+        )}
+
         {/* Header */}
         {headerContent ? (
           <div className="flex-shrink-0 w-full">
             {headerContent}
           </div>
-        ) : (title || showCloseButton) && (
-          <div className="flex items-center justify-between p-5 border-b border-border-default flex-shrink-0">
+        ) : title ? (
+          <div className="p-5 pb-0 flex-shrink-0">
             <h2
               id="modal-title"
               className="font-poppins font-bold text-xl text-text-primary"
             >
               {title}
             </h2>
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label="Close modal"
-              >
-                <XIcon size={24} weight="regular" color={colors.icon.primary} />
-              </button>
-            )}
           </div>
-        )}
+        ) : null}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">{children}</div>

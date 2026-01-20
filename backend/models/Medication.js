@@ -71,7 +71,6 @@ const medicationSchema = new mongoose.Schema(
     quantity: { type: Number }, // Current amount remaining
     recommendSupply: { type: Number }, // Baseline for supply ratio calculations
     initialQuantity: { type: Number }, // Baseline for supply %
-    refillDate: String, // e.g., "2026-02-15"
     additionalInfo: String, // e.g., "Before Meal"
     pillColor: String, // Hex color code
     instructions: [String], // Array of instruction strings

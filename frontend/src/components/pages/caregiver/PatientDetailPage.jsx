@@ -2,20 +2,18 @@
  * PatientDetailPage Component - Detailed view of a single patient
  * Shows medications, appointments, and progress for a specific patient
  */
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
+  CheckCircleIcon,
   PillIcon,
   CalendarCheckIcon,
-  ClockIcon,
-  CheckCircleIcon,
   PlusIcon,
-  TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
-import { formatDateLocale, formatDateNumeric } from "../../../utils/dateUtils";
+import { formatDateLocale } from "../../../utils/dateUtils";
 import {
   calculateSupplyStatus,
   filterMedsByStatus,
@@ -25,7 +23,7 @@ import {
   to12HourDisplay,
 } from "../../../utils";
 import { MedicationSection } from "../../features";
-import { DataTable, SectionHeader, StatCard, Button } from "../../ui";
+import { Card, DataTable, PieChart, SectionHeader, StatCard, Button } from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import AddMedicationModal from "../../modals/AddMedicationModal";
@@ -54,10 +52,20 @@ const getInitials = (name = "") => {
 };
 
 const getPatientColor = (patient) => {
-  if (patient?.color) return patient.color;
-  const base = patient?.id || patient?._id || "";
-  const index = `${base}`.length % PATIENT_COLORS.length;
-  return PATIENT_COLORS[index];
+  const base = patient?.id || patient?._id || patient?.email || patient?.name || "";
+  const str = String(base);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
+  return PATIENT_COLORS[hash % PATIENT_COLORS.length];
+};
+
+// Convert a Date (or now) to a local YYYY-MM-DD string.
+// Avoids UTC day shifts from Date#toISOString() in non-UTC timezones.
+const toLocalIsoDay = (value = new Date()) => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  const tzOffsetMs = d.getTimezoneOffset() * 60 * 1000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
 };
 
 function PatientDetailPage() {
@@ -65,15 +73,18 @@ function PatientDetailPage() {
   const navigate = useNavigate();
   const modeHexColor = getModeHexColor("Caregiver");
   const { showError } = useError();
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toLocalIsoDay();
 
   const [patientData, setPatientData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [adherenceRange, setAdherenceRange] = useState("weekly"); // weekly | monthly | yearly
 
   // Modal state: medications
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddMedicationModal, setShowAddMedicationModal] = useState(false);
+  const [editingSupplyMedication, setEditingSupplyMedication] = useState(null);
+  const [showSupplyEditModal, setShowSupplyEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
     medicationId: null,
@@ -100,9 +111,9 @@ function PatientDetailPage() {
       const normalized = {
         ...data,
         id: data.id || data._id,
-        initials:
-          data.initials || getInitials(data.nickname || data.name || ""),
-        color: getPatientColor(data),
+        avatarInitials: getInitials(data.name || ""),
+        avatarColor: getPatientColor(data),
+        adherence: data.adherence || null,
         medications: (Array.isArray(medsForToday) ? medsForToday : [])
           .map(normalizeMedication)
           .filter(Boolean),
@@ -125,6 +136,13 @@ function PatientDetailPage() {
 
   const patient = patientData;
 
+  const isScheduledMedication = (med) => {
+    if (!med) return false;
+    if (med.timeOfDay) return true;
+    if (Array.isArray(med.timesOfDay) && med.timesOfDay.length > 0) return true;
+    return false;
+  };
+
   // Separate medications by status
   const pendingMeds =
     patient?.medications?.filter((m) => m.status === "pending") || [];
@@ -132,59 +150,20 @@ function PatientDetailPage() {
     patient?.medications?.filter((m) => m.status === "taken") || [];
   const supplyMeds = filterMedsByStatus(patient?.medications || [], "supply");
 
-  const [supplySortConfig, setSupplySortConfig] = useState({
-    key: "name",
-    direction: "asc",
-  });
-
   const parseQuantity = (quantityStr = "") => {
     const num = Number(quantityStr);
     return { value: Number.isFinite(num) ? num : 0, unit: "" };
-  };
-
-  const formatRefillDate = (dateStr) => {
-    if (!dateStr) return null;
-    const formatted = formatDateNumeric(dateStr);
-    return formatted || null;
   };
 
   const getSupplyStatus = (medication) => {
     return calculateSupplyStatus(medication, parseQuantity);
   };
 
-  const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
-    const { key, direction } = supplySortConfig;
-    const multiplier = direction === "asc" ? 1 : -1;
-
-    switch (key) {
-      case "name":
-        return multiplier * (a.name || "").localeCompare(b.name || "");
-      case "dosage":
-        return multiplier * (a.dosage || "").localeCompare(b.dosage || "");
-      case "quantity":
-        return multiplier * (a.quantity || "").localeCompare(b.quantity || "");
-      case "refillDate": {
-        const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
-        const dateB = b.refillDate ? new Date(b.refillDate).getTime() : 0;
-        return multiplier * (dateA - dateB);
-      }
-      case "supplyStatus": {
-        const statusA = getSupplyStatus(a);
-        const statusB = getSupplyStatus(b);
-        if (!statusA && !statusB) return 0;
-        if (!statusA) return 1;
-        if (!statusB) return -1;
-        return multiplier * (statusA.percentage - statusB.percentage);
-      }
-      default:
-        return 0;
-    }
-  });
-
   const supplyColumns = [
     {
       key: "name",
       label: "Name",
+      sortValue: (row) => row?.name || "",
       render: (value) => {
         const medicationColor = getMedicationColor(value);
         return (
@@ -211,6 +190,7 @@ function PatientDetailPage() {
     {
       key: "dosage",
       label: "Dose/Frequency",
+      sortValue: (row) => Number(row?.dosage ?? 0),
       render: (value, row) => (
         <div className="flex flex-col">
           <span className="font-poppins text-sm text-text-primary">
@@ -225,7 +205,21 @@ function PatientDetailPage() {
     {
       key: "instructions",
       label: "Instructions",
-      sortable: false,
+      sortValue: (row) => {
+        const value = row?.instructions;
+        const instructionsList = Array.isArray(value)
+          ? value
+          : typeof value === "string"
+            ? value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+        const notes = String(row?.additionalInfo || "").trim();
+        return instructionsList.length > 0
+          ? instructionsList.join(", ")
+          : notes || "";
+      },
       render: (value, row) => {
         const instructionsList = Array.isArray(value)
           ? value
@@ -267,6 +261,7 @@ function PatientDetailPage() {
     {
       key: "quantity",
       label: "Total Quantity",
+      sortValue: (row) => Number(row?.quantity ?? 0),
       render: (value, row) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
           {value ?? "N/A"}{" "}
@@ -277,6 +272,7 @@ function PatientDetailPage() {
     {
       key: "supplyStatus",
       label: "Supply Status",
+      sortValue: (row) => getSupplyStatus(row)?.ratio ?? null,
       render: (value, row) => {
         const status = getSupplyStatus(row);
         if (!status) {
@@ -298,44 +294,31 @@ function PatientDetailPage() {
     {
       key: "recommendSupply",
       label: "Recommended Supply",
+      sortValue: (row) => Number(row?.recommendSupply ?? 0),
       render: (value, row) => (
         <span className="font-poppins text-sm text-text-primary">
           {value ? `${value} ${row.unit || ""}` : "—"}
         </span>
       ),
     },
-    {
-      key: "refill",
-      label: "Refill?",
-      render: (value, row) => {
-        const status = getSupplyStatus(row);
-        const refillNeeded =
-          status && (status.label === "Low" || status.label === "Empty");
-        return (
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${
-              refillNeeded ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
-            }`}
-          >
-            {refillNeeded ? "Yes" : "No"}
-          </span>
-        );
-      },
-    },
   ];
 
-  // Calculate stats - only count medications with pending or taken status
-  const activeMedications =
-    patient?.medications?.filter(
-      (m) => m.status === "pending" || m.status === "taken",
-    ) || [];
-  const adherenceRate =
-    activeMedications.length > 0
-      ? Math.round((takenMeds.length / activeMedications.length) * 100)
-      : 0;
-  const adherenceHistory = Array.isArray(patient?.adherenceHistory)
-    ? patient.adherenceHistory
-    : [];
+  // Today's adherence (Caregiver): scheduled medications only.
+  // A medication counts as "taken" if ANY schedule slot has a log for today,
+  // which is exactly what GET /patients/:id/medications?date=YYYY-MM-DD encodes
+  // via `status === "taken"` for that day.
+  const scheduledMedsToday = (patient?.medications || []).filter(isScheduledMedication);
+  const totalScheduledToday = scheduledMedsToday.length;
+  const takenScheduledToday = scheduledMedsToday.filter(
+    (m) => String(m?.status || "").toLowerCase() === "taken",
+  ).length;
+  const pendingScheduledToday = Math.max(totalScheduledToday - takenScheduledToday, 0);
+
+  const adherence = patient?.adherence?.[adherenceRange] || null;
+  const adherenceLabels = Array.isArray(adherence?.labels) ? adherence.labels : [];
+  const adherenceValues = Array.isArray(adherence?.values) ? adherence.values : [];
+  const adherenceIsEmpty =
+    (adherence?.expectedTotal || 0) === 0 && (adherence?.takenTotal || 0) === 0;
 
   const handleAddMedication = async (medicationData) => {
     try {
@@ -372,13 +355,18 @@ function PatientDetailPage() {
     setShowEditModal(true);
   };
 
+  const handleEditSupplyMedication = (medication) => {
+    setEditingSupplyMedication(medication);
+    setShowSupplyEditModal(true);
+  };
+
   const handleSaveEditedMedication = async (updatedMedication) => {
     try {
       if (
         updatedMedication?.takenDate &&
         updatedMedication?.status === "taken"
       ) {
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = toLocalIsoDay();
         const targetDate = updatedMedication.takenDate;
         if (targetDate !== todayStr) {
           await api.medications.undoMarkAsTaken(updatedMedication.id, todayStr);
@@ -404,6 +392,21 @@ function PatientDetailPage() {
       }
       setShowEditModal(false);
       setEditingMedication(null);
+      await loadPatient();
+    } catch (error) {
+      showError(error.message || "Unable to update medication");
+    }
+  };
+
+  const handleSaveSupplyMedication = async (updatedMedication) => {
+    try {
+      await api.medications.updateForPatient(
+        patientId,
+        updatedMedication.id,
+        updatedMedication,
+      );
+      setShowSupplyEditModal(false);
+      setEditingSupplyMedication(null);
       await loadPatient();
     } catch (error) {
       showError(error.message || "Unable to update medication");
@@ -523,10 +526,7 @@ function PatientDetailPage() {
     );
   }
 
-  const headerDetails = [
-    patient.relationship,
-    patient.age ? `${patient.age} years old` : null,
-  ]
+  const headerDetails = [patient.age ? `${patient.age} years old` : null]
     .filter(Boolean)
     .join(" • ");
 
@@ -549,19 +549,16 @@ function PatientDetailPage() {
             <div className="flex items-center gap-4">
               <div
                 className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-poppins font-bold text-3xl"
-                style={{ backgroundColor: patient.color }}
+                style={{ backgroundColor: patient.avatarColor }}
               >
-                {patient.initials}
+                {patient.avatarInitials}
               </div>
               <div>
                 <h1 className="font-poppins font-bold text-2xl text-text-primary">
-                  {patient.nickname}
-                </h1>
-                <p className="font-poppins text-text-secondary">
                   {patient.name}
-                </p>
+                </h1>
                 {headerDetails && (
-                  <p className="font-poppins text-sm text-text-secondary mt-1">
+                  <p className="font-poppins text-base text-text-secondary mt-2">
                     {headerDetails}
                   </p>
                 )}
@@ -614,13 +611,14 @@ function PatientDetailPage() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <StatCard
             icon={<PillIcon size={20} weight="fill" />}
             iconColor={modeHexColor}
             label="Today"
             value={`${takenMeds.length}/${activeMedications.length}`}
             description="Medications"
+            className="h-full"
           />
           <StatCard
             icon={<CalendarCheckIcon size={20} weight="fill" />}
@@ -628,7 +626,43 @@ function PatientDetailPage() {
             label="Upcoming"
             value={patient.appointments?.length || 0}
             description="Appointments"
+            className="h-full"
           />
+          <Card className="p-4 h-full flex flex-col">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50">
+                <CheckCircleIcon
+                  size={20}
+                  weight="fill"
+                  color={colors.success.DEFAULT}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="font-poppins text-xs text-text-secondary leading-tight">
+                  Today
+                </p>
+                <p className="font-poppins text-sm font-semibold text-text-primary leading-tight">
+                  Adherence
+                </p>
+                <p className="font-poppins text-xs text-text-secondary leading-tight">
+                  {totalScheduledToday > 0
+                    ? `${takenScheduledToday}/${totalScheduledToday} medications taken`
+                    : "No scheduled medications"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center pt-4">
+              <PieChart
+                taken={takenScheduledToday}
+                notTaken={pendingScheduledToday}
+                size={120}
+                label="Adherence"
+                showLabel={false}
+              />
+            </div>
+          </Card>
         </div>
 
         {/* Medications section */}
@@ -646,10 +680,9 @@ function PatientDetailPage() {
             description="Manage this patient's medications"
             action={
               <Button
-                variant="primary"
+                variant="secondary"
                 size="sm"
                 icon={<PlusIcon size={16} weight="bold" />}
-                style={{ backgroundColor: modeHexColor }}
                 onClick={() => setShowAddMedicationModal(true)}
               >
                 Add
@@ -664,6 +697,7 @@ function PatientDetailPage() {
               onMarkAsTaken={handleMarkAsTaken}
               showTimeGroups={true}
               compact={false}
+              mode="Caregiver"
             />
             <MedicationSection
               variant="taken"
@@ -672,6 +706,7 @@ function PatientDetailPage() {
               onDelete={handleDeleteTakenMedication}
               showTimeGroups={true}
               compact={false}
+              mode="Caregiver"
             />
           </div>
         </div>
@@ -681,6 +716,19 @@ function PatientDetailPage() {
             isOpen={showAddMedicationModal}
             onClose={() => setShowAddMedicationModal(false)}
             onSave={handleAddMedication}
+            mode="Caregiver"
+          />
+        )}
+
+        {showSupplyEditModal && editingSupplyMedication && (
+          <AddMedicationModal
+            isOpen={showSupplyEditModal}
+            onClose={() => {
+              setShowSupplyEditModal(false);
+              setEditingSupplyMedication(null);
+            }}
+            onSave={handleSaveSupplyMedication}
+            medication={editingSupplyMedication}
             mode="Caregiver"
           />
         )}
@@ -713,6 +761,7 @@ function PatientDetailPage() {
           confirmText="Delete"
           cancelText="Cancel"
           variant="danger"
+          mode="Caregiver"
         />
 
         {/* Current supply */}
@@ -737,10 +786,9 @@ function PatientDetailPage() {
           <div className="mt-4">
             <DataTable
               columns={supplyColumns}
-              data={sortedSupplyMeds}
-              sortConfig={supplySortConfig}
-              onSort={setSupplySortConfig}
-              onEdit={(row) => handleEditMedication(row)}
+              data={supplyMeds}
+              defaultSortConfig={{ key: "name", direction: "asc" }}
+              onEdit={(row) => handleEditSupplyMedication(row)}
               onDelete={(row) => requestDeleteMedication(row)}
               emptyMessage="No medications in supply"
               emptySubMessage="Add a medication with quantity to track supply"
@@ -763,10 +811,9 @@ function PatientDetailPage() {
             title="Upcoming Appointments"
             action={
               <Button
-                variant="primary"
+                variant="secondary"
                 size="sm"
                 icon={<PlusIcon size={16} weight="bold" />}
-                style={{ backgroundColor: modeHexColor }}
                 onClick={openAddAppointmentModal}
               >
                 Add
@@ -816,6 +863,7 @@ function PatientDetailPage() {
                       size="base"
                       editLabel="Edit appointment"
                       deleteLabel="Delete appointment"
+                      mode="Caregiver"
                     />
                   </div>
                 </div>
@@ -852,41 +900,90 @@ function PatientDetailPage() {
           }
           onConfirm={confirmDeleteAppointment}
           title="Delete Appointment"
-          message={`Are you sure you want to delete \"${appointmentDeleteConfirm.appointmentTitle}\"? This action cannot be undone.`}
+          message={`Are you sure you want to delete "${appointmentDeleteConfirm.appointmentTitle}"? This action cannot be undone.`}
           confirmText="Delete"
           cancelText="Cancel"
           variant="danger"
+          mode="Caregiver"
         />
 
         {/* Adherence chart placeholder */}
         <div className="bg-background-default border border-border-default rounded-2xl p-6 mt-6">
-          <h2 className="font-poppins font-bold text-xl text-text-primary mb-4">
-            Weekly Adherence
-          </h2>
-          {adherenceHistory.length > 0 ? (
-            <div className="flex items-end justify-between h-32 gap-2">
-              {adherenceHistory.map((value, index) => (
-                <div
-                  key={index}
-                  className="flex-1 flex flex-col items-center gap-2"
-                >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-poppins font-bold text-xl text-text-primary">
+              Adherence
+            </h2>
+            <div
+              className="inline-flex items-center gap-1 bg-background-subtle border border-border-default rounded-xl p-1"
+              role="tablist"
+              aria-label="Adherence range"
+            >
+              {[
+                { key: "weekly", label: "Weekly" },
+                { key: "monthly", label: "Monthly" },
+                { key: "yearly", label: "Yearly" },
+              ].map((tab) => {
+                const isActive = tab.key === adherenceRange;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setAdherenceRange(tab.key)}
+                    className={`h-8 px-3 rounded-lg font-poppins text-sm font-semibold transition-colors ${
+                      isActive
+                        ? "bg-background-default text-text-primary shadow-sm"
+                        : "text-text-secondary hover:text-text-primary hover:bg-background-hover"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {adherence && !adherenceIsEmpty && adherenceValues.length > 0 ? (
+            <div className="flex items-stretch justify-between h-32 gap-2 mt-4">
+              {Array.from({
+                length: Math.max(adherenceValues.length, adherenceLabels.length),
+              }).map((_, index) => {
+                const rawValue = Number(adherenceValues[index] ?? 0);
+                const value = Number.isFinite(rawValue)
+                  ? Math.max(0, Math.min(100, rawValue))
+                  : 0;
+                const label = adherenceLabels[index] || "";
+                const barColor =
+                  value >= 90
+                    ? colors.success.DEFAULT
+                    : value >= 70
+                      ? colors.warning.DEFAULT
+                      : colors.danger.DEFAULT;
+
+                return (
                   <div
-                    className="w-full rounded-t-lg transition-all"
-                    style={{
-                      height: `${value}%`,
-                      backgroundColor:
-                        value >= 90
-                          ? colors.success.DEFAULT
-                          : value >= 70
-                            ? colors.warning.DEFAULT
-                            : colors.danger.DEFAULT,
-                    }}
-                  />
-                  <span className="font-poppins text-xs text-text-secondary">
-                    {["M", "T", "W", "T", "F", "S", "S"][index]}
-                  </span>
-                </div>
-              ))}
+                    key={`${label}-${index}`}
+                    className="flex-1 flex flex-col items-center gap-2 h-full"
+                  >
+                    {/* Fixed-height track so % bar heights render correctly */}
+                    <div className="w-full flex-1 flex items-end bg-background-hover rounded-lg overflow-hidden border border-border-subtle">
+                      <div
+                        className="w-full rounded-t-lg transition-all"
+                        style={{
+                          height: `${value}%`,
+                          backgroundColor: barColor,
+                        }}
+                        aria-label={`${label} adherence ${value}%`}
+                        title={`${label} • ${value}%`}
+                      />
+                    </div>
+                    <span className="font-poppins text-xs text-text-secondary">
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="font-poppins text-sm text-text-secondary">

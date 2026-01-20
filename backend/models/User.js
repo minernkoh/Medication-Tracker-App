@@ -7,12 +7,6 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ["patient", "caregiver"], required: true },
   caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  // Profile fields for managed patients
-  nickname: String,
-  phone: String,
-  relationship: String,
-  color: String,
-  initials: String,
 });
 
 userSchema.pre("save", async function () {

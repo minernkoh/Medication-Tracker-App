@@ -27,14 +27,82 @@ import {
   StethoscopeIcon,
   MapPinIcon,
   CaretRightIcon,
+  CaretUpIcon,
+  CaretDownIcon,
   ClockIcon,
 } from "@phosphor-icons/react";
 import { colors } from "../../../tailwind.config.js";
 import { getBoxShadow, getAuthData, setAuthData } from "../../utils";
 
+const SUPPLY_DEMO_ROWS = [
+  {
+    name: "Aspirin",
+    qty: "45",
+    status: "75%",
+    statusColor: "bg-green-100 text-green-700",
+    iconColor: colors.success.DEFAULT,
+  },
+  {
+    name: "Vitamin D",
+    qty: "30",
+    status: "50%",
+    statusColor: "bg-amber-100 text-amber-700",
+    iconColor: colors.warning.DEFAULT,
+  },
+  {
+    name: "Metformin",
+    qty: "15",
+    status: "25%",
+    statusColor: "bg-red-100 text-red-700",
+    iconColor: colors.danger.DEFAULT,
+  },
+];
+
 function OnboardingTutorial({ onComplete, user }) {
   const [currentStep, setCurrentStep] = useState(0);
   const isCaregiver = user?.mode === "Caregiver";
+  const [supplySortConfig, setSupplySortConfig] = useState({
+    key: "name",
+    direction: "asc",
+  });
+
+  const handleSupplySort = (key) => {
+    setSupplySortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const SupplySortIndicator = ({ columnKey }) => {
+    if (supplySortConfig.key !== columnKey) {
+      return (
+        <span className="ml-1 opacity-0 group-hover:opacity-40 transition-opacity">
+          <CaretUpIcon size={12} weight="bold" />
+        </span>
+      );
+    }
+    return supplySortConfig.direction === "asc" ? (
+      <CaretUpIcon size={12} weight="bold" className="ml-1 text-text-secondary" />
+    ) : (
+      <CaretDownIcon size={12} weight="bold" className="ml-1 text-text-secondary" />
+    );
+  };
+
+  const sortedSupplyDemoRows = [...SUPPLY_DEMO_ROWS].sort((a, b) => {
+    const multiplier = supplySortConfig.direction === "asc" ? 1 : -1;
+    if (supplySortConfig.key === "name") {
+      return multiplier * a.name.localeCompare(b.name);
+    }
+    if (supplySortConfig.key === "qty") {
+      return multiplier * (Number(a.qty) - Number(b.qty));
+    }
+    if (supplySortConfig.key === "status") {
+      const aPercent = parseInt(a.status.replace("%", ""), 10);
+      const bPercent = parseInt(b.status.replace("%", ""), 10);
+      return multiplier * (aPercent - bPercent);
+    }
+    return 0;
+  });
 
   const TutorialIllustrationFrame = ({ children }) => (
     <div className="relative w-full h-56 sm:h-64 rounded-3xl overflow-hidden">
@@ -142,12 +210,12 @@ function OnboardingTutorial({ onComplete, user }) {
                           </div>
                           {p.alerts > 0 ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-poppins text-xs font-semibold flex-shrink-0">
-                              <WarningCircleIcon size={12} weight="fill" />
-                              {p.alerts} alert
+                              <WarningCircleIcon size={14} weight="fill" />
+                              {p.alerts}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-poppins text-xs font-semibold flex-shrink-0">
-                              <CheckCircleIcon size={12} weight="fill" />
+                              <CheckCircleIcon size={14} weight="fill" />
                               Good
                             </span>
                           )}
@@ -267,10 +335,10 @@ function OnboardingTutorial({ onComplete, user }) {
     {
       id: "supply",
       icon: PackageIcon,
-      title: isCaregiver ? "Monitor Supply & Refills" : "Monitor Your Supply",
-      subtitle: isCaregiver ? "Stay ahead for your patient" : "Stay ahead of refills",
+      title: isCaregiver ? "Monitor Patient Supply" : "Monitor Your Supply",
+      subtitle: isCaregiver ? "Stay ahead for your patient" : "Stay on top of your supply",
       description: isCaregiver
-        ? "Track a patient’s inventory and refill dates. Supply status updates automatically as medications are marked as taken."
+        ? "Track a patient’s inventory. Supply status updates automatically as medications are marked as taken."
         : "View your medication inventory in a table format. Supply status is calculated as a percentage when you mark medications as taken, helping you track how much you have remaining.",
       illustration: (
         <div className="relative w-full h-full rounded-3xl overflow-hidden">
@@ -280,23 +348,37 @@ function OnboardingTutorial({ onComplete, user }) {
               <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-border-default bg-background-subtle">
-                    <th className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/2">
-                      Medication
-                    </th>
-                    <th className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4">
-                      Qty
-                    </th>
-                    <th className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4">
-                      Status
-                    </th>
+                        <th
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/2 cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          onClick={() => handleSupplySort("name")}
+                        >
+                          <div className="flex items-center">
+                            Medication
+                            <SupplySortIndicator columnKey="name" />
+                          </div>
+                        </th>
+                        <th
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4 cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          onClick={() => handleSupplySort("qty")}
+                        >
+                          <div className="flex items-center">
+                            Qty
+                            <SupplySortIndicator columnKey="qty" />
+                          </div>
+                        </th>
+                        <th
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4 cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          onClick={() => handleSupplySort("status")}
+                        >
+                          <div className="flex items-center">
+                            Status
+                            <SupplySortIndicator columnKey="status" />
+                          </div>
+                        </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { name: "Aspirin", qty: "45", status: "75%", statusColor: "bg-green-100 text-green-700", iconColor: colors.success.DEFAULT },
-                    { name: "Vitamin D", qty: "30", status: "50%", statusColor: "bg-amber-100 text-amber-700", iconColor: colors.warning.DEFAULT },
-                    { name: "Metformin", qty: "15", status: "25%", statusColor: "bg-red-100 text-red-700", iconColor: colors.danger.DEFAULT },
-                  ].map((med, i) => (
+                      {sortedSupplyDemoRows.map((med, i) => (
                     <tr key={i} className="border-b border-border-default last:border-0">
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2 min-w-0">

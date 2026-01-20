@@ -31,19 +31,47 @@ function Button({
 }) {
   // variant styles using tailwind classes - no js hover state needed
   // Note: Using Tailwind classes that reference design tokens from tailwind.config.js
-  const variantClasses = {
+  const variantVisualClasses = {
     primary:
-      "bg-primary hover:bg-primary-hover text-text-onPrimary shadow-glow-primary hover:shadow-glow-primary-hover border-transparent",
+      "bg-primary hover:bg-primary-hover text-text-onPrimary border-transparent",
     secondary:
-      "bg-secondary hover:bg-secondary-hover text-text-onSecondary shadow-glow-secondary hover:shadow-glow-secondary-hover border-transparent",
+      "bg-secondary hover:bg-secondary-hover text-text-onSecondary border-transparent",
     success:
-      "bg-success hover:bg-success-hover text-text-onPrimary shadow-glow-success hover:shadow-glow-success-hover border-transparent",
+      "bg-success hover:bg-success-hover text-text-onPrimary border-transparent",
     danger:
-      "bg-danger hover:bg-danger-hover text-text-onPrimary shadow-glow-danger hover:shadow-glow-danger-hover border-transparent",
-    outline:
-      "bg-transparent hover:bg-primary/5 text-primary border-2 border-primary shadow-none",
-    ghost:
-      "bg-transparent hover:bg-black/5 text-text-primary shadow-none border-transparent",
+      "bg-danger hover:bg-danger-hover text-text-onPrimary border-transparent",
+    outline: "bg-transparent hover:bg-primary/5 text-primary border-2 border-primary",
+    ghost: "bg-transparent hover:bg-black/5 text-text-primary border-transparent",
+  };
+
+  const glowClassesByVariant = {
+    primary: {
+      sm: "shadow-glow-primary-sm hover:shadow-glow-primary-sm-hover",
+      base: "shadow-glow-primary hover:shadow-glow-primary-hover",
+    },
+    secondary: {
+      sm: "shadow-glow-secondary-sm hover:shadow-glow-secondary-sm-hover",
+      base: "shadow-glow-secondary hover:shadow-glow-secondary-hover",
+    },
+    success: {
+      sm: "shadow-glow-success-sm hover:shadow-glow-success-sm-hover",
+      base: "shadow-glow-success hover:shadow-glow-success-hover",
+    },
+    danger: {
+      sm: "shadow-glow-danger-sm hover:shadow-glow-danger-sm-hover",
+      base: "shadow-glow-danger hover:shadow-glow-danger-hover",
+    },
+    outline: { sm: "shadow-none", base: "shadow-none" },
+    ghost: { sm: "shadow-none", base: "shadow-none" },
+  };
+
+  const focusRingColorByVariant = {
+    primary: "focus-visible:ring-primary/35",
+    secondary: "focus-visible:ring-secondary/35",
+    success: "focus-visible:ring-success/35",
+    danger: "focus-visible:ring-danger/35",
+    outline: "focus-visible:ring-primary/35",
+    ghost: "focus-visible:ring-primary/25",
   };
 
   // size styles using tailwind classes
@@ -62,13 +90,26 @@ function Button({
 
   const iconSize = iconSizes[size] || 18;
 
+  const isSmall = size === "sm";
+  const focusRingWidth = isSmall ? "focus-visible:ring-1" : "focus-visible:ring-2";
+  const focusRingOffset = isSmall
+    ? "focus-visible:ring-offset-1"
+    : "focus-visible:ring-offset-2";
+  const focusRingColor =
+    focusRingColorByVariant[variant] || focusRingColorByVariant.primary;
+
+  const glowKey = isSmall ? "sm" : "base";
+  const glowClasses =
+    glowClassesByVariant[variant]?.[glowKey] || glowClassesByVariant.primary[glowKey];
+
   const baseClasses = `
     inline-flex items-center justify-center
     font-poppins font-semibold rounded-xl
     transition-all duration-200 ease-out
-    focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
+    focus:outline-none ${focusRingWidth} ${focusRingColor} ${focusRingOffset}
     disabled:bg-background-subtle disabled:text-text-secondary disabled:shadow-none disabled:cursor-not-allowed
-    ${variantClasses[variant] || variantClasses.primary}
+    ${variantVisualClasses[variant] || variantVisualClasses.primary}
+    ${glowClasses}
     ${sizeClasses[size] || sizeClasses.base}
     ${fullWidth ? "w-full" : ""}
     ${className}

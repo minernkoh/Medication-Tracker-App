@@ -33,7 +33,10 @@ function PendingMedicine({
   onCheck,
   onEdit,
   onDelete,
+  mode = "Personal",
 }) {
+  const isCaregiver = mode === "Caregiver";
+
   // background classes based on type
   const bgClasses =
     type === "Due" && onCheck
@@ -59,7 +62,9 @@ function PendingMedicine({
 
   return (
     <CardWrapper
-      className={`flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-3 sm:gap-4 p-4 rounded-lg w-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${bgClasses}`}
+      className={`flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-3 sm:gap-4 p-4 rounded-lg w-full transition-colors focus:outline-none focus-visible:ring-2 ${
+        isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35"
+      } focus-visible:ring-offset-2 ${bgClasses}`}
       {...cardProps}
     >
       {/* Left section: Icon and medication info */}
@@ -142,7 +147,9 @@ function PendingMedicine({
           <CheckCircleIcon
             size={24}
             weight="regular"
-            className="text-icon-primary hover:text-blue-500 transition-colors flex-shrink-0"
+            className={`text-icon-primary ${
+              isCaregiver ? "hover:text-secondary" : "hover:text-primary"
+            } transition-colors flex-shrink-0`}
           />
         )}
 
@@ -155,7 +162,7 @@ function PendingMedicine({
                   e.stopPropagation();
                   onEdit();
                 }}
-                className="p-2 rounded-lg hover:bg-primary-light transition-colors group/edit focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="p-2 rounded-lg hover:bg-primary-light transition-colors group/edit focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2"
                 aria-label="Edit taken medication"
               >
                 <PencilSimple
@@ -193,6 +200,7 @@ function PendingMedicine({
             editLabel="Edit medication"
             deleteLabel={type === "Taken" ? "Undo taken" : "Delete medication"}
             deleteIconType={type === "Taken" ? "undo" : "delete"}
+            mode={mode}
           />
         )}
       </div>

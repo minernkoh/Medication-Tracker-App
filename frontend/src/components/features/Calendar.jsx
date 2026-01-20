@@ -24,7 +24,14 @@ function Calendar({
   appointments = [],
   adherence = {},
   onWeekChange,
+  mode = "Personal",
 }) {
+  const isCaregiver = mode === "Caregiver";
+  const modeTextClass = isCaregiver ? "text-secondary" : "text-primary";
+  const modeBgClass = isCaregiver ? "bg-secondary" : "bg-primary";
+  const modeBgLightClass = isCaregiver ? "bg-secondary-light" : "bg-primary-light";
+  const modeRingClass = isCaregiver ? "ring-secondary/30" : "ring-primary/30";
+
   const today = new Date();
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(selectedDate || today));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -174,9 +181,25 @@ function Calendar({
           }}
           className="flex items-center justify-center gap-2 w-full group hover:bg-background-hover rounded-lg py-1 px-2 transition-all duration-200"
         >
-          <CalendarIcon size={18} weight="regular" className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CalendarIcon
+            size={18}
+            weight="regular"
+            className={`${modeTextClass} opacity-0 group-hover:opacity-100 transition-opacity`}
+          />
           <p className={`${textStyles.heading.small} text-text-primary text-center`}>{getDisplayMonthYear()}</p>
-          {isDatePickerOpen ? <CaretUpIcon size={16} weight="bold" className="text-primary" /> : <CaretDownIcon size={16} weight="regular" className="text-text-secondary group-hover:text-primary" />}
+          {isDatePickerOpen ? (
+            <CaretUpIcon size={16} weight="bold" className={modeTextClass} />
+          ) : (
+            <CaretDownIcon
+              size={16}
+              weight="regular"
+              className={
+                isCaregiver
+                  ? "text-text-secondary group-hover:text-secondary"
+                  : "text-text-secondary group-hover:text-primary"
+              }
+            />
+          )}
         </button>
 
         {isDatePickerOpen && (
@@ -215,7 +238,15 @@ function Calendar({
                   <button
                     key={idx}
                     onClick={() => handleDateSelect(new Date(cell.year, cell.month, cell.day))}
-                    className={`w-9 h-9 rounded-lg font-poppins text-sm transition-all flex items-center justify-center ${isCellSelected ? "font-bold shadow-md bg-primary text-text-onPrimary" : isCellToday ? "font-semibold ring-1 ring-primary/30 bg-primary-light text-primary" : !cell.isCurrentMonth ? "text-text-secondary/40 hover:bg-gray-100" : "text-text-primary hover:bg-gray-100"}`}
+                    className={`w-9 h-9 rounded-lg font-poppins text-sm transition-all flex items-center justify-center ${
+                      isCellSelected
+                        ? `font-bold shadow-md ${modeBgClass} text-text-onPrimary`
+                        : isCellToday
+                          ? `font-semibold ring-1 ${modeRingClass} ${modeBgLightClass} ${modeTextClass}`
+                          : !cell.isCurrentMonth
+                            ? "text-text-secondary/40 hover:bg-gray-100"
+                            : "text-text-primary hover:bg-gray-100"
+                    }`}
                   >
                     {cell.day}
                   </button>
@@ -223,7 +254,16 @@ function Calendar({
               })}
             </div>
             <div className="mt-4 pt-3 flex justify-center border-t border-border-subtle">
-              <button onClick={goToToday} className={`${textStyles.label.medium} px-4 py-2 rounded-lg hover:bg-blue-50 transition-all text-primary`}>Go to Today</button>
+              <button
+                onClick={goToToday}
+                className={`${textStyles.label.medium} px-4 py-2 rounded-lg transition-all ${
+                  isCaregiver
+                    ? "hover:bg-secondary-light text-secondary"
+                    : "hover:bg-primary-light text-primary"
+                }`}
+              >
+                Go to Today
+              </button>
             </div>
           </div>
         )}
@@ -241,6 +281,7 @@ function Calendar({
             hasAppointment={item.hasAppointment}
             hasFullAdherence={item.hasFullAdherence}
             onClick={() => onDateChange(item.fullDate)}
+            mode={mode}
           />
         ))}
         <button onClick={goToNextWeek} className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-background-hover rounded-lg transition-all"><CaretRightIcon size={20} className="text-icon-primary" /></button>

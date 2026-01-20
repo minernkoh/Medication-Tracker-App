@@ -1,0 +1,19 @@
+[
+  {
+    "_id": { "$oid": "65aa00000000000000000002" },
+    "name": "Demo Patient One",
+    "email": "demo.patient1@medtrack.local",
+    "password": "$2b$10$hKLFQgn0AK4O5lByRAeO6e408bO4MWiyGU28XOO2r/Qrmh.1yewGu",
+    "role": "patient",
+    "caregivers": []
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000000003" },
+    "name": "Demo Patient Two",
+    "email": "demo.patient2@medtrack.local",
+    "password": "$2b$10$hKLFQgn0AK4O5lByRAeO6e408bO4MWiyGU28XOO2r/Qrmh.1yewGu",
+    "role": "patient",
+    "caregivers": []
+  }
+]
+

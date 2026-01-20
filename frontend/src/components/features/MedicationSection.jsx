@@ -40,6 +40,7 @@ function MedicationSection({
   dateLabel = null,
   onAddMedication,
   onCardClick,
+  mode = "Personal",
 }) {
   const { formatQuantity } = useMedications();
   const isPending = variant === "pending";
@@ -142,10 +143,61 @@ function MedicationSection({
     });
   };
 
-  // For pending: group by time if showTimeGroups is true
-  // For taken: group by hour if medications exist
+  // Group pending medications by scheduled hour (based on the earliest scheduled time)
+  const groupPendingByHour = (meds) => {
+    const groups = {};
+
+    meds.forEach((med) => {
+      const times24 = getScheduledTimes24(med);
+      if (!times24.length) {
+        if (!groups["Unscheduled"]) groups["Unscheduled"] = [];
+        groups["Unscheduled"].push(med);
+        return;
+      }
+
+      const [hour] = String(times24[0]).split(":");
+      const hourLabel = to12HourDisplay(`${hour}:00`);
+      const key = hourLabel || "Unscheduled";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(med);
+    });
+
+    // Sort medications within each group by their primary scheduled time
+    Object.keys(groups).forEach((hour) => {
+      groups[hour].sort((a, b) => {
+        const aMins = getPrimaryScheduleMinutes(a);
+        const bMins = getPrimaryScheduleMinutes(b);
+        if (aMins !== bMins) return aMins - bMins;
+        return String(a?.name || "").localeCompare(String(b?.name || ""));
+      });
+    });
+
+    // Sort groups by time, keeping Unscheduled last
+    const sortedGroups = {};
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      if (a === "Unscheduled") return 1;
+      if (b === "Unscheduled") return -1;
+      const timeA = timeToMinutes(toTimeInput(a));
+      const timeB = timeToMinutes(toTimeInput(b));
+      return timeA - timeB;
+    });
+    sortedKeys.forEach((key) => {
+      sortedGroups[key] = groups[key];
+    });
+    return sortedGroups;
+  };
+
+  // For pending: group by hour if showTimeGroups is true
+  // For taken: group by hour if showTimeGroups is true
+  const groupedPendingMeds =
+    isPending && showTimeGroups && medications.length > 0
+      ? groupPendingByHour(medications)
+      : null;
   const groupedTakenMeds =
-    !isPending && medications.length > 0 ? groupTakenByHour(medications) : null;
+    !isPending && showTimeGroups && medications.length > 0
+      ? groupTakenByHour(medications)
+      : null;
+
   const sortedTakenMeds =
     !isPending && !groupedTakenMeds ? sortTakenByTime(medications) : null;
 
@@ -230,7 +282,11 @@ function MedicationSection({
     <div
       className={`bg-background-default border border-border-default rounded-2xl flex flex-col ${
         compact ? "p-4 md:p-5" : "p-6"
-      } ${onCardClick ? "cursor-pointer hover:border-primary transition-all" : ""} ${
+      } ${
+        onCardClick
+          ? "cursor-pointer ring-inset hover:bg-background-hover hover:border-primary/30 hover:ring-2 hover:ring-primary/25 hover:shadow-card-hover transition-all duration-200"
+          : ""
+      } ${
         "h-full min-h-0"
       }`}
       onClick={onCardClick ? handleCardClick : undefined}
@@ -265,7 +321,40 @@ function MedicationSection({
       {/* Medications Content */}
       {medications.length > 0 ? (
         <div className={`flex-1 ${compact ? "overflow-y-auto min-h-0" : ""}`}>
-          {!isPending && groupedTakenMeds ? (
+          {isPending && groupedPendingMeds ? (
+            // Pending: Grouped by hour header (based on earliest scheduled time)
+            <div className="space-y-6">
+              {Object.entries(groupedPendingMeds).map(([hourGroup, meds]) => (
+                <div key={hourGroup}>
+                  <h3
+                    className={`${textStyles.heading.small} text-text-primary mb-3`}
+                  >
+                    {hourGroup}
+                  </h3>
+                  <div className="space-y-3">
+                    {meds.map((med) => (
+                      <PendingMedicine
+                        key={med.id}
+                        type="Due"
+                        medicationName={med.name}
+                        dosage={formatQuantity(med.dosage, med.unit)}
+                        scheduleGroups={buildPendingScheduleGroups(med)}
+                        frequency={
+                          !getScheduledTimes24(med).length ? "Unscheduled" : undefined
+                        }
+                        additionalInfo={buildPendingInfo(med)}
+                        pillColor={med.pillColor}
+                        onCheck={
+                          onMarkAsTaken ? () => onMarkAsTaken(med) : undefined
+                        }
+                        mode={mode}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !isPending && groupedTakenMeds ? (
             // Taken: Grouped by hour with time subheaders
             <div className="space-y-6">
               {Object.entries(groupedTakenMeds).map(([hourGroup, meds]) => (
@@ -290,6 +379,7 @@ function MedicationSection({
                         pillColor={med.pillColor}
                         onEdit={onEdit ? () => onEdit(med) : undefined}
                         onDelete={onDelete ? () => onDelete(med) : undefined}
+                        mode={mode}
                       />
                     ))}
                   </div>
@@ -331,6 +421,7 @@ function MedicationSection({
                     onDelete={
                       !isPending && onDelete ? () => onDelete(med) : undefined
                     }
+                    mode={mode}
                   />
                 ),
               )}

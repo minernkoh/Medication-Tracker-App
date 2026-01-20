@@ -32,7 +32,11 @@ function Card({
   const baseClasses = `
     rounded-2xl p-5
     ${variantClasses[variant]}
-    ${interactive ? "cursor-pointer hover:border-primary transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" : ""}
+    ${
+      interactive
+        ? "cursor-pointer ring-inset hover:bg-background-hover hover:border-primary/30 hover:ring-2 hover:ring-primary/25 hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        : ""
+    }
     ${className}
   `;
 

@@ -17,6 +17,8 @@ import {
   UsersIcon,
   XIcon,
   EyeIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
 } from "@phosphor-icons/react";
 import { SideMenuButtons } from "../ui";
 import { colors } from "../../../tailwind.config.js";
@@ -31,6 +33,8 @@ function Sidebar({
   onSwitchMode,
   isOpen = false,
   onClose,
+  isCollapsed = false,
+  onToggleCollapsed,
 }) {
   // Get user data from localStorage if not provided
   const [userData] = React.useState(() => {
@@ -76,7 +80,9 @@ function Sidebar({
 
   return (
     <div
-      className={`fixed left-0 top-0 h-screen bg-background-default border-r border-border-default flex flex-col items-center justify-between w-[16rem] z-40 transform ${
+      className={`fixed left-0 top-0 h-screen bg-background-default border-r border-border-default flex flex-col items-center justify-between ${
+        isCollapsed ? "w-20" : "w-[16rem]"
+      } z-40 transform ${
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       } transition-transform duration-300 ease-in-out`}
     >
@@ -92,38 +98,74 @@ function Sidebar({
       {/* Top section: Logo and menu */}
       <div className="flex flex-col items-start shrink-0 w-full pt-16 md:pt-0">
         {/* Logo section */}
-        <div className="flex gap-[0.8125rem] items-center opacity-80 pb-6 pt-8 px-5 shrink-0 w-full">
-          <div className="flex-shrink-0 w-8 h-8">
-            <FirstAidKitIcon
-              size={32}
-              weight="regular"
-              color={colors.icon.primary}
-            />
-          </div>
-          <div className="flex flex-col items-start justify-center not-italic shrink-0">
-            <p className="font-poppins font-bold leading-none text-xl text-text-primary">
-              MedTracker
-            </p>
-            <span
-              className="mt-1 px-3 py-1 rounded-full text-xs font-poppins font-semibold"
-              style={{
-                backgroundColor: `${modeHexColor}15`,
-                color: modeHexColor,
-              }}
+        <div
+          className={`flex items-center opacity-80 pb-6 pt-8 shrink-0 w-full ${
+            isCollapsed ? "px-3" : "px-5"
+          } justify-between`}
+        >
+          <div
+            className="flex items-center gap-[0.8125rem] flex-1 min-w-0"
+          >
+            <div className="flex-shrink-0 w-8 h-8">
+              <FirstAidKitIcon
+                size={32}
+                weight="regular"
+                color={colors.icon.primary}
+              />
+            </div>
+            <div
+              className={`flex flex-col items-start justify-center not-italic shrink-0 ${
+                isCollapsed ? "hidden" : ""
+              } min-w-0`}
             >
-              {displayMode}
-            </span>
+              <p className="font-poppins font-bold leading-none text-lg text-text-primary truncate max-w-full">
+                MedTracker
+              </p>
+              <span
+                className="mt-1 px-3 py-1 rounded-full text-xs font-poppins font-semibold max-w-full truncate"
+                style={{
+                  backgroundColor: `${modeHexColor}15`,
+                  color: modeHexColor,
+                }}
+              >
+                {displayMode}
+              </span>
+            </div>
           </div>
+
+          {/* Collapse toggle (desktop only) */}
+          <button
+            type="button"
+            onClick={() => onToggleCollapsed?.(!isCollapsed)}
+            className="flex-shrink-0 flex items-center justify-center p-2 rounded-lg hover:bg-background-hover transition-colors"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-pressed={isCollapsed}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <CaretRightIcon size={18} weight="bold" />
+            ) : (
+              <CaretLeftIcon size={18} weight="bold" />
+            )}
+          </button>
         </div>
 
         {/* User profile section */}
-        <div className="border-t border-b border-border-default flex gap-4 items-center px-5 py-4 shrink-0 w-full">
+        <div
+          className={`border-t border-b border-border-default flex gap-4 items-center py-4 shrink-0 w-full ${
+            isCollapsed ? "px-3 justify-center" : "px-5"
+          }`}
+        >
           <div className="bg-primary flex flex-col items-center justify-center p-2 rounded-full shrink-0 w-8 h-8">
             <p className="font-poppins font-semibold leading-6 text-base text-text-onPrimary text-center">
               {userInitial}
             </p>
           </div>
-          <div className="flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary flex-1">
+          <div
+            className={`flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary flex-1 ${
+              isCollapsed ? "hidden" : ""
+            }`}
+          >
             <div className="flex items-center gap-2">
               <p className="font-poppins font-semibold text-sm">
                 {displayName}
@@ -153,7 +195,11 @@ function Sidebar({
         </div>
 
         {/* Navigation menu buttons */}
-        <div className="flex flex-col gap-4 items-start px-2 py-5 shrink-0 w-full">
+        <div
+          className={`flex flex-col gap-4 py-5 shrink-0 w-full ${
+            isCollapsed ? "items-center px-2" : "items-start px-2"
+          }`}
+        >
           <Link
             to="/dashboard"
             onClick={(e) => {
@@ -166,6 +212,7 @@ function Sidebar({
               type="Dashboard"
               isSelected={currentMenu === "Dashboard"}
               mode={displayMode}
+              collapsed={isCollapsed}
               onClick={(e) => {
                 // Let Link handle navigation, just close sidebar if needed
                 onClose?.();
@@ -187,6 +234,7 @@ function Sidebar({
                 type="Patients"
                 isSelected={currentMenu === "Patients"}
                 mode={displayMode}
+                collapsed={isCollapsed}
                 onClick={(e) => {
                   onClose?.();
                 }}
@@ -208,6 +256,7 @@ function Sidebar({
                 type="Medications"
                 isSelected={currentMenu === "Medications"}
                 mode={displayMode}
+                collapsed={isCollapsed}
                 onClick={(e) => {
                   onClose?.();
                 }}
@@ -227,6 +276,7 @@ function Sidebar({
               type="Appointments"
               isSelected={currentMenu === "Appointments"}
               mode={displayMode}
+              collapsed={isCollapsed}
               onClick={(e) => {
                 onClose?.();
               }}
@@ -246,6 +296,7 @@ function Sidebar({
               type="Settings"
               isSelected={currentMenu === "Settings"}
               mode={displayMode}
+              collapsed={isCollapsed}
               onClick={(e) => {
                 onClose?.();
               }}
@@ -258,11 +309,14 @@ function Sidebar({
       <div className="w-full">
         {/* Switch mode button */}
         <div
-          className="border-t border-border-default flex gap-4 items-center px-5 py-4 shrink-0 w-full cursor-pointer hover:bg-background-hover transition-colors group"
+          className={`border-t border-border-default flex gap-4 items-center py-4 shrink-0 w-full cursor-pointer hover:bg-background-hover transition-colors group ${
+            isCollapsed ? "justify-center px-3" : "px-5"
+          }`}
           onClick={() => {
             onSwitchMode?.();
             onClose?.();
           }}
+          title={isCollapsed ? "Switch mode" : undefined}
         >
           <div className="flex-shrink-0 w-6 h-6">
             <UsersIcon
@@ -275,7 +329,11 @@ function Sidebar({
               }
             />
           </div>
-          <div className="flex flex-col items-start shrink-0 w-[9.9375rem]">
+          <div
+            className={`flex flex-col items-start shrink-0 w-[9.9375rem] ${
+              isCollapsed ? "hidden" : ""
+            }`}
+          >
             <p className="font-poppins font-normal leading-6 text-xs text-text-primary">
               Switch to
             </p>

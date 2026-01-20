@@ -21,6 +21,7 @@ function SideMenuButtons({
   type = "Dashboard",
   mode = "Personal",
   isSelected = false,
+  collapsed = false,
   onClick,
 }) {
   // determine color classes based on mode
@@ -44,6 +45,7 @@ function SideMenuButtons({
         ? "focus-visible:ring-primary"
         : "focus-visible:ring-secondary"
     }
+    ${collapsed ? "justify-center px-3" : ""}
   `;
 
   // state-based classes
@@ -81,9 +83,14 @@ function SideMenuButtons({
       onClick={onClick}
       aria-label={type}
       aria-current={isSelected ? "page" : undefined}
+      title={collapsed ? type : undefined}
     >
       <div className="flex-shrink-0">{getIcon()}</div>
-      <span className="font-poppins font-semibold leading-6 text-base whitespace-pre shrink-0">
+      <span
+        className={`font-poppins font-semibold leading-6 text-base whitespace-pre shrink-0 ${
+          collapsed ? "hidden" : ""
+        }`}
+      >
         {type}
       </span>
     </button>

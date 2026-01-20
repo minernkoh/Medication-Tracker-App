@@ -10,7 +10,6 @@
 import React, { useState, useEffect } from "react";
 import { Modal, FormField, Button } from "../ui";
 import {
-  getModeHexColor,
   getNowTimeInputRounded,
   roundTimeToInterval,
   toTimeInput,
@@ -121,8 +120,10 @@ function AddAppointmentModal({
 
     if (!validate()) return;
 
+    const roundedTime = roundTimeToInterval(formData.time, 15, "nearest");
     const appointmentData = {
       ...formData,
+      time: roundedTime || "",
       ...(isEditing && { id: appointment.id }),
     };
 
@@ -130,8 +131,11 @@ function AddAppointmentModal({
   };
 
   if (!isOpen) return null;
-
-  const primaryColor = getModeHexColor(mode);
+  const isCaregiver = mode === "Caregiver";
+  const submitVariant = isCaregiver ? "secondary" : "primary";
+  const cancelOverrideClassName = isCaregiver
+    ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
+    : "";
 
   return (
     <Modal
@@ -139,13 +143,19 @@ function AddAppointmentModal({
       onClose={onClose}
       title={isEditing ? "Edit Appointment" : "New Appointment"}
       size="md"
+      mode={mode}
       footerContent={
         <>
-          <Button variant="outline" onClick={onClose} fullWidth>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            fullWidth
+            className={cancelOverrideClassName}
+          >
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant={submitVariant}
             onClick={() => {
               const form = document.getElementById("appointment-form");
               if (form) {
@@ -153,7 +163,6 @@ function AddAppointmentModal({
               }
             }}
             fullWidth
-            style={{ backgroundColor: primaryColor }}
           >
             {isEditing ? "Save Changes" : "Add Appointment"}
           </Button>
@@ -252,6 +261,11 @@ function AddAppointmentModal({
               type="time"
               value={formData.time}
               onChange={handleChange}
+              onBlur={(e) => {
+                const rounded = roundTimeToInterval(e.target.value, 15, "nearest");
+                setFormData((prev) => ({ ...prev, time: rounded || "" }));
+                if (errors.time) setErrors((prev) => ({ ...prev, time: "" }));
+              }}
               error={errors.time}
               required
               step="900"

@@ -4,11 +4,19 @@
  * @param {boolean} isOpen - Whether modal is open
  * @param {function} onClose - Close modal callback
  * @param {function} onSave - Save medication callback
+ * @param {object|null} medication - Optional medication to edit (prefills form)
  * @param {string} mode - "Personal" or "Caregiver"
  */
-import React, { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Modal, Button } from "../ui";
-import { buildTimeOptions, getModeHexColor, to12HourDisplay } from "../../utils";
+import { PlusIcon } from "@phosphor-icons/react";
+import {
+  getModeHexColor,
+  roundTimeToInterval,
+  TIME_BUCKET_TO_24H,
+  to12HourDisplay,
+  toTimeInput,
+} from "../../utils";
 
 const getUnitForType = (rawType) => {
   const t = String(rawType || "")
@@ -21,48 +29,148 @@ const getUnitForType = (rawType) => {
   return t;
 };
 
-function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    dosage: "",
-    type: "pills",
-    frequencyType: "timesPerDay",
-    frequencyValue: "",
-    frequencyText: "",
-    quantity: "",
-    recommendSupply: "",
-    unit: "pills",
-    instructions: [],
-    timeOfDay: [],
-    refillDate: "",
-    additionalInfo: "",
-  });
+const DEFAULT_FORM_DATA = {
+  name: "",
+  dosage: "",
+  type: "pills",
+  frequencyType: "timesPerDay",
+  frequencyValue: "",
+  frequencyText: "",
+  quantity: "",
+  recommendSupply: "",
+  unit: getUnitForType("pills"),
+  instructions: [],
+  timeOfDay: [],
+  additionalInfo: "",
+};
+
+function AddMedicationModal({
+  isOpen,
+  onClose,
+  onSave,
+  medication = null,
+  mode = "Personal",
+}) {
+  const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
+  const [scheduleTimeInput, setScheduleTimeInput] = useState("");
 
   const [errors, setErrors] = useState({});
 
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (!isOpen) {
-      setFormData({
-        name: "",
-        dosage: "",
-        type: "pills",
+  const isEditing = Boolean(medication);
+
+  const parseFrequency = (frequency = "") => {
+    if (!frequency)
+      return {
         frequencyType: "timesPerDay",
         frequencyValue: "",
         frequencyText: "",
-        quantity: "",
-        recommendSupply: "",
-        unit: "pills",
-        instructions: [],
-        timeOfDay: [],
-        refillDate: "",
-        additionalInfo: "",
-      });
-      setErrors({});
+      };
+    const normalized = String(frequency).trim();
+    const hoursMatch = normalized.match(/every\s+(\d+)\s*hour/i);
+    if (hoursMatch) {
+      return {
+        frequencyType: "everyHours",
+        frequencyValue: hoursMatch[1],
+        frequencyText: "",
+      };
     }
-  }, [isOpen]);
+    const timesMatch = normalized.match(/(\d+)\s*times\s*per\s*day/i);
+    if (timesMatch) {
+      return {
+        frequencyType: "timesPerDay",
+        frequencyValue: timesMatch[1],
+        frequencyText: "",
+      };
+    }
+    if (normalized.toLowerCase().includes("once daily")) {
+      return {
+        frequencyType: "timesPerDay",
+        frequencyValue: "1",
+        frequencyText: "",
+      };
+    }
+    return {
+      frequencyType: "custom",
+      frequencyValue: "",
+      frequencyText: normalized,
+    };
+  };
 
-  const primaryColor = getModeHexColor(mode);
+  // Reset/prefill form when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData(DEFAULT_FORM_DATA);
+      setScheduleTimeInput("");
+      setErrors({});
+      return;
+    }
+
+    if (!medication) {
+      setFormData(DEFAULT_FORM_DATA);
+      setScheduleTimeInput("");
+      setErrors({});
+      return;
+    }
+
+    const timesOfDay = Array.isArray(medication.timesOfDay)
+      ? medication.timesOfDay
+      : medication.timeOfDay
+        ? [medication.timeOfDay]
+        : [];
+    const normalizedTimesOfDay = (timesOfDay || [])
+      .map((t) => {
+        const raw = String(t || "").trim();
+        if (!raw) return null;
+        const lowered = raw.toLowerCase();
+        if (TIME_BUCKET_TO_24H[lowered]) return TIME_BUCKET_TO_24H[lowered];
+        const asTime = toTimeInput(raw);
+        return asTime || null;
+      })
+      .filter(Boolean);
+
+    const instructions = Array.isArray(medication.instructions)
+      ? medication.instructions
+      : [];
+
+    const { frequencyType, frequencyValue, frequencyText } = parseFrequency(
+      medication.frequency,
+    );
+
+    setFormData({
+      name: medication.name || "",
+      dosage:
+        medication.dosage === 0 || medication.dosage
+          ? String(medication.dosage)
+          : "",
+      type: medication.type || "pills",
+      frequencyType,
+      frequencyValue,
+      frequencyText,
+      quantity:
+        medication.quantity === 0 || medication.quantity
+          ? String(medication.quantity)
+          : "",
+      recommendSupply:
+        medication.recommendSupply === 0 || medication.recommendSupply
+          ? String(medication.recommendSupply)
+          : "",
+      unit:
+        getUnitForType(medication.type || DEFAULT_FORM_DATA.type) || DEFAULT_FORM_DATA.unit,
+      instructions,
+      timeOfDay: normalizedTimesOfDay,
+      additionalInfo: medication.additionalInfo || "",
+    });
+    setScheduleTimeInput("");
+    setErrors({});
+  }, [isOpen, medication]);
+
+  const isCaregiver = mode === "Caregiver";
+  const submitVariant = isCaregiver ? "secondary" : "primary";
+  const cancelOverrideClassName = isCaregiver
+    ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
+    : "";
+  const accentColor = getModeHexColor(mode);
+  const formId = isEditing ? "edit-medication-details-form" : "add-medication-form";
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -79,6 +187,13 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    // Frequency validation uses a shared `frequency` key
+    if (
+      (name === "frequencyType" || name === "frequencyValue" || name === "frequencyText") &&
+      errors.frequency
+    ) {
+      setErrors((prev) => ({ ...prev, frequency: "" }));
     }
   };
 
@@ -108,7 +223,15 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     }));
   };
 
-  const timeOptions = useMemo(() => buildTimeOptions(15), []);
+  const addScheduleTimeFromInput = (rawValue) => {
+    const rounded = roundTimeToInterval(rawValue, 15, "nearest");
+    if (!rounded) return;
+    handleTimeOfDayChange(rounded);
+    setScheduleTimeInput("");
+    if (errors.timeOfDay) {
+      setErrors((prev) => ({ ...prev, timeOfDay: "" }));
+    }
+  };
 
   const validate = () => {
     const newErrors = {};
@@ -133,7 +256,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     }
 
     // Validate time of day - at least one selection required
-    if (formData.timeOfDay.length === 0) {
+    if (!isEditing && formData.timeOfDay.length === 0) {
       newErrors.timeOfDay = "Field is required";
     }
 
@@ -175,28 +298,35 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     const primaryTimeOfDay =
       formData.timeOfDay.length > 0 ? formData.timeOfDay[0] : null;
 
-    // Create new medication object
-    const newMedication = {
+    const quantityValue = parseFloat(formData.quantity) || 0;
+    const recommendSupplyValue =
+      parseFloat(formData.recommendSupply) || quantityValue || 0;
+
+    const payload = {
+      ...(medication || {}),
       name: formData.name,
       dosage: parseFloat(formData.dosage) || 0,
       unit: formData.unit,
       type: formData.type,
       frequency: frequencyString,
-      status: "pending",
-      quantity: parseFloat(formData.quantity) || 0,
-      recommendSupply:
-        parseFloat(formData.recommendSupply) ||
-        parseFloat(formData.quantity) ||
-        0,
-      initialQuantity: parseFloat(formData.quantity) || 0, // Track initial quantity for percentage calculation
+      quantity: quantityValue,
+      recommendSupply: recommendSupplyValue,
       additionalInfo: additionalInfo,
-      refillDate: formData.refillDate || "",
       instructions: formData.instructions,
       timeOfDay: primaryTimeOfDay,
       timesOfDay: formData.timeOfDay,
     };
 
-    onSave(newMedication);
+    // Only set defaults for *new* medications
+    if (!medication) {
+      payload.status = "pending";
+      payload.initialQuantity = quantityValue; // Used for percentage calculation
+    } else if (payload.initialQuantity === null || payload.initialQuantity === undefined) {
+      // Preserve existing initialQuantity; if missing, default to current quantity.
+      payload.initialQuantity = quantityValue;
+    }
+
+    onSave(payload);
   };
 
   if (!isOpen) return null;
@@ -205,30 +335,35 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add New Medication"
+      title={isEditing ? "Edit Medication" : "Add New Medication"}
       size="lg"
+      mode={mode}
       footerContent={
         <>
-          <Button variant="outline" onClick={onClose} fullWidth>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            fullWidth
+            className={cancelOverrideClassName}
+          >
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant={submitVariant}
             onClick={() => {
-              const form = document.getElementById("add-medication-form");
+              const form = document.getElementById(formId);
               if (form) {
                 form.requestSubmit();
               }
             }}
             fullWidth
-            style={{ backgroundColor: primaryColor }}
           >
-            Add Medication
+            {isEditing ? "Save Changes" : "Add Medication"}
           </Button>
         </>
       }
     >
-      <form id="add-medication-form" onSubmit={handleSubmit} className="p-5">
+      <form id={formId} onSubmit={handleSubmit} className="p-5">
         <div className="flex flex-col gap-4">
           {/* Medication Name */}
           <div>
@@ -313,59 +448,44 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               Frequency *
             </label>
             <div className="flex flex-col gap-3">
-              {/* Frequency Type Selector */}
-              <select
-                name="frequencyType"
-                value={formData.frequencyType}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-              >
-                <option value="timesPerDay">Times per day</option>
-                <option value="everyHours">Every X hours</option>
-                <option value="custom">Custom</option>
-              </select>
-
-              {/* Frequency Input based on type */}
-              {formData.frequencyType === "timesPerDay" && (
-                <div className="flex items-center gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 items-start">
+                {/* Number value (shown for Times/Day and Every X hours) */}
+                {(formData.frequencyType === "timesPerDay" ||
+                  formData.frequencyType === "everyHours") && (
                   <input
                     type="number"
                     name="frequencyValue"
                     value={formData.frequencyValue}
                     onChange={handleChange}
-                    placeholder="e.g., 2"
-                    min="1"
-                    max="12"
-                    className="w-24 px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                    placeholder={
+                      formData.frequencyType === "timesPerDay" ? "e.g., 2" : "e.g., 4"
+                    }
+                    min={1}
+                    max={formData.frequencyType === "timesPerDay" ? 12 : 24}
+                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
                     required
+                    aria-label={
+                      formData.frequencyType === "timesPerDay"
+                        ? "Times per day"
+                        : "Every X hours"
+                    }
                   />
-                  <span className="font-poppins text-sm text-text-secondary">
-                    times per day
-                  </span>
-                </div>
-              )}
+                )}
 
-              {formData.frequencyType === "everyHours" && (
-                <div className="flex items-center gap-2">
-                  <span className="font-poppins text-sm text-text-secondary">
-                    Every
-                  </span>
-                  <input
-                    type="number"
-                    name="frequencyValue"
-                    value={formData.frequencyValue}
-                    onChange={handleChange}
-                    placeholder="e.g., 4"
-                    min="1"
-                    max="24"
-                    className="w-24 px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                    required
-                  />
-                  <span className="font-poppins text-sm text-text-secondary">
-                    hour(s)
-                  </span>
-                </div>
-              )}
+                {/* Frequency Type Selector */}
+                <select
+                  name="frequencyType"
+                  value={formData.frequencyType}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
+                    formData.frequencyType === "custom" ? "sm:col-span-2" : ""
+                  }`}
+                >
+                  <option value="timesPerDay">Times per day</option>
+                  <option value="everyHours">Every X hours</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
 
               {formData.frequencyType === "custom" && (
                 <input
@@ -392,22 +512,33 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
               Schedule Time(s) *
             </label>
             <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
-              <select
-                value=""
-                onChange={(e) => {
-                  handleTimeOfDayChange(e.target.value);
-                }}
-                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-              >
-                <option value="" disabled>
-                  Select a time (15-minute intervals)
-                </option>
-                {timeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="time"
+                  step="900"
+                  value={scheduleTimeInput}
+                  onChange={(e) => setScheduleTimeInput(e.target.value)}
+                  onBlur={(e) => addScheduleTimeFromInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addScheduleTimeFromInput(scheduleTimeInput);
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                  aria-label="Schedule time"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => addScheduleTimeFromInput(scheduleTimeInput)}
+                  aria-label="Add schedule time"
+                  title="Add schedule time"
+                  icon={<PlusIcon size={18} weight="bold" />}
+                  className="px-3 border border-border-default text-text-primary hover:bg-background-hover"
+                >
+                </Button>
+              </div>
 
               {Array.isArray(formData.timeOfDay) && formData.timeOfDay.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -463,6 +594,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                 </p>
               )}
             </div>
+
             <div className="col-span-1">
               <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
                 Unit
@@ -471,46 +603,51 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                 type="text"
                 name="unit"
                 value={formData.unit}
+                placeholder="e.g., pills"
+                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm bg-background-subtle text-text-secondary focus:outline-none focus:border-border-default focus:ring-0 transition-colors cursor-not-allowed"
+                aria-label="Unit"
                 readOnly
-                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-hover focus:outline-none"
-                aria-label="Unit (auto-filled from Type)"
+                aria-readonly="true"
               />
-              <p className="font-poppins text-[10px] text-text-secondary mt-1">
-                Auto-filled from Type
-              </p>
             </div>
           </div>
 
           {/* Recommended Supply */}
           <div>
-            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Recommended Supply
-            </label>
-            <input
-              type="text"
-              name="recommendSupply"
-              value={formData.recommendSupply}
-              onChange={handleChange}
-              placeholder="e.g., 30 pills"
-              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-            />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                  Recommended Supply
+                </label>
+                <input
+                  type="text"
+                  name="recommendSupply"
+                  value={formData.recommendSupply}
+                  onChange={handleChange}
+                  placeholder="e.g., 30"
+                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <div className="col-span-1">
+                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                  Unit
+                </label>
+                <input
+                  type="text"
+                  name="recommendSupplyUnit"
+                  value={formData.unit}
+                  placeholder="e.g., pills"
+                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm bg-background-subtle text-text-secondary focus:outline-none focus:border-border-default focus:ring-0 transition-colors cursor-not-allowed"
+                  aria-label="Recommended supply unit"
+                  readOnly
+                  aria-readonly="true"
+                />
+              </div>
+            </div>
             <p className="font-poppins text-xs text-text-secondary mt-2">
               Used to calculate supply status and refill reminders. If left blank, we’ll use Total Quantity.
             </p>
-          </div>
-
-          {/* Refill Date */}
-          <div>
-            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Refill Date
-            </label>
-            <input
-              type="date"
-              name="refillDate"
-              value={formData.refillDate}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-            />
           </div>
 
           {/* Instructions */}
@@ -538,7 +675,7 @@ function AddMedicationModal({ isOpen, onClose, onSave, mode = "Personal" }) {
                     checked={formData.instructions.includes(instruction)}
                     onChange={() => handleInstructionChange(instruction)}
                     className="app-checkbox"
-                    style={{ "--checkbox-accent": primaryColor }}
+                    style={{ "--checkbox-accent": accentColor }}
                   />
                   <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary">
                     {instruction}

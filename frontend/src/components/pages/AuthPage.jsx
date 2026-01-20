@@ -35,6 +35,55 @@ function AuthPage({ onLogin, onSignup }) {
   const [errors, setErrors] = useState({});
   const { showError } = useError();
 
+  const isCaregiverSelected = accountType === "caregiver";
+  const leftPanelContent = isCaregiverSelected
+    ? {
+        subtitle: "Caregiver companion",
+        headline: "Support your loved ones with confidence",
+        body:
+          "Monitor medications and appointments across patients, and spot issues early.",
+        features: [
+          {
+            icon: UsersIcon,
+            title: "Patients overview",
+            description: "Manage multiple patients with a consolidated view.",
+          },
+          {
+            icon: HeartIcon,
+            title: "Adherence tracking",
+            description: "See daily progress and identify missed doses quickly.",
+          },
+          {
+            icon: CalendarCheckIcon,
+            title: "Appointment coordination",
+            description: "Keep upcoming appointments organized for each patient.",
+          },
+        ],
+      }
+    : {
+        subtitle: "Your health companion",
+        headline: "Track your health journey with confidence",
+        body:
+          "Never miss a medication or appointment again. MedTracker helps you stay on top of your health.",
+        features: [
+          {
+            icon: PackageIcon,
+            title: "Supply Management",
+            description: "Track medication inventory and refills",
+          },
+          {
+            icon: CalendarCheckIcon,
+            title: "Appointment Tracking",
+            description: "Keep all your appointments organized",
+          },
+          {
+            icon: HeartIcon,
+            title: "Health Insights",
+            description: "Track your progress over time",
+          },
+        ],
+      };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -158,11 +207,21 @@ function AuthPage({ onLogin, onSignup }) {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex"
+      className={`min-h-screen bg-gradient-to-br flex ${
+        isCaregiverSelected
+          ? "from-rose-50 via-pink-50 to-rose-100"
+          : "from-slate-50 via-blue-50 to-indigo-50"
+      }`}
       style={{ overflowY: "auto", height: "100vh" }}
     >
       {/* Left side - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-12 flex-col justify-between relative overflow-hidden">
+      <div
+        className={`hidden lg:flex lg:w-1/2 bg-gradient-to-br p-12 flex-col justify-between relative overflow-hidden ${
+          isCaregiverSelected
+            ? "from-secondary via-pink-600 to-rose-700"
+            : "from-primary via-blue-600 to-indigo-700"
+        }`}
+      >
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
@@ -184,7 +243,7 @@ function AuthPage({ onLogin, onSignup }) {
               MedTracker
             </h1>
             <p className="font-poppins text-white/70 text-sm">
-              Your health companion
+              {leftPanelContent.subtitle}
             </p>
           </div>
         </div>
@@ -193,66 +252,36 @@ function AuthPage({ onLogin, onSignup }) {
         <div className="relative z-10 space-y-8">
           <div>
             <h2 className="font-poppins font-bold text-4xl text-white leading-tight mb-4">
-              Track your health journey with confidence
+              {leftPanelContent.headline}
             </h2>
             <p className="font-poppins text-white/80 text-lg leading-relaxed max-w-md">
-              Never miss a medication or appointment again. MedTracker helps you
-              stay on top of your health.
+              {leftPanelContent.body}
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <PackageIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.text.onPrimary}
-                />
+            {leftPanelContent.features.map((feature) => (
+              <div
+                key={feature.title}
+                className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <feature.icon
+                    size={20}
+                    weight="fill"
+                    color={colors.text.onPrimary}
+                  />
+                </div>
+                <div>
+                  <p className="font-poppins font-semibold text-white">
+                    {feature.title}
+                  </p>
+                  <p className="font-poppins text-white/70 text-sm">
+                    {feature.description}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-poppins font-semibold text-white">
-                  Supply Management
-                </p>
-                <p className="font-poppins text-white/70 text-sm">
-                  Track medication inventory and refills
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <CalendarCheckIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.text.onPrimary}
-                />
-              </div>
-              <div>
-                <p className="font-poppins font-semibold text-white">
-                  Appointment Tracking
-                </p>
-                <p className="font-poppins text-white/70 text-sm">
-                  Keep all your appointments organized
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <HeartIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.text.onPrimary}
-                />
-              </div>
-              <div>
-                <p className="font-poppins font-semibold text-white">
-                  Health Insights
-                </p>
-                <p className="font-poppins text-white/70 text-sm">
-                  Track your progress over time
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -266,7 +295,11 @@ function AuthPage({ onLogin, onSignup }) {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                isCaregiverSelected ? "bg-secondary" : "bg-primary"
+              }`}
+            >
               <FirstAidKitIcon
                 size={24}
                 weight="fill"
@@ -285,8 +318,12 @@ function AuthPage({ onLogin, onSignup }) {
             </h2>
             <p className="font-poppins text-text-secondary">
               {isLogin
-                ? "Sign in to continue managing your health"
-                : "Start your health journey today"}
+                ? isCaregiverSelected
+                  ? "Sign in to manage care for someone else"
+                  : "Sign in to continue managing your health"
+                : isCaregiverSelected
+                  ? "Start supporting someone’s health today"
+                  : "Start your health journey today"}
             </p>
           </div>
 
@@ -345,7 +382,9 @@ function AuthPage({ onLogin, onSignup }) {
                     className={`w-full pl-12 pr-4 py-3.5 rounded-xl border bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 transition-all ${
                       errors.name
                         ? "border-red-300 focus:ring-red-200"
-                        : "border-border-default focus:ring-primary/20 focus:border-primary"
+                        : isCaregiverSelected
+                          ? "border-border-default focus:ring-secondary/20 focus:border-secondary"
+                          : "border-border-default focus:ring-primary/20 focus:border-primary"
                     }`}
                   />
                 </div>
@@ -377,7 +416,9 @@ function AuthPage({ onLogin, onSignup }) {
                   className={`w-full pl-12 pr-4 py-3.5 rounded-xl border bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 transition-all ${
                     errors.email
                       ? "border-red-300 focus:ring-red-200"
-                      : "border-border-default focus:ring-primary/20 focus:border-primary"
+                      : isCaregiverSelected
+                        ? "border-border-default focus:ring-secondary/20 focus:border-secondary"
+                        : "border-border-default focus:ring-primary/20 focus:border-primary"
                   }`}
                 />
               </div>
@@ -408,7 +449,9 @@ function AuthPage({ onLogin, onSignup }) {
                   className={`w-full pl-12 pr-12 py-3.5 rounded-xl border bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 transition-all ${
                     errors.password
                       ? "border-red-300 focus:ring-red-200"
-                      : "border-border-default focus:ring-primary/20 focus:border-primary"
+                      : isCaregiverSelected
+                        ? "border-border-default focus:ring-secondary/20 focus:border-secondary"
+                        : "border-border-default focus:ring-primary/20 focus:border-primary"
                   }`}
                 />
                 <button
@@ -451,7 +494,9 @@ function AuthPage({ onLogin, onSignup }) {
                     className={`w-full pl-12 pr-4 py-3.5 rounded-xl border bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 transition-all ${
                       errors.confirmPassword
                         ? "border-red-300 focus:ring-red-200"
-                        : "border-border-default focus:ring-primary/20 focus:border-primary"
+                        : isCaregiverSelected
+                          ? "border-border-default focus:ring-secondary/20 focus:border-secondary"
+                          : "border-border-default focus:ring-primary/20 focus:border-primary"
                     }`}
                   />
                 </div>
@@ -468,7 +513,11 @@ function AuthPage({ onLogin, onSignup }) {
               <div className="text-right">
                 <button
                   type="button"
-                  className="font-poppins text-sm text-primary hover:text-primary-hover font-medium"
+                  className={`font-poppins text-sm font-medium ${
+                    isCaregiverSelected
+                      ? "text-secondary hover:text-secondary-hover"
+                      : "text-primary hover:text-primary-hover"
+                  }`}
                 >
                   Forgot password?
                 </button>
@@ -478,7 +527,11 @@ function AuthPage({ onLogin, onSignup }) {
             {/* Submit button */}
             <button
               type="submit"
-              className="w-full bg-primary hover:bg-primary-hover text-white font-poppins font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+              className={`w-full text-white font-poppins font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl ${
+                isCaregiverSelected
+                  ? "bg-secondary hover:bg-secondary-hover shadow-secondary/25 hover:shadow-secondary/30"
+                  : "bg-primary hover:bg-primary-hover shadow-primary/25 hover:shadow-primary/30"
+              }`}
             >
               {isLogin ? "Sign In" : "Create Account"}
               <ArrowRightIcon size={18} weight="bold" />
@@ -495,7 +548,11 @@ function AuthPage({ onLogin, onSignup }) {
                 setErrors({});
                 setAccountType(null);
               }}
-              className="text-primary hover:text-primary-hover font-semibold"
+              className={`font-semibold ${
+                isCaregiverSelected
+                  ? "text-secondary hover:text-secondary-hover"
+                  : "text-primary hover:text-primary-hover"
+              }`}
             >
               {isLogin ? "Sign Up" : "Sign In"}
             </button>

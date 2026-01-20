@@ -17,33 +17,56 @@ function CalendarDateButton({
   hasAppointment = false,
   hasFullAdherence = false,
   onClick,
+  mode = "Personal",
 }) {
+  const isCaregiver = mode === "Caregiver";
+
   // base classes for the button
   const baseClasses = `
     flex flex-col h-[3.75rem] items-center justify-center
     rounded-lg border border-solid flex-1 min-w-[3.75rem]
     cursor-pointer transition-all duration-200
-    focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
-    relative
+    focus:outline-none focus-visible:ring-2 ${
+      isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35"
+    } focus-visible:ring-offset-2
+    ring-inset relative
   `;
 
   // state-based classes using tailwind - no js hover needed
   const stateClasses = isSelected
-    ? "bg-primary border-transparent shadow-[0_4px_12px_rgba(21,93,252,0.3)]"
+    ? isCaregiver
+      ? "bg-secondary border-transparent shadow-glow-secondary-sm"
+      : "bg-primary border-transparent shadow-glow-primary-sm"
     : hasFullAdherence
-    ? "bg-success border-transparent hover:brightness-95"
+    ? "bg-background-default border-success hover:bg-success-light/30 hover:border-success-hover hover:ring-2 hover:ring-success/20"
     : isToday
-    ? "bg-background-default border-primary hover:border-primary"
-    : "bg-background-default border-border-default hover:border-primary";
+    ? `bg-background-default ${
+        isCaregiver
+          ? "border-secondary hover:border-secondary hover:ring-2 hover:ring-secondary/25"
+          : "border-primary hover:border-primary hover:ring-2 hover:ring-primary/25"
+      }`
+    : `bg-background-default border-border-default ${
+        isCaregiver
+          ? "hover:border-secondary hover:ring-2 hover:ring-secondary/25"
+          : "hover:border-primary hover:ring-2 hover:ring-primary/25"
+      }`;
 
   // text color classes based on state
-  const dayColorClass = isSelected || hasFullAdherence
+  const dayColorClass = isSelected
     ? "text-text-onPrimary"
-    : "text-text-secondary group-hover:text-primary";
+    : hasFullAdherence
+      ? "text-text-secondary group-hover:text-success"
+      : `text-text-secondary ${
+          isCaregiver ? "group-hover:text-secondary" : "group-hover:text-primary"
+        }`;
 
-  const dateColorClass = isSelected || hasFullAdherence
+  const dateColorClass = isSelected
     ? "text-text-onPrimary"
-    : "text-text-primary group-hover:text-primary";
+    : hasFullAdherence
+      ? "text-text-primary group-hover:text-success"
+      : `text-text-primary ${
+          isCaregiver ? "group-hover:text-secondary" : "group-hover:text-primary"
+        }`;
 
   return (
     <button

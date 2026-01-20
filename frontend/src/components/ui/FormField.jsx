@@ -32,12 +32,16 @@ function FormField({
   className = "",
   ...inputProps
 }) {
+  const isReadOnly = Boolean(inputProps?.readOnly || inputProps?.disabled);
+
   // Base input classes
   const inputBaseClass =
-    "w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none transition-colors";
-  const inputNormalClass = `${inputBaseClass} border-border-default focus:border-primary focus:ring-2 focus:ring-primary/20`;
-  const inputErrorClass = `${inputBaseClass} border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
-  const inputClass = `${error ? inputErrorClass : inputNormalClass} ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
+    "w-full px-4 py-3 rounded-xl border font-poppins text-sm focus:outline-none transition-colors";
+  const inputNormalClass = `${inputBaseClass} text-text-primary bg-background-default border-border-default focus:border-primary focus:ring-2 focus:ring-primary/20`;
+  const inputReadOnlyClass = `${inputBaseClass} text-text-secondary bg-background-subtle border-border-default focus:border-border-default focus:ring-0 cursor-not-allowed`;
+  const inputErrorClass = `${inputBaseClass} text-text-primary bg-background-default border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
+
+  const inputClass = `${error ? inputErrorClass : isReadOnly ? inputReadOnlyClass : inputNormalClass} ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
 
   return (
     <div className={className}>

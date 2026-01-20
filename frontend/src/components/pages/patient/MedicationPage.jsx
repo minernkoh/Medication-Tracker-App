@@ -2,12 +2,11 @@
  * MedicationPage Component - Comprehensive medication management page
  * Shows: Pending Today (sorted by scheduled time), Taken Today, Current Supply
  *
- * @param {string} userName - User's name
  * @param {string} mode - "Personal" or "Caregiver"
  */
 
-import React, { useState } from "react";
-import { PlusIcon, PillIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { useState } from "react";
+import { PlusIcon, PillIcon } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../../utils/modeUtils";
 import {
   DataTable,
@@ -22,14 +21,13 @@ import { useMedications } from "../../../contexts/MedicationsContext";
 import { colors } from "../../../../tailwind.config.js";
 import { getMedicationColor } from "../../../utils/medicationColors";
 import {
-  formatDateNumeric,
   timeToMinutes,
   calculateSupplyStatus,
   filterMedsByStatus,
   toTimeInput,
 } from "../../../utils";
 
-const MedicationPage = ({ userName = "", mode = "Personal" }) => {
+const MedicationPage = ({ mode = "Personal" }) => {
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
@@ -37,7 +35,6 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const primaryColor = getModeHexColor(mode);
   const {
     medications,
-    parseQuantity,
     formatQuantity,
     createMedication,
     updateMedication,
@@ -55,12 +52,8 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMedication, setEditingMedication] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  // State for supply table sorting
-  const [supplySortConfig, setSupplySortConfig] = useState({
-    key: "name",
-    direction: "asc",
-  });
+  const [editingSupplyMedication, setEditingSupplyMedication] = useState(null);
+  const [showSupplyEditModal, setShowSupplyEditModal] = useState(false);
 
   // ============================================================================
   // HELPER FUNCTIONS
@@ -70,13 +63,6 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
    * Convert HH:MM to minutes for time-based sorting
    */
   // Use shared helper that supports both "morning" and "09:30" formats
-
-  // Helper: format date for display
-  const formatRefillDate = (dateStr) => {
-    if (!dateStr) return null;
-    const formatted = formatDateNumeric(dateStr);
-    return formatted || null;
-  };
 
   /**
    * Calculate supply status as percentage
@@ -113,6 +99,12 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     setShowEditModal(true);
   };
 
+  const handleEditSupplyMedication = (medication) => {
+    if (isReadOnlyPatient) return;
+    setEditingSupplyMedication(medication);
+    setShowSupplyEditModal(true);
+  };
+
   /**
    * Handle saving edited medication
    */
@@ -141,6 +133,17 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
       }
       setShowEditModal(false);
       setEditingMedication(null);
+    } catch {
+      // Errors are surfaced via global error handler
+    }
+  };
+
+  const handleSaveSupplyMedication = async (updatedMedication) => {
+    try {
+      if (isReadOnlyPatient) return;
+      await updateMedication(updatedMedication.id, updatedMedication);
+      setShowSupplyEditModal(false);
+      setEditingSupplyMedication(null);
     } catch {
       // Errors are surfaced via global error handler
     }
@@ -195,47 +198,6 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     return timeToMinutes(toTimeInput(aSlot)) - timeToMinutes(toTimeInput(bSlot));
   });
 
-  // Sort supply medications
-  const sortedSupplyMeds = [...supplyMeds].sort((a, b) => {
-    const { key, direction } = supplySortConfig;
-    const multiplier = direction === "asc" ? 1 : -1;
-
-    switch (key) {
-      case "name":
-        return multiplier * a.name.localeCompare(b.name);
-
-      case "dosage":
-        return multiplier * (Number(a.dosage) - Number(b.dosage));
-
-      case "quantity":
-        return multiplier * (Number(a.quantity) - Number(b.quantity));
-
-      case "refillDate": {
-        const dateA = a.refillDate ? new Date(a.refillDate).getTime() : 0;
-        const dateB = b.refillDate ? new Date(b.refillDate).getTime() : 0;
-        return multiplier * (dateA - dateB);
-      }
-
-      case "supplyStatus": {
-        const statusA = getSupplyStatus(a);
-        const statusB = getSupplyStatus(b);
-
-        // Medications without status go to the end
-        if (!statusA && !statusB) return 0;
-        if (!statusA) return 1;
-        if (!statusB) return -1;
-
-        // Sort by percentage value
-        const percentA = parseInt(statusA.label.replace("%", ""), 10);
-        const percentB = parseInt(statusB.label.replace("%", ""), 10);
-        return multiplier * (percentA - percentB);
-      }
-
-      default:
-        return 0;
-    }
-  });
-
   // ============================================================================
   // TABLE COLUMNS CONFIGURATION
   // ============================================================================
@@ -245,7 +207,8 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "name",
       label: "Name",
-      render: (value, row) => {
+      sortValue: (row) => row?.name || "",
+      render: (value) => {
         const medicationColor = getMedicationColor(value);
         return (
           <div className="flex items-center gap-3">
@@ -271,6 +234,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "dosage",
       label: "Dose/Frequency",
+      sortValue: (row) => Number(row?.dosage ?? 0),
       render: (value, row) => (
         <div className="flex flex-col">
           <span className="font-poppins text-sm text-text-primary">
@@ -285,7 +249,21 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "instructions",
       label: "Instructions",
-      sortable: false,
+      sortValue: (row) => {
+        const value = row?.instructions;
+        const instructionsList = Array.isArray(value)
+          ? value
+          : typeof value === "string"
+            ? value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+        const notes = String(row?.additionalInfo || "").trim();
+        return instructionsList.length > 0
+          ? instructionsList.join(", ")
+          : notes || "";
+      },
       render: (value, row) => {
         const instructionsList = Array.isArray(value)
           ? value
@@ -327,6 +305,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "quantity",
       label: "Total Quantity",
+      sortValue: (row) => Number(row?.quantity ?? 0),
       render: (value, row) => (
         <span className="font-poppins text-sm font-medium text-text-primary">
           {value !== undefined ? formatQuantity(value, row.unit) : "N/A"}
@@ -336,6 +315,7 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "supplyStatus",
       label: "Supply Status",
+      sortValue: (row) => getSupplyStatus(row)?.ratio ?? null,
       render: (value, row) => {
         const status = getSupplyStatus(row);
         if (!status) {
@@ -357,29 +337,12 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
     {
       key: "recommendSupply",
       label: "Recommended Supply",
+      sortValue: (row) => Number(row?.recommendSupply ?? 0),
       render: (value, row) => (
         <span className="font-poppins text-sm text-text-primary">
           {value ? formatQuantity(value, row.unit) : "—"}
         </span>
       ),
-    },
-    {
-      key: "refill",
-      label: "Refill?",
-      render: (value, row) => {
-        const status = getSupplyStatus(row);
-        const refillNeeded =
-          status && (status.label === "Low" || status.label === "Empty");
-        return (
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-poppins font-medium ${
-              refillNeeded ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
-            }`}
-          >
-            {refillNeeded ? "Yes" : "No"}
-          </span>
-        );
-      },
     },
   ];
 
@@ -423,6 +386,20 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
               }}
               onSave={handleSaveEditedMedication}
               medication={editingMedication}
+              mode={mode}
+            />
+          )}
+
+          {/* Edit Supply (Medication Details) Modal */}
+          {showSupplyEditModal && editingSupplyMedication && (
+            <AddMedicationModal
+              isOpen={showSupplyEditModal}
+              onClose={() => {
+                setShowSupplyEditModal(false);
+                setEditingSupplyMedication(null);
+              }}
+              onSave={handleSaveSupplyMedication}
+              medication={editingSupplyMedication}
               mode={mode}
             />
           )}
@@ -477,13 +454,12 @@ const MedicationPage = ({ userName = "", mode = "Personal" }) => {
 
             <DataTable
               columns={supplyColumns}
-              data={sortedSupplyMeds}
-              sortConfig={supplySortConfig}
-              onSort={setSupplySortConfig}
+              data={supplyMeds}
+              defaultSortConfig={{ key: "name", direction: "asc" }}
               onEdit={
                 isReadOnlyPatient
                   ? undefined
-                  : (row) => handleEditMedication(row)
+                  : (row) => handleEditSupplyMedication(row)
               }
               onDelete={
                 isReadOnlyPatient

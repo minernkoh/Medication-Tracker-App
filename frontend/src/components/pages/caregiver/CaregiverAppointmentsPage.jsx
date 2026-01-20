@@ -2,7 +2,7 @@
  * CaregiverAppointmentsPage Component - View all appointments across all patients
  * Shows a consolidated view of all patient appointments
  */
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarCheckIcon,
@@ -12,12 +12,10 @@ import {
   MapPinIcon,
   ClockIcon,
   StethoscopeIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   FunnelIcon,
 } from "@phosphor-icons/react";
-import { getModeHexColor, formatDateLocale } from "../../../utils";
-import { GradientBackground, PageHeader } from "../../ui";
+import { formatDateLocale } from "../../../utils";
+import { Button, GradientBackground, PageHeader } from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
@@ -50,8 +48,12 @@ const getInitials = (name = "") => {
 };
 
 const getPatientColor = (patient, index) => {
-  if (patient?.color) return patient.color;
-  return PATIENT_COLORS[index % PATIENT_COLORS.length];
+  const seed =
+    patient?.id || patient?._id || patient?.email || patient?.name || index || "";
+  const str = String(seed);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
+  return PATIENT_COLORS[hash % PATIENT_COLORS.length];
 };
 
 const deriveStatus = (apt) => {
@@ -82,15 +84,13 @@ const normalizeAppointment = (appointment, index) => {
     appointment.patient && typeof appointment.patient === "object"
       ? appointment.patient
       : { name: "Patient", _id: appointment.patient };
-  const patientName = patient.nickname
-    ? `${patient.nickname} (${patient.name})`
-    : patient.name;
+  const patientName = patient.name;
   const normalizedDate = normalizeDateInput(appointment.date);
   return {
     id: appointment.id || appointment._id,
     patientId: patient.id || patient._id,
     patientName,
-    patientInitials: patient.initials || getInitials(patientName),
+    patientInitials: getInitials(patientName),
     patientColor: getPatientColor(patient, index),
     title: appointment.title,
     doctor: appointment.doctorName,
@@ -104,7 +104,6 @@ const normalizeAppointment = (appointment, index) => {
 
 function CaregiverAppointmentsPage() {
   const navigate = useNavigate();
-  const modeHexColor = getModeHexColor("Caregiver");
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "asc" });
   const [filterPatient, setFilterPatient] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -128,7 +127,7 @@ function CaregiverAppointmentsPage() {
         (Array.isArray(data) ? data : [])
           .map((p) => ({
             id: p.id || p._id,
-            name: p.nickname ? `${p.nickname} (${p.name})` : p.name,
+            name: p.name,
           }))
           .filter((p) => p.id && p.name),
       );
@@ -181,6 +180,23 @@ function CaregiverAppointmentsPage() {
     }
     if (key === "title") {
       return multiplier * a.title.localeCompare(b.title);
+    }
+    if (key === "location") {
+      return multiplier * (a.location || "").localeCompare(b.location || "");
+    }
+    if (key === "status") {
+      const statusOrder = {
+        Scheduled: 0,
+        Completed: 1,
+        Missed: 2,
+        Cancelled: 3,
+      };
+      const statusA = deriveStatus(a);
+      const statusB = deriveStatus(b);
+      return (
+        multiplier *
+        ((statusOrder[statusA] ?? 99) - (statusOrder[statusB] ?? 99))
+      );
     }
     return 0;
   });
@@ -299,17 +315,14 @@ function CaregiverAppointmentsPage() {
             title="All Appointments"
             description="Manage appointments for all your patients"
             action={
-              <button
+              <Button
+                variant="secondary"
+                size="lg"
+                icon={<PlusIcon size={20} weight="bold" />}
                 onClick={openAddModal}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl font-poppins font-semibold text-white shadow-lg hover:shadow-xl transition-all"
-                style={{
-                  backgroundColor: modeHexColor,
-                  boxShadow: `0 10px 25px -5px ${modeHexColor}40`,
-                }}
               >
-                <PlusIcon size={20} weight="bold" />
                 Add Appointment
-              </button>
+              </Button>
             }
           />
 
@@ -371,11 +384,19 @@ function CaregiverAppointmentsPage() {
                     Date & Time
                     <SortIndicator columnKey="date" />
                   </th>
-                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                  <th
+                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                    onClick={() => handleSort("location")}
+                  >
                     Location
+                    <SortIndicator columnKey="location" />
                   </th>
-                  <th className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                  <th
+                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                    onClick={() => handleSort("status")}
+                  >
                     Status
+                    <SortIndicator columnKey="status" />
                   </th>
                   <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
                     Actions
@@ -460,6 +481,7 @@ function CaregiverAppointmentsPage() {
                           size="base"
                           editLabel="Edit appointment"
                           deleteLabel="Delete appointment"
+                          mode="Caregiver"
                         />
                       </div>
                     </td>
@@ -512,39 +534,12 @@ function CaregiverAppointmentsPage() {
             }
             onConfirm={confirmDelete}
             title="Delete Appointment"
-            message={`Are you sure you want to delete \"${deleteConfirm.appointmentTitle}\"? This action cannot be undone.`}
+            message={`Are you sure you want to delete "${deleteConfirm.appointmentTitle}"? This action cannot be undone.`}
             confirmText="Delete"
             cancelText="Cancel"
             variant="danger"
+            mode="Caregiver"
           />
-
-          {/* Stats summary */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-              <p className="font-poppins font-bold text-2xl text-text-primary">
-                {appointments.filter((a) => deriveStatus(a) === "Scheduled").length}
-              </p>
-              <p className="font-poppins text-sm text-text-secondary">Scheduled</p>
-            </div>
-            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-              <p className="font-poppins font-bold text-2xl text-text-primary">
-                {appointments.filter((a) => deriveStatus(a) === "Completed").length}
-              </p>
-              <p className="font-poppins text-sm text-text-secondary">Completed</p>
-            </div>
-            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-              <p className="font-poppins font-bold text-2xl text-text-primary">
-                {appointments.filter((a) => deriveStatus(a) === "Missed").length}
-              </p>
-              <p className="font-poppins text-sm text-text-secondary">Missed</p>
-            </div>
-            <div className="bg-background-default border border-border-default rounded-2xl p-4 text-center">
-              <p className="font-poppins font-bold text-2xl text-text-primary">
-                {appointments.filter((a) => deriveStatus(a) === "Cancelled").length}
-              </p>
-              <p className="font-poppins text-sm text-text-secondary">Cancelled</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

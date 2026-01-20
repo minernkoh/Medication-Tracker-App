@@ -24,8 +24,8 @@ function PageHeader({
   };
 
   const descriptionClasses = {
-    default: "font-poppins text-sm text-text-secondary mt-2",
-    compact: "font-poppins text-sm text-text-secondary mt-1",
+    default: "font-poppins text-base text-text-secondary mt-2",
+    compact: "font-poppins text-base text-text-secondary mt-1",
   };
 
   const marginClasses = {

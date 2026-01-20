@@ -2,10 +2,9 @@
  * CaregiverDashboard Component - Overview dashboard for caregivers
  * Shows all patients at a glance with their medication status and upcoming appointments
  */
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  PillIcon,
   CalendarCheckIcon,
   WarningCircleIcon,
   CheckCircleIcon,
@@ -21,7 +20,7 @@ import {
   to12HourDisplay,
   timeToMinutes,
 } from "../../../utils";
-import { GradientBackground, PieChart, PageHeader } from "../../ui";
+import { DataTable, GradientBackground, PieChart, PageHeader } from "../../ui";
 import { Calendar } from "../../features";
 import { colors } from "../../../../tailwind.config.js";
 import { api } from "../../../api";
@@ -46,24 +45,27 @@ const getInitials = (name = "") => {
 };
 
 const getPatientColor = (patient, index) => {
-  if (patient?.color) return patient.color;
+  const seed =
+    patient?.id || patient?._id || patient?.email || patient?.name || index || "";
+  const str = String(seed);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
   if (typeof index === "number") {
-    return PATIENT_COLORS[index % PATIENT_COLORS.length];
+    return PATIENT_COLORS[hash % PATIENT_COLORS.length];
   }
-  return colors.patient.blue;
+  return PATIENT_COLORS[hash % PATIENT_COLORS.length] || colors.patient.blue;
 };
 
 const normalizePatient = (patient, index) => {
   if (!patient) return null;
-  const name = patient.nickname
-    ? `${patient.nickname} (${patient.name})`
-    : patient.name;
+  const name = patient.name;
+  const id = patient.id || patient._id;
   return {
     ...patient,
-    id: patient.id || patient._id,
+    id,
     name,
-    initials: patient.initials || getInitials(patient.nickname || patient.name),
-    color: getPatientColor(patient, index),
+    avatarInitials: getInitials(patient.name || ""),
+    avatarColor: getPatientColor({ ...patient, id }, index),
   };
 };
 
@@ -72,6 +74,31 @@ const getTimeGreeting = () => {
   if (hour < 12) return "Morning";
   if (hour < 17) return "Afternoon";
   return "Evening";
+};
+
+// "Today's adherence" (Caregiver) is defined per-medication:
+// a medication counts as taken for the day if ANY of its scheduled time-slots is taken.
+const getPerMedicationAdherence = (items = []) => {
+  const expected = new Set();
+  const taken = new Set();
+
+  const list = Array.isArray(items) ? items : [];
+  for (const item of list) {
+    const medId = item?.medicationId;
+    if (!medId) continue;
+    const key = String(medId);
+    expected.add(key);
+    if (String(item?.status || "").toLowerCase() === "taken") {
+      taken.add(key);
+    }
+  }
+
+  const expectedTotal = expected.size;
+  const takenTotal = taken.size;
+  const percent =
+    expectedTotal > 0 ? Math.round((takenTotal / expectedTotal) * 100) : 0;
+
+  return { expectedTotal, takenTotal, percent };
 };
 
 const CaregiverDashboard = ({ userName = "" }) => {
@@ -86,6 +113,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const [weekAdherence, setWeekAdherence] = useState({});
   const [scheduleItems, setScheduleItems] = useState([]);
   const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [scheduleStatusFilter, setScheduleStatusFilter] = useState("all"); // all | pending | taken
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const { showError } = useError();
   const todayStr = selectedDate.toISOString().split("T")[0];
@@ -97,9 +125,10 @@ const CaregiverDashboard = ({ userName = "" }) => {
         api.caregiver.getAppointments(),
       ]);
       setPatients(
-        (Array.isArray(patientsData) ? patientsData : []).map(
-          (patient, index) => normalizePatient(patient, index),
-        ),
+        (Array.isArray(patientsData) ? patientsData : [])
+          .map((patient, index) => normalizePatient(patient, index))
+          .filter(Boolean)
+          .filter((p) => Boolean(p?.id)),
       );
       setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
     } catch (error) {
@@ -158,9 +187,8 @@ const CaregiverDashboard = ({ userName = "" }) => {
 
       const map = {};
       for (const [dateStr, items] of results) {
-        const total = items.length;
-        const taken = items.filter((i) => i?.status === "taken").length;
-        map[dateStr] = total > 0 ? Math.round((taken / total) * 100) : 0;
+        const { percent } = getPerMedicationAdherence(items);
+        map[dateStr] = percent;
       }
 
       if (!isActive) return;
@@ -195,31 +223,97 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const totalPatients = patients.length;
 
   // Use scheduleItems for more reactive adherence stats
-  const totalMedicationsDate = scheduleItems.length;
-  const totalMedicationsTakenDate = scheduleItems.filter(
-    (i) => i.status === "taken",
-  ).length;
+  const { expectedTotal: totalMedicationsDate, takenTotal: totalMedicationsTakenDate } =
+    useMemo(() => getPerMedicationAdherence(scheduleItems), [scheduleItems]);
 
   const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
 
-  const upcomingAppointments = appointments.filter((appt) => {
-    const status = String(appt.status || "").toLowerCase();
-    // Only count active/upcoming ones
-    if (
-      status === "completed" ||
-      status === "cancelled" ||
-      status === "missed"
-    ) {
-      return false;
+  const lowSupplyPreviewItems = useMemo(() => {
+    const items = [];
+    for (const p of patients) {
+      const meds = Array.isArray(p?.lowSupplyMedications)
+        ? p.lowSupplyMedications
+        : [];
+      for (const med of meds) {
+        items.push({
+          patientId: p.id || p._id,
+          patientName: p.name,
+          medicationId: med?.id || med?._id,
+          medicationName: med?.name,
+          quantity: med?.quantity,
+          unit: med?.unit,
+        });
+      }
     }
 
-    const date = new Date(appt.date);
-    if (Number.isNaN(date.getTime())) return false;
+    items.sort((a, b) => {
+      const aq = Number(a.quantity);
+      const bq = Number(b.quantity);
+      const aVal = Number.isFinite(aq) ? aq : Number.POSITIVE_INFINITY;
+      const bVal = Number.isFinite(bq) ? bq : Number.POSITIVE_INFINITY;
+      return aVal - bVal;
+    });
+
+    return items.slice(0, 3);
+  }, [patients]);
+
+  const appointmentDateTimeLocal = useCallback((appt) => {
+    const dateStr = normalizeDateInput(appt?.date);
+    if (!dateStr) return null;
+    const [year, month, day] = String(dateStr).split("-").map(Number);
+    if (!year || !month || !day) return null;
+
+    const dt = new Date(year, month - 1, day);
+    const time = String(appt?.time || "");
+    if (time) {
+      const [hours, minutes] = time.split(":").map(Number);
+      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+        dt.setHours(hours, minutes, 0, 0);
+      }
+    }
+    return dt;
+  }, []);
+
+  const { upcomingAppointments, nextUpcomingAppointment } = useMemo(() => {
+    const list = Array.isArray(appointments) ? appointments : [];
+    const now = new Date();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
-    return date >= today;
-  }).length;
+
+    const upcoming = [];
+    for (const appt of list) {
+      const status = String(appt?.status || "").toLowerCase();
+      if (status === "completed" || status === "cancelled" || status === "missed") {
+        continue;
+      }
+
+      const apptDt = appointmentDateTimeLocal(appt);
+      if (!apptDt || Number.isNaN(apptDt.getTime())) continue;
+
+      const apptDay = new Date(apptDt);
+      apptDay.setHours(0, 0, 0, 0);
+      if (apptDay < today) continue;
+
+      upcoming.push({ appt, apptDt });
+    }
+
+    upcoming.sort((a, b) => a.apptDt - b.apptDt);
+
+    const next = upcoming.find((x) => x.apptDt >= now) || null;
+    return {
+      upcomingAppointments: upcoming.length,
+      nextUpcomingAppointment: next
+        ? {
+            ...next.appt,
+            _dateStr: normalizeDateInput(next.appt?.date),
+            _displayTime:
+              next.appt?.time && /^\d{2}:\d{2}$/.test(String(next.appt.time))
+                ? to12HourDisplay(String(next.appt.time))
+                : next.appt?.time || "",
+          }
+        : null,
+    };
+  }, [appointments, appointmentDateTimeLocal]);
 
   const timeSortValue = (time) => {
     const key = String(time || "").toLowerCase();
@@ -236,11 +330,103 @@ const CaregiverDashboard = ({ userName = "" }) => {
     return "Unscheduled";
   };
 
-  const filteredScheduleItems = scheduleItems
-    .filter(
-      (item) => scheduleFilter === "all" || item.patientId === scheduleFilter,
-    )
-    .sort((a, b) => timeSortValue(a.time) - timeSortValue(b.time));
+  const scheduleItemsForPatient = useMemo(() => {
+    const list = Array.isArray(scheduleItems) ? scheduleItems : [];
+    return list.filter(
+      (item) => scheduleFilter === "all" || item?.patientId === scheduleFilter,
+    );
+  }, [scheduleItems, scheduleFilter]);
+
+  const scheduleCounts = useMemo(() => {
+    const base = { all: 0, pending: 0, taken: 0 };
+    for (const item of scheduleItemsForPatient) {
+      base.all += 1;
+      const status = String(item?.status || "").toLowerCase();
+      if (status === "taken") base.taken += 1;
+      else base.pending += 1; // includes "pending", empty, "missed", etc.
+    }
+    return base;
+  }, [scheduleItemsForPatient]);
+
+  const filteredScheduleItems = useMemo(() => {
+    const list = scheduleItemsForPatient;
+    if (scheduleStatusFilter === "taken") {
+      return list.filter(
+        (item) => String(item?.status || "").toLowerCase() === "taken",
+      );
+    }
+    if (scheduleStatusFilter === "pending") {
+      return list.filter(
+        (item) => String(item?.status || "").toLowerCase() !== "taken",
+      );
+    }
+    return list;
+  }, [scheduleItemsForPatient, scheduleStatusFilter]);
+
+  const scheduleDefaultSortConfig = useMemo(
+    () => ({ key: "time", direction: "asc" }),
+    [],
+  );
+
+  const scheduleColumns = useMemo(
+    () => [
+      {
+        key: "medicationName",
+        label: "Medication",
+        sortValue: (row) => row?.medicationName,
+        render: (value) => (
+          <span className="font-poppins font-semibold text-text-primary">
+            {value || "—"}
+          </span>
+        ),
+      },
+      {
+        key: "patientName",
+        label: "Patient",
+        sortValue: (row) => row?.patientName,
+        render: (value) => (
+          <span className="font-poppins text-sm text-text-primary">
+            {value || "—"}
+          </span>
+        ),
+      },
+      {
+        key: "time",
+        label: "Time",
+        sortValue: (row) => timeSortValue(row?.time),
+        render: (value) => (
+          <span className="font-poppins text-sm font-semibold text-text-primary">
+            {formatScheduleTime(value)}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        label: "Status",
+        align: "center",
+        sortValue: (row) => row?.status,
+        render: (value) => {
+          const status = String(value || "").toLowerCase();
+          const styles =
+            status === "taken"
+              ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+              : status === "missed"
+                ? "bg-red-50 text-red-700 border-red-100"
+                : "bg-amber-50 text-amber-700 border-amber-100";
+          const label = status ? status : "pending";
+
+          return (
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-full border font-poppins text-xs font-semibold capitalize ${styles}`}
+            >
+              {label}
+            </span>
+          );
+        },
+      },
+    ],
+    [],
+  );
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -248,24 +434,61 @@ const CaregiverDashboard = ({ userName = "" }) => {
 
   // Patient card component
   const PatientCard = ({ patient }) => {
-    const pStats = scheduleItems.filter((i) => i.patientId === patient.id);
-    const total = pStats.length;
-    const taken = pStats.filter((i) => i.status === "taken").length;
-    const completionPercent = total > 0 ? Math.round((taken / total) * 100) : 0;
+    const patientId = patient?.id;
+    const pStats = scheduleItems.filter(
+      (i) => String(i?.patientId) === String(patient?.id),
+    );
+    const hasQuickInfo = Boolean(patient?.nextMedication);
+    const {
+      expectedTotal: total,
+      takenTotal: taken,
+      percent: completionPercent,
+    } = getPerMedicationAdherence(pStats);
+    const adherenceTone =
+      total === 0
+        ? "neutral"
+        : completionPercent >= 80
+          ? "success"
+          : completionPercent >= 50
+            ? "warning"
+            : "danger";
+    const adherenceColor =
+      adherenceTone === "neutral"
+        ? colors.text.secondary
+        : colors[adherenceTone].DEFAULT;
 
     return (
       <div
-        onClick={() => navigate(`/patients/${patient.id}`)}
-        className="bg-background-default border border-border-default rounded-2xl p-5 cursor-pointer hover:shadow-lg hover:border-secondary/30 transition-all duration-200 group"
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          if (!patientId) {
+            showError("Unable to open patient details (missing patient id).");
+            return;
+          }
+          navigate(`/patients/${patientId}`);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (!patientId) {
+              showError("Unable to open patient details (missing patient id).");
+              return;
+            }
+            navigate(`/patients/${patientId}`);
+          }
+        }}
+        className="bg-background-default border border-border-default rounded-2xl pt-5 px-5 pb-4 cursor-pointer ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 group"
+        aria-label={`View patient ${patient?.name || ""}`.trim()}
       >
         {/* Patient header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center text-white font-poppins font-bold text-lg"
-              style={{ backgroundColor: patient.color }}
+              style={{ backgroundColor: patient.avatarColor }}
             >
-              {patient.initials}
+              {patient.avatarInitials}
             </div>
             <div>
               <h3 className="font-poppins font-bold text-text-primary">
@@ -289,78 +512,38 @@ const CaregiverDashboard = ({ userName = "" }) => {
         </div>
 
         {/* Progress bar */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-poppins text-xs text-text-secondary">
-              Adherence Progress
-            </span>
+        <div className={hasQuickInfo ? "mb-4" : "mb-0"}>
+          <span className="sr-only">
+            {total > 0 ? `Adherence ${completionPercent}%` : "No adherence data"}
+          </span>
+          <div className="flex items-center gap-3">
+            <div className="h-2 bg-background-subtle rounded-full overflow-hidden flex-1">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${completionPercent}%`,
+                  backgroundColor: adherenceColor,
+                }}
+              />
+            </div>
             <span
-              className="font-poppins text-xs font-semibold"
-              style={{
-                color:
-                  completionPercent === 100
-                    ? colors.success.DEFAULT
-                    : modeHexColor,
-              }}
+              className="font-poppins text-xs font-semibold tabular-nums text-right min-w-[3ch]"
+              style={{ color: adherenceColor }}
             >
               {total > 0 ? `${completionPercent}%` : "—"}
             </span>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{
-                width: `${completionPercent}%`,
-                backgroundColor:
-                  completionPercent === 100
-                    ? colors.success.DEFAULT
-                    : modeHexColor,
-              }}
-            />
-          </div>
         </div>
 
         {/* Quick info */}
-        <div className="flex gap-3">
-          {patient.nextMedication && (
+        {hasQuickInfo && (
+          <div className="flex gap-3">
             <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-1.5 rounded-lg flex-1">
               <ClockIcon size={14} weight="fill" />
               <span className="font-poppins text-xs font-medium">
                 Next: {patient.nextMedication}
               </span>
             </div>
-          )}
-          {!patient.nextMedication &&
-            patient.medicationsTaken === patient.medicationsTotal && (
-              <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1.5 rounded-lg flex-1">
-                <CheckCircleIcon size={14} weight="fill" />
-                <span className="font-poppins text-xs font-medium">
-                  All done today!
-                </span>
-              </div>
-            )}
-        </div>
-
-        {/* Upcoming appointment */}
-        {patient.nextAppointment && (
-          <div className="mt-3 pt-3 border-t border-border-default flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarCheckIcon
-                size={16}
-                weight="regular"
-                color={colors.text.secondary}
-              />
-              <span className="font-poppins text-xs text-text-secondary">
-                {patient.nextAppointment.title} •{" "}
-                {formatDateNumeric(patient.nextAppointment.date) ||
-                  patient.nextAppointment.date}
-              </span>
-            </div>
-            <CaretRightIcon
-              size={16}
-              color={colors.text.secondary}
-              className="group-hover:translate-x-1 transition-transform"
-            />
           </div>
         )}
       </div>
@@ -388,6 +571,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
             onWeekChange={setVisibleWeekStart}
             appointments={calendarAppointments}
             adherence={weekAdherence}
+            mode="Caregiver"
           />
 
           {/* Stats cards */}
@@ -396,10 +580,30 @@ const CaregiverDashboard = ({ userName = "" }) => {
             <button
               type="button"
               onClick={() => navigate("/patients")}
-              className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
+              className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
               aria-label="View adherence by patient"
             >
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50">
+                  <CheckCircleIcon
+                    size={20}
+                    weight="fill"
+                    color={colors.success.DEFAULT}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-poppins text-sm font-semibold text-text-primary leading-tight">
+                    Today&apos;s adherence
+                  </p>
+                  <p className="font-poppins text-xs text-text-secondary leading-tight">
+                    {totalMedicationsDate > 0
+                      ? `${totalMedicationsTakenDate}/${totalMedicationsDate} doses taken`
+                      : "No scheduled doses"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center pt-4">
                 <PieChart
                   taken={totalMedicationsTakenDate}
                   notTaken={Math.max(
@@ -407,6 +611,8 @@ const CaregiverDashboard = ({ userName = "" }) => {
                     0,
                   )}
                   size={120}
+                  label="Adherence"
+                  showLabel={false}
                 />
               </div>
             </button>
@@ -415,44 +621,128 @@ const CaregiverDashboard = ({ userName = "" }) => {
             <button
               type="button"
               onClick={() => navigate("/patients")}
-              className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
+              className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
               aria-label="View low supply alerts by patient"
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-red-50">
-                <WarningCircleIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.danger.DEFAULT}
-                />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-50">
+                  <WarningCircleIcon
+                    size={20}
+                    weight="fill"
+                    color={colors.danger.DEFAULT}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
+                    Low supply alerts
+                  </p>
+                </div>
               </div>
-              <p className="font-poppins font-bold text-2xl text-text-primary">
-                {totalLowSupply}
-              </p>
-              <p className="font-poppins text-sm text-text-secondary">
-                Low supply alerts
-              </p>
+
+              <div className="pt-4 flex-1">
+                {lowSupplyPreviewItems.length > 0 ? (
+                  <ul className="space-y-2">
+                    {lowSupplyPreviewItems.map((item) => {
+                      const qty = Number(item.quantity);
+                      const qtyLabel = Number.isFinite(qty)
+                        ? `${qty} left`
+                        : "Low";
+                      return (
+                        <li
+                          key={`${item.patientId || "p"}-${item.medicationId || item.medicationName || "m"}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-poppins text-sm font-semibold text-text-primary truncate">
+                              {item.medicationName || "Medication"}
+                            </p>
+                            <p className="font-poppins text-xs text-text-secondary truncate">
+                              {item.patientName || "Patient"}
+                            </p>
+                          </div>
+                          <span className="font-poppins text-xs font-semibold text-red-600 tabular-nums whitespace-nowrap">
+                            {qtyLabel}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="font-poppins text-sm text-text-secondary">
+                    No low supply medications right now.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-auto pt-4">
+                <div className="flex items-baseline gap-2">
+                  <p className="font-poppins font-bold text-2xl text-text-primary leading-none tracking-tight tabular-nums">
+                    {totalLowSupply}
+                  </p>
+                  <p className="font-poppins text-sm font-semibold text-text-secondary">
+                    alert{totalLowSupply === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </div>
             </button>
 
             {/* Upcoming appointments */}
             <button
               type="button"
               onClick={() => navigate("/appointments")}
-              className="bg-background-default border border-border-default rounded-2xl p-4 text-left hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30"
+              className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
               aria-label="View upcoming appointments"
             >
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-                <CalendarCheckIcon
-                  size={20}
-                  weight="fill"
-                  color={colors.primary.DEFAULT}
-                />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <CalendarCheckIcon
+                    size={20}
+                    weight="fill"
+                    color={colors.primary.DEFAULT}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
+                    Upcoming appointments
+                  </p>
+                </div>
               </div>
-              <p className="font-poppins font-bold text-2xl text-text-primary">
-                {upcomingAppointments}
-              </p>
-              <p className="font-poppins text-sm text-text-secondary">
-                Upcoming appointments
-              </p>
+
+              <div className="pt-4 flex-1">
+                {nextUpcomingAppointment ? (
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
+                    <p className="font-poppins text-sm font-semibold text-text-primary truncate">
+                      {nextUpcomingAppointment?.title || "Appointment"}
+                    </p>
+                    <p className="font-poppins text-xs text-text-secondary truncate">
+                      {typeof nextUpcomingAppointment?.patient === "object"
+                        ? nextUpcomingAppointment.patient?.name || "Patient"
+                        : "Patient"}
+                    </p>
+                    <p className="font-poppins text-xs font-semibold text-blue-700 mt-1">
+                      {formatDateNumeric(nextUpcomingAppointment._dateStr) || "—"}
+                      {nextUpcomingAppointment._displayTime
+                        ? ` • ${nextUpcomingAppointment._displayTime}`
+                        : ""}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="font-poppins text-sm text-text-secondary">
+                    No upcoming appointments scheduled.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-auto pt-4">
+                <div className="flex items-baseline gap-2">
+                  <p className="font-poppins font-bold text-2xl text-text-primary leading-none tracking-tight tabular-nums">
+                    {upcomingAppointments}
+                  </p>
+                  <p className="font-poppins text-sm font-semibold text-text-secondary">
+                    appointment{upcomingAppointments === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </div>
             </button>
           </div>
 
@@ -477,7 +767,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
           </div>
 
           {/* Patient cards grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             {patients.map((patient) => (
               <PatientCard key={patient.id} patient={patient} />
             ))}
@@ -489,25 +779,43 @@ const CaregiverDashboard = ({ userName = "" }) => {
               Medication Schedule
             </h2>
             <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border-default">
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <ClockIcon size={18} />
-                  <span className="font-poppins text-sm">
-                    {filteredScheduleItems.length} items
-                  </span>
+              <div className="px-5 py-4 border-b border-border-default">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-text-secondary">
+                    <ClockIcon size={18} />
+                    <span className="font-poppins text-sm">
+                      {filteredScheduleItems.length} items
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    {/* Patient filter */}
+                    <select
+                      value={scheduleFilter}
+                      onChange={(e) => setScheduleFilter(e.target.value)}
+                      className="px-3 py-2 rounded-lg border border-border-default bg-background-default text-sm font-poppins text-text-primary"
+                    >
+                      <option value="all">All patients</option>
+                      {patients.map((patient) => (
+                        <option key={patient.id} value={patient.id}>
+                          {patient.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Status filter (dropdown) */}
+                    <select
+                      value={scheduleStatusFilter}
+                      onChange={(e) => setScheduleStatusFilter(e.target.value)}
+                      className="px-3 py-2 rounded-lg border border-border-default bg-background-default text-sm font-poppins text-text-primary"
+                      aria-label="Filter schedule by status"
+                    >
+                      <option value="all">All ({scheduleCounts.all})</option>
+                      <option value="pending">Pending ({scheduleCounts.pending})</option>
+                      <option value="taken">Taken ({scheduleCounts.taken})</option>
+                    </select>
+                  </div>
                 </div>
-                <select
-                  value={scheduleFilter}
-                  onChange={(e) => setScheduleFilter(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-border-default text-sm font-poppins text-text-primary"
-                >
-                  <option value="all">All patients</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               {isScheduleLoading ? (
@@ -516,42 +824,22 @@ const CaregiverDashboard = ({ userName = "" }) => {
                     Loading schedule…
                   </p>
                 </div>
-              ) : filteredScheduleItems.length === 0 ? (
-                <div className="px-5 py-8 text-center">
-                  <ClockIcon
-                    size={28}
-                    className="mx-auto mb-2 text-text-secondary"
-                  />
-                  <p className="font-poppins text-text-secondary">
-                    No medication schedule available yet.
-                  </p>
-                </div>
               ) : (
-                <div className="divide-y divide-border-default">
-                  {filteredScheduleItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between px-5 py-4"
-                    >
-                      <div>
-                        <p className="font-poppins font-semibold text-text-primary">
-                          {item.medicationName}
-                        </p>
-                        <p className="font-poppins text-xs text-text-secondary">
-                          {item.patientName}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-poppins text-sm font-semibold text-text-primary">
-                          {formatScheduleTime(item.time)}
-                        </p>
-                        <p className="font-poppins text-xs text-text-secondary capitalize">
-                          {item.status}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <DataTable
+                  columns={scheduleColumns}
+                  data={filteredScheduleItems}
+                  defaultSortConfig={scheduleDefaultSortConfig}
+                  showActions={false}
+                  emptyMessage="No medication schedule available yet."
+                  emptySubMessage="Try another date or add medications for your patients."
+                  EmptyIcon={ClockIcon}
+                  mode="Caregiver"
+                  variant="compact"
+                  containerClassName="border-0 rounded-none shadow-none"
+                  onRowClick={(row) => {
+                    if (row?.patientId) navigate(`/patients/${row.patientId}`);
+                  }}
+                />
               )}
             </div>
           </div>

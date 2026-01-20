@@ -33,7 +33,10 @@ function ConfirmDialog({
   cancelText = "Cancel",
   variant = "danger",
   icon,
+  mode = "Personal",
 }) {
+  const isCaregiver = mode === "Caregiver";
+
   const variantConfig = {
     danger: {
       icon: TrashIcon,
@@ -88,7 +91,13 @@ function ConfirmDialog({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm" showCloseButton={true}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="sm"
+      showCloseButton={false}
+      mode={mode}
+    >
       <div className="p-6">
         <div className="flex flex-col items-center text-center">
           {/* Icon */}
@@ -113,7 +122,11 @@ function ConfirmDialog({
           <div className="flex gap-3 w-full">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-text-primary border border-border-default hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className={`flex-1 px-4 py-3 rounded-xl font-poppins font-semibold text-sm text-text-primary border border-border-default hover:bg-background-hover transition-colors focus:outline-none focus-visible:ring-2 ${
+                isCaregiver
+                  ? "focus-visible:ring-secondary/35"
+                  : "focus-visible:ring-primary/35"
+              } focus-visible:ring-offset-2`}
             >
               {cancelText}
             </button>

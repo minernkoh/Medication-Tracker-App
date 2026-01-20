@@ -2,6 +2,21 @@
 
 A full-stack web app for tracking medications and appointments, with patient and caregiver modes.
 
+## Table of Contents
+
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Project Structure](#project-structure)
+- [How the Frontend & Backend Work Together](#how-the-frontend--backend-work-together)
+- [Getting Started](#getting-started)
+- [Design System](#design-system)
+- [API Endpoints](#api-endpoints)
+- [Development](#development)
+- [Testing](#testing)
+- [What We Learned](#what-we-learned)
+- [Future Enhancements](#future-enhancements)
+- [License](#license)
+
 ## 🚀 Features
 
 ### Core Functionality
@@ -172,6 +187,49 @@ Medication-Tracker-App/
 │   └── package.json
 │
 └── README.md
+```
+
+## 🧠 How the Frontend & Backend Work Together
+
+### High-level request flow
+
+- **Frontend calls `/api/*`**: The React app uses a centralized API client in `frontend/src/api.js` and makes requests to relative URLs like `/api/auth/signin`.
+- **Vite proxies API requests in dev**: `frontend/vite.config.js` proxies `/api` to the backend (default `http://127.0.0.1:5001`) and **rewrites** the path by stripping the `/api` prefix.
+  - Example: `GET /api/medications` (browser → Vite) becomes `GET /medications` (Vite → Express).
+- **Backend handles routes at the root**: `backend/server.js` mounts Express routes like `/auth`, `/medications`, `/appointments`, `/users`, and `/caregiver`.
+- **Controllers → Models → MongoDB**: Route handlers call controller functions in `backend/controllers/*`, which use Mongoose models in `backend/models/*` to read/write data in MongoDB.
+
+### Frontend (React + Vite)
+
+- **App entry + routing**: `frontend/src/main.jsx` boots the app; `frontend/src/App.jsx` renders pages under `frontend/src/components/pages/*`.
+- **API client + auth token**: `frontend/src/api.js`:
+  - Stores the JWT in `localStorage` under `token` after sign-in
+  - Sends `Authorization: Bearer <token>` automatically on authenticated requests
+- **UI organization**:
+  - `frontend/src/components/ui/*`: reusable UI primitives (buttons, tables, modals, etc.)
+  - `frontend/src/components/features/*`: feature-focused components (medications, appointments, onboarding)
+  - `frontend/src/components/pages/*`: route-level pages for patient/caregiver modes
+
+### Backend (Express + MongoDB)
+
+- **Server entrypoint**: `backend/server.js` loads `.env`, enables security middleware (Helmet, rate limiting), and mounts route modules.
+- **Routing layer**: `backend/routes/*` defines the HTTP endpoints and wires them to controllers.
+- **Authentication**:
+  - `POST /auth/signup` and `POST /auth/signin` live in `backend/routes/auth.js`
+  - Successful sign-in returns `{ token, user }` (see `backend/controllers/auth.js`)
+  - Protected endpoints use `backend/middleware/auth.js` to verify the JWT and attach `req.user`
+- **Authorization (patient vs caregiver)**: caregiver/patient access rules are enforced via middleware in `backend/middleware/permissions.js` on patient-scoped routes.
+
+### JSON files (sample data) and what to ignore
+
+This repo includes example JSON under `sample data/` for reference. **Do not put real exports/production-like data there**. If you create local JSON dumps, add a targeted ignore rule (don’t ignore all `*.json`, since files like `package-lock.json` must stay tracked).
+
+Example `.gitignore` entries:
+
+```gitignore
+# Local/sample JSON exports (keep package-lock.json tracked)
+sample data/*.json
+*.local.json
 ```
 
 ## 🚦 Getting Started
@@ -402,6 +460,26 @@ All values use rem units for accessibility:
 - JSDoc comments for component documentation
 - Consistent naming: PascalCase components, camelCase functions
 
+### Linting (Frontend)
+
+The frontend uses **ESLint** (`frontend/.eslintrc.json`) to catch common issues (unused imports/vars, undefined variables, and React JSX rules).
+
+Run from `frontend/`:
+
+```bash
+npm run lint
+```
+
+Auto-fix (safe fixes only):
+
+```bash
+npm run lint:fix
+```
+
+### Codebase evaluation report
+
+See `codebase evaluation.md` for a focused review of **frontend efficiency**, **duplication**, and the current **lint** backlog, with prioritized recommendations.
+
 ### State Management
 
 - React `useState`/`useEffect` for local state
@@ -433,7 +511,7 @@ All values use rem units for accessibility:
 - ✅ **Consistent spacing**: Use the defined rem-based spacing scale
 - ✅ **Semantic tokens**: Use semantic names (e.g., `text.primary` not `#181818`)
 - ❌ **Don't hardcode colors**: Always use tokens from the config
-- ❌ **Don't duplicate definitions**: Reference the config, don't redefine
+- ❌ **Don't duplicate definitions**: Reference shared config/components, don’t re-create variants in multiple folders
 
 
 ## 🎯 Key Features & Improvements
@@ -534,14 +612,6 @@ The following features and improvements are planned for future releases:
 - **Trend Analysis**: Long-term medication effectiveness tracking
 - **Health Dashboard**: Comprehensive health metrics and progress visualization
 - **Predictive Alerts**: Machine learning-based predictions for medication needs
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## 📄 License
 

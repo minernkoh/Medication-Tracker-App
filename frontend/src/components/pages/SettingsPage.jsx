@@ -175,7 +175,7 @@ function SettingsPage({
             <h1 className="font-poppins font-bold text-2xl md:text-3xl text-text-primary">
               Settings
             </h1>
-            <p className="font-poppins text-sm text-text-secondary mt-2">
+            <p className="font-poppins text-base text-text-secondary mt-2">
               Manage your account and preferences
             </p>
           </div>
@@ -260,8 +260,9 @@ function SettingsPage({
         message="Are you sure you want to sign out? You'll need to sign in again to access your account."
         confirmText="Sign Out"
         cancelText="Cancel"
-        variant="warning"
-        icon={<SignOutIcon size={32} weight="fill" />}
+        variant="danger"
+        icon={SignOutIcon}
+        mode={mode}
       />
 
       {/* Delete Account Confirmation Dialog */}
@@ -285,6 +286,7 @@ function SettingsPage({
         cancelText="Cancel"
         variant="danger"
         icon={<TrashIcon size={32} weight="fill" />}
+        mode={mode}
       />
 
       {/* Change Password Modal */}
@@ -296,6 +298,7 @@ function SettingsPage({
         }}
         title="Change Password"
         size="md"
+        mode={mode}
         footerContent={
           <>
             <Button
@@ -309,10 +312,9 @@ function SettingsPage({
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant={mode === "Caregiver" ? "secondary" : "primary"}
               onClick={submitChangePassword}
               fullWidth
-              style={{ backgroundColor: modeHexColor }}
               disabled={isChangingPassword}
             >
               {isChangingPassword ? "Updating…" : "Update Password"}

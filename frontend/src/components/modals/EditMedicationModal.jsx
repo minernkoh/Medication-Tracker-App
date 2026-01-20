@@ -1,11 +1,10 @@
 /**
  * EditMedicationModal Component - Allows editing medication details
- * Supports editing all medication fields including: name, dosage, quantity, timeOfDay, refillDate, additionalInfo
+ * Supports editing all medication fields including: name, dosage, quantity, timeOfDay, additionalInfo
  */
-import React, { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Modal, FormField, Button } from "../ui";
 import {
-  buildTimeOptions,
   getModeHexColor,
   roundTimeToInterval,
   TIME_BUCKET_TO_24H,
@@ -40,12 +39,12 @@ function EditMedicationModal({
     recommendSupply: "",
     unit: "",
     timeOfDay: [],
-    refillDate: "",
     instructions: [],
     additionalInfo: "",
     takenDate: "",
     takenTime: "",
   });
+  const [scheduleTimeInput, setScheduleTimeInput] = useState("");
   const [errors, setErrors] = useState({});
 
   const parseFrequency = (frequency = "") => {
@@ -132,12 +131,12 @@ function EditMedicationModal({
         recommendSupply: medication.recommendSupply || "",
         unit: getUnitForType(medication.type || ""),
         timeOfDay: normalizedTimesOfDay,
-        refillDate: medication.refillDate || "",
         instructions,
         additionalInfo: medication.additionalInfo || "",
         takenDate: defaultTakenDate,
         takenTime: takenForInput,
       });
+      setScheduleTimeInput("");
     }
   }, [medication]);
 
@@ -152,6 +151,21 @@ function EditMedicationModal({
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    // Frequency validation uses a shared `frequency` key
+    if (
+      (name === "frequencyType" || name === "frequencyValue" || name === "frequencyText") &&
+      errors.frequency
+    ) {
+      setErrors((prev) => ({ ...prev, frequency: "" }));
+    }
+  };
+
+  const handleTimeBlur = (name) => (e) => {
+    const rounded = roundTimeToInterval(e.target.value, 15, "nearest");
+    setFormData((prev) => ({ ...prev, [name]: rounded || "" }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -186,7 +200,15 @@ function EditMedicationModal({
     }));
   };
 
-  const timeOptions = useMemo(() => buildTimeOptions(15), []);
+  const addScheduleTimeFromInput = (rawValue) => {
+    const rounded = roundTimeToInterval(rawValue, 15, "nearest");
+    if (!rounded) return;
+    handleTimeOfDayChange(rounded);
+    setScheduleTimeInput("");
+    if (errors.timeOfDay) {
+      setErrors((prev) => ({ ...prev, timeOfDay: "" }));
+    }
+  };
 
   const validate = () => {
     const newErrors = {};
@@ -219,13 +241,14 @@ function EditMedicationModal({
 
     if (isTakenMode) {
       if (!validate()) return;
+      const roundedTaken = roundTimeToInterval(formData.takenTime, 15, "nearest");
       onSave({
         ...medication,
         takenDate:
           formData.takenDate ||
           medication?.takenDate ||
           new Date().toISOString().split("T")[0],
-        takenTime: formData.takenTime ? to12HourDisplay(formData.takenTime) : "",
+        takenTime: roundedTaken ? to12HourDisplay(roundedTaken) : "",
       });
       return;
     }
@@ -266,7 +289,6 @@ function EditMedicationModal({
       timesOfDay: formData.timeOfDay,
       instructions: formData.instructions,
       additionalInfo,
-      refillDate: formData.refillDate,
     };
 
     onSave(updatedMedication);
@@ -274,22 +296,33 @@ function EditMedicationModal({
 
   if (!isOpen || !medication) return null;
 
-  const primaryColor = getModeHexColor(mode);
+  const isCaregiver = mode === "Caregiver";
+  const submitVariant = isCaregiver ? "secondary" : "primary";
+  const cancelOverrideClassName = isCaregiver
+    ? "border-secondary text-secondary hover:bg-secondary/5 focus-visible:ring-secondary/35"
+    : "";
+  const accentColor = getModeHexColor(mode);
   const isTakenMode = medication?.status === "taken" || medication?.taken;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit Medication"
+      title="Edit Time"
       size="md"
+      mode={mode}
       footerContent={
         <>
-          <Button variant="outline" onClick={onClose} fullWidth>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            fullWidth
+            className={cancelOverrideClassName}
+          >
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant={submitVariant}
             onClick={() => {
               const form = document.getElementById("edit-medication-form");
               if (form) {
@@ -297,7 +330,6 @@ function EditMedicationModal({
               }
             }}
             fullWidth
-            style={{ backgroundColor: primaryColor }}
           >
             Save Changes
           </Button>
@@ -314,6 +346,7 @@ function EditMedicationModal({
                 type="time"
                 value={formData.takenTime}
                 onChange={handleChange}
+                onBlur={handleTimeBlur("takenTime")}
                 step="900"
                 error={errors.takenTime}
                 required
@@ -356,57 +389,44 @@ function EditMedicationModal({
                   Frequency
                 </label>
                 <div className="flex flex-col gap-3">
-                  <select
-                    name="frequencyType"
-                    value={formData.frequencyType}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value="timesPerDay">Times per day</option>
-                    <option value="everyHours">Every X hours</option>
-                    <option value="custom">Custom</option>
-                  </select>
-
-                  {formData.frequencyType === "timesPerDay" && (
-                    <div className="flex items-center gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 items-start">
+                    {(formData.frequencyType === "timesPerDay" ||
+                      formData.frequencyType === "everyHours") && (
                       <input
                         type="number"
                         name="frequencyValue"
                         value={formData.frequencyValue}
                         onChange={handleChange}
-                        placeholder="e.g., 2"
-                        min="1"
-                        max="12"
-                        className="w-24 px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                        placeholder={
+                          formData.frequencyType === "timesPerDay"
+                            ? "e.g., 2"
+                            : "e.g., 4"
+                        }
+                        min={1}
+                        max={formData.frequencyType === "timesPerDay" ? 12 : 24}
+                        className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
                         required
+                        aria-label={
+                          formData.frequencyType === "timesPerDay"
+                            ? "Times per day"
+                            : "Every X hours"
+                        }
                       />
-                      <span className="font-poppins text-sm text-text-secondary">
-                        times per day
-                      </span>
-                    </div>
-                  )}
+                    )}
 
-                  {formData.frequencyType === "everyHours" && (
-                    <div className="flex items-center gap-2">
-                      <span className="font-poppins text-sm text-text-secondary">
-                        Every
-                      </span>
-                      <input
-                        type="number"
-                        name="frequencyValue"
-                        value={formData.frequencyValue}
-                        onChange={handleChange}
-                        placeholder="e.g., 4"
-                        min="1"
-                        max="24"
-                        className="w-24 px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                        required
-                      />
-                      <span className="font-poppins text-sm text-text-secondary">
-                        hour(s)
-                      </span>
-                    </div>
-                  )}
+                    <select
+                      name="frequencyType"
+                      value={formData.frequencyType}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
+                        formData.frequencyType === "custom" ? "sm:col-span-2" : ""
+                      }`}
+                    >
+                      <option value="timesPerDay">Times per day</option>
+                      <option value="everyHours">Every X hours</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
 
                   {formData.frequencyType === "custom" && (
                     <input
@@ -432,22 +452,30 @@ function EditMedicationModal({
                   Schedule Time(s)
                 </label>
                 <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      handleTimeOfDayChange(e.target.value);
-                    }}
-                    className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value="" disabled>
-                      Select a time (15-minute intervals)
-                    </option>
-                    {timeOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="time"
+                      step="900"
+                      value={scheduleTimeInput}
+                      onChange={(e) => setScheduleTimeInput(e.target.value)}
+                      onBlur={(e) => addScheduleTimeFromInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addScheduleTimeFromInput(scheduleTimeInput);
+                        }
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                      aria-label="Schedule time"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => addScheduleTimeFromInput(scheduleTimeInput)}
+                    >
+                      Add
+                    </Button>
+                  </div>
 
                   {Array.isArray(formData.timeOfDay) &&
                     formData.timeOfDay.length > 0 && (
@@ -493,6 +521,7 @@ function EditMedicationModal({
                   error={errors.quantity}
                   required
                 />
+
                 <div className="col-span-1">
                   <FormField
                     label="Unit"
@@ -500,31 +529,42 @@ function EditMedicationModal({
                     type="text"
                     value={formData.unit}
                     onChange={handleChange}
+                    placeholder="e.g., pills"
                     readOnly
-                    className=""
+                    aria-readonly="true"
                   />
-                  <p className="font-poppins text-[10px] text-text-secondary mt-1">
-                    Auto-filled from Type
-                  </p>
                 </div>
               </div>
 
-              <FormField
-                label="Recommended Supply"
-                name="recommendSupply"
-                type="text"
-                value={formData.recommendSupply}
-                onChange={handleChange}
-                placeholder="e.g., 30 pills"
-              />
+              <div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    className="col-span-2"
+                    label="Recommended Supply"
+                    name="recommendSupply"
+                    type="text"
+                    value={formData.recommendSupply}
+                    onChange={handleChange}
+                    placeholder="e.g., 30"
+                  />
 
-              <FormField
-                label="Refill Date"
-                name="refillDate"
-                type="date"
-                value={formData.refillDate}
-                onChange={handleChange}
-              />
+                  <div className="col-span-1">
+                    <FormField
+                      label="Unit"
+                      name="recommendSupplyUnit"
+                      type="text"
+                      value={formData.unit}
+                      onChange={handleChange}
+                      placeholder="e.g., pills"
+                      readOnly
+                      aria-readonly="true"
+                    />
+                  </div>
+                </div>
+                <p className="font-poppins text-xs text-text-secondary mt-2">
+                  Used to calculate supply status and refill reminders. If left blank, we’ll use Total Quantity.
+                </p>
+              </div>
 
               <div>
                 <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
@@ -550,7 +590,7 @@ function EditMedicationModal({
                         checked={formData.instructions.includes(instruction)}
                         onChange={() => handleInstructionChange(instruction)}
                         className="app-checkbox"
-                        style={{ "--checkbox-accent": primaryColor }}
+                        style={{ "--checkbox-accent": accentColor }}
                       />
                       <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary">
                         {instruction}

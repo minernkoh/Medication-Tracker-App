@@ -19,10 +19,18 @@ const COLORS = {
   success: colors.success.DEFAULT,
 };
 
-function PieChart({ taken = 0, notTaken = 0, size = 120 }) {
+function PieChart({
+  taken = 0,
+  notTaken = 0,
+  size = 120,
+  label = "Complete",
+  showLabel = true,
+}) {
   const total = taken + notTaken;
   const takenPercentage = total > 0 ? (taken / total) * 100 : 0;
   const notTakenPercentage = total > 0 ? (notTaken / total) * 100 : 0;
+  const normalizedLabel = typeof label === "string" ? label.trim() : "";
+  const shouldShowLabel = Boolean(showLabel && normalizedLabel);
 
   // Calculate angles for the donut chart
   const takenAngle = (takenPercentage / 100) * 360;
@@ -196,22 +204,24 @@ function PieChart({ taken = 0, notTaken = 0, size = 120 }) {
         {/* Center text showing percentage */}
         <text
           x={centerX}
-          y={centerY - 5}
+          y={shouldShowLabel ? centerY - 5 : centerY + 5}
           textAnchor="middle"
           className="font-poppins font-bold text-lg"
           fill={COLORS.textPrimary}
         >
           {Math.round(takenPercentage)}%
         </text>
-        <text
-          x={centerX}
-          y={centerY + 12}
-          textAnchor="middle"
-          className="font-poppins text-xs"
-          fill={COLORS.textSecondary}
-        >
-          Complete
-        </text>
+        {shouldShowLabel && (
+          <text
+            x={centerX}
+            y={centerY + 12}
+            textAnchor="middle"
+            className="font-poppins text-xs"
+            fill={COLORS.textSecondary}
+          >
+            {normalizedLabel}
+          </text>
+        )}
       </svg>
     </div>
   );
