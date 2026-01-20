@@ -108,11 +108,12 @@ function TimePickerDropdown({
   }, [open]);
 
   const triggerTextClass = value ? "text-text-primary" : "text-text-secondary";
-  const triggerClasses = `w-full px-4 py-3 rounded-xl border font-poppins text-sm focus:outline-none transition-colors flex items-center justify-between gap-2 ${
-    disabled
-      ? "text-text-secondary bg-background-subtle border-border-default cursor-not-allowed"
-      : "bg-background-default border-border-default hover:bg-background-hover"
-  } ${modeRingClass} focus-visible:ring-2 focus-visible:ring-offset-2 ${buttonClassName}`.trim();
+  const triggerClasses =
+    `w-full px-4 py-3 rounded-xl border font-poppins text-sm focus:outline-none transition-colors flex items-center justify-between gap-2 ${
+      disabled
+        ? "text-text-secondary bg-background-subtle border-border-default cursor-not-allowed"
+        : "bg-background-default border-border-default hover:bg-background-hover"
+    } ${modeRingClass} focus-visible:ring-2 focus-visible:ring-offset-2 ${buttonClassName}`.trim();
 
   const panel =
     open && panelStyle
@@ -123,6 +124,7 @@ function TimePickerDropdown({
             className={`rounded-2xl border border-border-default bg-background-default shadow-2xl p-4 ${panelClassName}`.trim()}
             role="dialog"
             aria-label={ariaLabel}
+            onClick={(e) => e.stopPropagation()}
           >
             <TimePicker
               value={pickerValue}
@@ -184,4 +186,3 @@ function TimePickerDropdown({
 }
 
 export default TimePickerDropdown;
-

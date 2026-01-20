@@ -30,22 +30,33 @@ function Calendar({
   const isCaregiver = mode === "Caregiver";
   const modeTextClass = isCaregiver ? "text-secondary" : "text-primary";
   const modeBgClass = isCaregiver ? "bg-secondary" : "bg-primary";
-  const modeBgLightClass = isCaregiver ? "bg-secondary-light" : "bg-primary-light";
+  const modeBgLightClass = isCaregiver
+    ? "bg-secondary-light"
+    : "bg-primary-light";
   const modeRingClass = isCaregiver ? "ring-secondary/30" : "ring-primary/30";
 
   const today = new Date();
   const effectiveSelectedDate = selectedDate || today;
-  const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(selectedDate || today));
+  const [currentWeekStart, setCurrentWeekStart] = useState(
+    getStartOfWeek(selectedDate || today),
+  );
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState((selectedDate || today).getMonth());
-  const [pickerYear, setPickerYear] = useState((selectedDate || today).getFullYear());
+  const [pickerMonth, setPickerMonth] = useState(
+    (selectedDate || today).getMonth(),
+  );
+  const [pickerYear, setPickerYear] = useState(
+    (selectedDate || today).getFullYear(),
+  );
 
   const datePickerRef = useRef(null);
 
   // Close date picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+      if (
+        datePickerRef.current &&
+        !datePickerRef.current.contains(event.target)
+      ) {
         setIsDatePickerOpen(false);
       }
     };
@@ -69,14 +80,14 @@ function Calendar({
       const date = new Date(currentWeekStart);
       date.setDate(currentWeekStart.getDate() + i);
       const dateStr = date.toISOString().split("T")[0];
-      
+
       dates.push({
         day: DAYS[date.getDay()],
         date: date.getDate(),
         fullDate: new Date(date),
         month: date.getMonth(),
         year: date.getFullYear(),
-        hasAppointment: appointments.some(a => a.date === dateStr),
+        hasAppointment: appointments.some((a) => a.date === dateStr),
         hasFullAdherence: adherence[dateStr] === 100,
       });
     }
@@ -130,14 +141,29 @@ function Calendar({
       for (let j = 0; j < 7; j++) {
         const cellIndex = i * 7 + j;
         if (cellIndex < adjustedFirstDay) {
-          week.push({ day: daysInPrevMonth - adjustedFirstDay + cellIndex + 1, isCurrentMonth: false, month: prevMonth, year: prevYear });
+          week.push({
+            day: daysInPrevMonth - adjustedFirstDay + cellIndex + 1,
+            isCurrentMonth: false,
+            month: prevMonth,
+            year: prevYear,
+          });
         } else if (dayCount <= daysInMonth) {
-          week.push({ day: dayCount, isCurrentMonth: true, month: pickerMonth, year: pickerYear });
+          week.push({
+            day: dayCount,
+            isCurrentMonth: true,
+            month: pickerMonth,
+            year: pickerYear,
+          });
           dayCount++;
         } else {
           const nextMonth = pickerMonth === 11 ? 0 : pickerMonth + 1;
           const nextYear = pickerMonth === 11 ? pickerYear + 1 : pickerYear;
-          week.push({ day: dayCount - daysInMonth, isCurrentMonth: false, month: nextMonth, year: nextYear });
+          week.push({
+            day: dayCount - daysInMonth,
+            isCurrentMonth: false,
+            month: nextMonth,
+            year: nextYear,
+          });
           dayCount++;
         }
       }
@@ -187,15 +213,22 @@ function Calendar({
   const triggerClassName =
     variant === "modal"
       ? `w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm bg-background-default hover:bg-background-hover transition-colors flex items-center justify-between gap-2 focus:outline-none ${
-          isCaregiver ? "focus-visible:ring-2 focus-visible:ring-secondary/35" : "focus-visible:ring-2 focus-visible:ring-primary/35"
+          isCaregiver
+            ? "focus-visible:ring-2 focus-visible:ring-secondary/35"
+            : "focus-visible:ring-2 focus-visible:ring-primary/35"
         } focus-visible:ring-offset-2`
       : "flex items-center justify-center gap-2 w-full group hover:bg-background-hover rounded-lg py-1 px-2 transition-all duration-200";
 
   return (
     <div className={containerClassName}>
-      <div className="relative w-full" ref={datePickerRef}>
+      <div
+        className="relative w-full"
+        ref={datePickerRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setPickerMonth(effectiveSelectedDate.getMonth());
             setPickerYear(effectiveSelectedDate.getFullYear());
             setIsDatePickerOpen(!isDatePickerOpen);
@@ -216,7 +249,9 @@ function Calendar({
                 : `${textStyles.heading.small} text-text-primary text-center`
             }
           >
-            {variant === "modal" ? getModalDisplayDate() : getDisplayMonthYear()}
+            {variant === "modal"
+              ? getModalDisplayDate()
+              : getDisplayMonthYear()}
           </p>
           {isDatePickerOpen ? (
             <CaretUpIcon size={16} weight="bold" className={modeTextClass} />
@@ -237,15 +272,25 @@ function Calendar({
           <div
             className="fixed left-1/2 -translate-x-1/2 border border-border-default rounded-2xl shadow-2xl z-[100] p-4 min-w-[20rem] bg-background-default"
             style={{
-              top: datePickerRef.current ? datePickerRef.current.getBoundingClientRect().bottom + 8 : "auto",
+              top: datePickerRef.current
+                ? datePickerRef.current.getBoundingClientRect().bottom + 8
+                : "auto",
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <button
-                onClick={goToPrevMonth}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPrevMonth();
+                }}
                 className="p-2 hover:bg-background-hover rounded-lg transition-colors"
               >
-                <CaretLeftIcon size={20} weight="bold" className="text-text-primary" />
+                <CaretLeftIcon
+                  size={20}
+                  weight="bold"
+                  className="text-text-primary"
+                />
               </button>
               <div className="flex items-center gap-2">
                 <SelectMenu
@@ -274,43 +319,73 @@ function Calendar({
                 />
               </div>
               <button
-                onClick={goToNextMonth}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNextMonth();
+                }}
                 className="p-2 hover:bg-background-hover rounded-lg transition-colors"
               >
-                <CaretRightIcon size={20} weight="bold" className="text-text-primary" />
+                <CaretRightIcon
+                  size={20}
+                  weight="bold"
+                  className="text-text-primary"
+                />
               </button>
             </div>
 
             <div className="grid grid-cols-7 gap-1 mb-2">
-              {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(day => <div key={day} className={`${textStyles.caption.small} text-center py-1 font-medium`}>{day}</div>)}
+              {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
+                <div
+                  key={day}
+                  className={`${textStyles.caption.small} text-center py-1 font-medium`}
+                >
+                  {day}
+                </div>
+              ))}
             </div>
 
             <div className="grid grid-cols-7 gap-1">
-              {getCalendarGrid().flat().map((cell, idx) => {
-                const isCellSelected = effectiveSelectedDate.getDate() === cell.day && effectiveSelectedDate.getMonth() === cell.month && effectiveSelectedDate.getFullYear() === cell.year;
-                const isCellToday = today.getDate() === cell.day && today.getMonth() === cell.month && today.getFullYear() === cell.year;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleDateSelect(new Date(cell.year, cell.month, cell.day))}
-                    className={`w-9 h-9 rounded-lg font-poppins text-sm transition-all flex items-center justify-center ${
-                      isCellSelected
-                        ? `font-bold shadow-md ${modeBgClass} text-text-onPrimary`
-                        : isCellToday
-                          ? `font-semibold ring-1 ${modeRingClass} ${modeBgLightClass} ${modeTextClass}`
-                          : !cell.isCurrentMonth
-                            ? "text-text-secondary/40 hover:bg-background-hover"
-                            : "text-text-primary hover:bg-background-hover"
-                    }`}
-                  >
-                    {cell.day}
-                  </button>
-                );
-              })}
+              {getCalendarGrid()
+                .flat()
+                .map((cell, idx) => {
+                  const isCellSelected =
+                    effectiveSelectedDate.getDate() === cell.day &&
+                    effectiveSelectedDate.getMonth() === cell.month &&
+                    effectiveSelectedDate.getFullYear() === cell.year;
+                  const isCellToday =
+                    today.getDate() === cell.day &&
+                    today.getMonth() === cell.month &&
+                    today.getFullYear() === cell.year;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDateSelect(
+                          new Date(cell.year, cell.month, cell.day),
+                        );
+                      }}
+                      className={`w-9 h-9 rounded-lg font-poppins text-sm transition-all flex items-center justify-center ${
+                        isCellSelected
+                          ? `font-bold shadow-md ${modeBgClass} text-text-onPrimary`
+                          : isCellToday
+                            ? `font-semibold ring-1 ${modeRingClass} ${modeBgLightClass} ${modeTextClass}`
+                            : !cell.isCurrentMonth
+                              ? "text-text-secondary/40 hover:bg-background-hover"
+                              : "text-text-primary hover:bg-background-hover"
+                      }`}
+                    >
+                      {cell.day}
+                    </button>
+                  );
+                })}
             </div>
             <div className="mt-4 pt-3 flex justify-center border-t border-border-subtle">
               <button
-                onClick={goToToday}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToToday();
+                }}
                 className={`${textStyles.label.medium} px-4 py-2 rounded-lg transition-all ${
                   isCaregiver
                     ? "hover:bg-secondary-light text-secondary"
