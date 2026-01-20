@@ -15,24 +15,24 @@ app.use(express.json());
 app.use(
   helmet({
     contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false, 
+    crossOriginEmbedderPolicy: false,
   }),
 );
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 1000, 
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use(limiter);
 
-app.use("/auth", require("./routes/auth"));
-app.use(require("./routes/medications"));
-app.use(require("./routes/appointments"));
-app.use(require("./routes/users"));
-app.use(require("./routes/caregiver"));
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api", require("./routes/medications"));
+app.use("/api", require("./routes/appointments"));
+app.use("/api", require("./routes/users"));
+app.use("/api", require("./routes/caregiver"));
 
 const PORT = process.env.PORT || 5001;
 const HOST = process.env.HOST || "127.0.0.1";

@@ -264,7 +264,7 @@ function getDesignSystemHues() {
 export function getMedicationColor(
   medicationName,
   existingColors = [],
-  minColorDistance = 0.15
+  minColorDistance = 0.15,
 ) {
   if (!medicationName || typeof medicationName !== "string") {
     return { bg: "#f3f4f6", icon: "#6b7280" };
@@ -330,7 +330,7 @@ export function getMedicationColor(
           const trySat = Math.min(60, Math.max(20, saturation + satOffset));
           const tryLight = Math.min(
             95,
-            Math.max(75, bgLightness + lightOffset)
+            Math.max(75, bgLightness + lightOffset),
           );
           bgRgb = hslToRgb(hue, trySat, tryLight);
           bgHex = rgbToHex(bgRgb.r, bgRgb.g, bgRgb.b);
