@@ -9,7 +9,10 @@ const userSchema = new mongoose.Schema({
   caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   nickname: String,

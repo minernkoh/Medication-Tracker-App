@@ -58,6 +58,32 @@ const getAppointmentDateString = (appointment) => {
   return baseDate.toISOString().split("T")[0];
 };
 
+const getAppointmentDateTime = (appointment) => {
+  if (!appointment) return null;
+  const baseDate =
+    appointment.date instanceof Date
+      ? appointment.date
+      : new Date(appointment.date);
+  if (Number.isNaN(baseDate.getTime())) return null;
+  const dateTime = new Date(baseDate);
+  if (appointment.time && typeof appointment.time === "string") {
+    const [hours, minutes] = appointment.time.split(":").map(Number);
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      dateTime.setHours(hours, minutes, 0, 0);
+    }
+  }
+  return dateTime;
+};
+
+const getAppointmentDateString = (appointment) => {
+  const baseDate =
+    appointment?.date instanceof Date
+      ? appointment.date
+      : new Date(appointment?.date);
+  if (!baseDate || Number.isNaN(baseDate.getTime())) return null;
+  return baseDate.toISOString().split("T")[0];
+};
+
 const isScheduledMedication = (med) => {
   if (!med) return false;
   if (med.timeOfDay) return true;
@@ -285,6 +311,7 @@ const getPatients = async (req, res) => {
         ).length;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
         // Today's adherence rate (scheduled meds vs taken logs for today)
         const adherenceRate =
@@ -310,6 +337,13 @@ const getPatients = async (req, res) => {
         const alerts = meds.filter((m) => {
           const qty = Number(m.quantity);
           return Number.isFinite(qty) && qty < LOW_SUPPLY_THRESHOLD; // Low supply threshold
+=======
+        const adherenceRate =
+          totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
+        const alerts = meds.filter((m) => {
+          const qty = Number(m.quantity);
+          return Number.isFinite(qty) && qty < 10;
+>>>>>>> Stashed changes
 =======
         const adherenceRate =
           totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
