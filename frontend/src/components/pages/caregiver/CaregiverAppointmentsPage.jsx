@@ -34,7 +34,8 @@ const PATIENT_COLORS = [
 const normalizeDateInput = (value) => {
   if (!value) return "";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return typeof value === "string" ? value : "";
+  if (Number.isNaN(parsed.getTime()))
+    return typeof value === "string" ? value : "";
   return parsed.toISOString().split("T")[0];
 };
 
@@ -49,7 +50,12 @@ const getInitials = (name = "") => {
 
 const getPatientColor = (patient, index) => {
   const seed =
-    patient?.id || patient?._id || patient?.email || patient?.name || index || "";
+    patient?.id ||
+    patient?._id ||
+    patient?.email ||
+    patient?.name ||
+    index ||
+    "";
   const str = String(seed);
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
@@ -104,7 +110,10 @@ const normalizeAppointment = (appointment, index) => {
 
 function CaregiverAppointmentsPage() {
   const navigate = useNavigate();
-  const [sortConfig, setSortConfig] = useState({ key: "date", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({
+    key: "date",
+    direction: "asc",
+  });
   const [filterPatient, setFilterPatient] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [appointments, setAppointments] = useState([]);
@@ -142,7 +151,7 @@ function CaregiverAppointmentsPage() {
       setAppointments(
         (Array.isArray(data) ? data : [])
           .map((apt, index) => normalizeAppointment(apt, index))
-          .filter(Boolean)
+          .filter(Boolean),
       );
     } catch (error) {
       showError(error.message || "Unable to load caregiver appointments");
@@ -156,14 +165,18 @@ function CaregiverAppointmentsPage() {
 
   // Get unique patients for filter
   const patients = useMemo(
-    () => [...new Set(appointments.map((apt) => apt.patientName).filter(Boolean))],
-    [appointments]
+    () => [
+      ...new Set(appointments.map((apt) => apt.patientName).filter(Boolean)),
+    ],
+    [appointments],
   );
 
   // Filter appointments
   const filteredAppointments = appointments.filter((apt) => {
-    const matchesPatient = filterPatient === "all" || apt.patientName === filterPatient;
-    const matchesStatus = filterStatus === "all" || deriveStatus(apt) === filterStatus;
+    const matchesPatient =
+      filterPatient === "all" || apt.patientName === filterPatient;
+    const matchesStatus =
+      filterStatus === "all" || deriveStatus(apt) === filterStatus;
     return matchesPatient && matchesStatus;
   });
 
@@ -180,6 +193,9 @@ function CaregiverAppointmentsPage() {
     }
     if (key === "title") {
       return multiplier * a.title.localeCompare(b.title);
+    }
+    if (key === "doctor") {
+      return multiplier * (a.doctor || "").localeCompare(b.doctor || "");
     }
     if (key === "location") {
       return multiplier * (a.location || "").localeCompare(b.location || "");
@@ -261,7 +277,10 @@ function CaregiverAppointmentsPage() {
           { ...appointmentData, id: editingAppointment.id },
         );
       } else {
-        await api.appointments.createForPatient(selectedPatientId, appointmentData);
+        await api.appointments.createForPatient(
+          selectedPatientId,
+          appointmentData,
+        );
       }
 
       setIsModalOpen(false);
@@ -301,7 +320,6 @@ function CaregiverAppointmentsPage() {
     }
   };
 
-
   return (
     <div className="bg-background-default w-full overflow-x-hidden relative">
       {/* Gradient background decoration */}
@@ -328,183 +346,207 @@ function CaregiverAppointmentsPage() {
 
           {/* Filters */}
           <div className="flex flex-wrap gap-6">
-          <div className="flex items-center gap-2">
-            <FunnelIcon size={18} weight="regular" color={colors.text.secondary} />
-            <span className="font-poppins text-sm text-text-secondary">Filter:</span>
+            <div className="flex items-center gap-2">
+              <FunnelIcon
+                size={18}
+                weight="regular"
+                color={colors.text.secondary}
+              />
+              <span className="font-poppins text-sm text-text-secondary">
+                Filter:
+              </span>
+            </div>
+            <select
+              value={filterPatient}
+              onChange={(e) => setFilterPatient(e.target.value)}
+              className="px-4 py-2 rounded-xl border border-border-default bg-white font-poppins text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+            >
+              <option value="all">All Patients</option>
+              {patients.map((patient) => (
+                <option key={patient} value={patient}>
+                  {patient}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-2 rounded-xl border border-border-default bg-white font-poppins text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+            >
+              <option value="all">All Status</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Completed">Completed</option>
+              <option value="Missed">Missed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
           </div>
-          <select
-            value={filterPatient}
-            onChange={(e) => setFilterPatient(e.target.value)}
-            className="px-4 py-2 rounded-xl border border-border-default bg-white font-poppins text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          >
-            <option value="all">All Patients</option>
-            {patients.map((patient) => (
-              <option key={patient} value={patient}>
-                {patient}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 rounded-xl border border-border-default bg-white font-poppins text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          >
-            <option value="all">All Status</option>
-            <option value="Scheduled">Scheduled</option>
-            <option value="Completed">Completed</option>
-            <option value="Missed">Missed</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-        </div>
 
           {/* Appointments table */}
           <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border-default bg-background-subtle">
-                  <th
-                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort("patient")}
-                  >
-                    Patient
-                    <SortIndicator columnKey="patient" />
-                  </th>
-                  <th
-                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort("title")}
-                  >
-                    Appointment
-                    <SortIndicator columnKey="title" />
-                  </th>
-                  <th
-                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort("date")}
-                  >
-                    Date & Time
-                    <SortIndicator columnKey="date" />
-                  </th>
-                  <th
-                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort("location")}
-                  >
-                    Location
-                    <SortIndicator columnKey="location" />
-                  </th>
-                  <th
-                    className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
-                    onClick={() => handleSort("status")}
-                  >
-                    Status
-                    <SortIndicator columnKey="status" />
-                  </th>
-                  <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedAppointments.map((apt) => (
-                  <tr
-                    key={apt.id}
-                    className="border-b border-border-default hover:bg-background-hover cursor-pointer"
-                    onClick={() => navigate(`/patients/${apt.patientId}`)}
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-poppins font-bold"
-                          style={{ backgroundColor: apt.patientColor }}
-                        >
-                          {apt.patientInitials}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border-default bg-background-subtle">
+                    <th
+                      className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                      onClick={() => handleSort("patient")}
+                    >
+                      Patient
+                      <SortIndicator columnKey="patient" />
+                    </th>
+                    <th
+                      className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                      onClick={() => handleSort("date")}
+                    >
+                      Date & Time
+                      <SortIndicator columnKey="date" />
+                    </th>
+                    <th
+                      className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                      onClick={() => handleSort("title")}
+                    >
+                      Appointment
+                      <SortIndicator columnKey="title" />
+                    </th>
+                    <th
+                      className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                      onClick={() => handleSort("doctor")}
+                    >
+                      Doctor
+                      <SortIndicator columnKey="doctor" />
+                    </th>
+                    <th
+                      className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                      onClick={() => handleSort("location")}
+                    >
+                      Location
+                      <SortIndicator columnKey="location" />
+                    </th>
+                    <th
+                      className="px-5 py-4 text-left font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary"
+                      onClick={() => handleSort("status")}
+                    >
+                      Status
+                      <SortIndicator columnKey="status" />
+                    </th>
+                    <th className="px-5 py-4 text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedAppointments.map((apt) => (
+                    <tr
+                      key={apt.id}
+                      className="border-b border-border-default hover:bg-background-hover cursor-pointer"
+                      onClick={() => navigate(`/patients/${apt.patientId}`)}
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-poppins font-bold"
+                            style={{ backgroundColor: apt.patientColor }}
+                          >
+                            {apt.patientInitials}
+                          </div>
+                          <span className="font-poppins font-medium text-text-primary">
+                            {apt.patientName}
+                          </span>
                         </div>
-                        <span className="font-poppins font-medium text-text-primary">
-                          {apt.patientName}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div>
-                        <p className="font-poppins font-medium text-text-primary">{apt.title}</p>
-                        <p className="font-poppins text-xs text-text-secondary flex items-center gap-1">
-                          <StethoscopeIcon size={12} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div>
+                          <p className="font-poppins font-medium text-text-primary">
+                            {formatDateLocale(apt.date)}
+                          </p>
+                          <p className="font-poppins text-xs text-text-secondary">
+                            {apt.time}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div>
+                          <p className="font-poppins font-medium text-text-primary">
+                            {apt.title}
+                          </p>
+                          {apt.notes && (
+                            <p className="font-poppins text-xs text-text-secondary italic max-w-[200px] truncate mt-0.5">
+                              {apt.notes}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-poppins text-sm text-text-primary flex items-center gap-1">
+                          <StethoscopeIcon
+                            size={14}
+                            color={colors.text.secondary}
+                          />
                           {apt.doctor}
                         </p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div>
-                        <p className="font-poppins font-medium text-text-primary">
-                          {formatDateLocale(apt.date)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-poppins text-sm text-text-primary flex items-center gap-1">
+                          <MapPinIcon size={14} color={colors.text.secondary} />
+                          {apt.location}
                         </p>
-                        <p className="font-poppins text-xs text-text-secondary flex items-center gap-1">
-                          <ClockIcon size={12} />
-                          {apt.time}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-poppins text-sm text-text-primary flex items-center gap-1">
-                        <MapPinIcon size={14} color={colors.text.secondary} />
-                        {apt.location}
-                      </p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <select
-                        value={deriveStatus(apt)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleUpdateStatus(apt, e.target.value);
-                        }}
-                        className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
-                          deriveStatus(apt) === "Scheduled"
-                            ? "bg-blue-50 text-blue-600"
-                            : deriveStatus(apt) === "Completed"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : deriveStatus(apt) === "Cancelled"
-                                ? "bg-gray-100 text-gray-600"
-                                : "bg-red-50 text-red-600"
-                        }`}
-                      >
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Missed">Missed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end">
-                        <ActionButtons
-                          onEdit={() => openEditModal(apt)}
-                          onDelete={() => requestDelete(apt)}
-                          size="base"
-                          editLabel="Edit appointment"
-                          deleteLabel="Delete appointment"
-                          mode="Caregiver"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {sortedAppointments.length === 0 && (
-            <div className="px-5 py-12 text-center">
-              <CalendarCheckIcon
-                size={48}
-                weight="regular"
-                color={colors.text.secondary}
-                className="mx-auto mb-3 opacity-50"
-              />
-              <p className="font-poppins text-text-secondary">
-                No appointments found matching your filters
-              </p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <select
+                          value={deriveStatus(apt)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleUpdateStatus(apt, e.target.value);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
+                            deriveStatus(apt) === "Scheduled"
+                              ? "bg-blue-50 text-blue-600"
+                              : deriveStatus(apt) === "Completed"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : deriveStatus(apt) === "Cancelled"
+                                  ? "bg-gray-100 text-gray-600"
+                                  : "bg-red-50 text-red-600"
+                          }`}
+                        >
+                          <option value="Scheduled">Scheduled</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Missed">Missed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end">
+                          <ActionButtons
+                            onEdit={() => openEditModal(apt)}
+                            onDelete={() => requestDelete(apt)}
+                            size="base"
+                            editLabel="Edit appointment"
+                            deleteLabel="Delete appointment"
+                            mode="Caregiver"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+
+            {sortedAppointments.length === 0 && (
+              <div className="px-5 py-12 text-center">
+                <CalendarCheckIcon
+                  size={48}
+                  weight="regular"
+                  color={colors.text.secondary}
+                  className="mx-auto mb-3 opacity-50"
+                />
+                <p className="font-poppins text-text-secondary">
+                  No appointments found matching your filters
+                </p>
+              </div>
+            )}
+          </div>
 
           {isModalOpen && (
             <AddAppointmentModal

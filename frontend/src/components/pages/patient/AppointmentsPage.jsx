@@ -66,7 +66,9 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
     try {
       const data = await api.appointments.getAll();
       setAppointments(
-        (Array.isArray(data) ? data : []).map(normalizeAppointment).filter(Boolean)
+        (Array.isArray(data) ? data : [])
+          .map(normalizeAppointment)
+          .filter(Boolean),
       );
     } catch (error) {
       showError(error.message || "Unable to load appointments");
@@ -78,7 +80,9 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
       if (isReadOnlyPatient) return;
       await api.appointments.update(id, { status: newStatus });
       setAppointments((prev) =>
-        prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
+        prev.map((apt) =>
+          apt.id === id ? { ...apt, status: newStatus } : apt,
+        ),
       );
     } catch (error) {
       showError(error.message || "Unable to update status");
@@ -106,7 +110,13 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
       return multiplier * (new Date(a.date) - new Date(b.date));
     }
     if (key === "status") {
-      const statusOrder = { Today: 0, Scheduled: 1, Completed: 2, Missed: 3, Cancelled: 4 };
+      const statusOrder = {
+        Today: 0,
+        Scheduled: 1,
+        Completed: 2,
+        Missed: 3,
+        Cancelled: 4,
+      };
       return (
         multiplier *
         ((statusOrder[getStatus(a)] ?? 5) - (statusOrder[getStatus(b)] ?? 5))
@@ -194,16 +204,16 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
 
   // Count stats
   const upcomingCount = sortedAppointments.filter(
-    (apt) => getStatus(apt) === "Scheduled"
+    (apt) => getStatus(apt) === "Scheduled",
   ).length;
   const completedCount = sortedAppointments.filter(
-    (apt) => (apt.status || getStatus(apt)) === "Completed"
+    (apt) => (apt.status || getStatus(apt)) === "Completed",
   ).length;
   const todayCount = sortedAppointments.filter(
-    (apt) => getStatus(apt) === "Today"
+    (apt) => getStatus(apt) === "Today",
   ).length;
   const missedCount = sortedAppointments.filter(
-    (apt) => (apt.status || getStatus(apt)) === "Missed"
+    (apt) => (apt.status || getStatus(apt)) === "Missed",
   ).length;
 
   // Handle add appointment
@@ -225,11 +235,13 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
       if (isReadOnlyPatient) return;
       const updated = await api.appointments.update(
         updatedAppointment.id,
-        updatedAppointment
+        updatedAppointment,
       );
       const normalized = normalizeAppointment(updated);
       setAppointments((prev) =>
-        prev.map((apt) => (apt.id === updatedAppointment.id ? normalized : apt))
+        prev.map((apt) =>
+          apt.id === updatedAppointment.id ? normalized : apt,
+        ),
       );
       setEditingAppointment(null);
       setIsModalOpen(false);
@@ -256,7 +268,7 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
         if (isReadOnlyPatient) return;
         await api.appointments.delete(deleteConfirm.appointmentId);
         setAppointments((prev) =>
-          prev.filter((apt) => apt.id !== deleteConfirm.appointmentId)
+          prev.filter((apt) => apt.id !== deleteConfirm.appointmentId),
         );
       } catch (error) {
         showError(error.message || "Unable to delete appointment");
@@ -433,15 +445,6 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                   <thead>
                     <tr className="border-b border-border-default bg-background-subtle">
                       <th
-                        onClick={() => handleSort("status")}
-                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
-                      >
-                        <div className="flex items-center">
-                          Status
-                          <SortIndicator columnKey="status" />
-                        </div>
-                      </th>
-                      <th
                         onClick={() => handleSort("date")}
                         className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
@@ -477,6 +480,15 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                           <SortIndicator columnKey="location" />
                         </div>
                       </th>
+                      <th
+                        onClick={() => handleSort("status")}
+                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      >
+                        <div className="flex items-center">
+                          Status
+                          <SortIndicator columnKey="status" />
+                        </div>
+                      </th>
                       {!isReadOnlyPatient && (
                         <th
                           className={`px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
@@ -499,27 +511,6 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                             isMissed ? "opacity-60" : ""
                           } ${isToday ? "bg-amber-50/30" : ""}`}
                         >
-                          <td className="px-5 py-4">
-                            <select
-                              value={apt.status || "Scheduled"}
-                              onChange={(e) => handleUpdateStatus(apt.id, e.target.value)}
-                              disabled={isReadOnlyPatient}
-                              className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
-                                (apt.status || "Scheduled") === "Scheduled" || isToday
-                                  ? "bg-blue-50 text-blue-600"
-                                  : (apt.status || "Scheduled") === "Completed"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : (apt.status || "Scheduled") === "Cancelled"
-                                  ? "bg-gray-100 text-gray-600"
-                                  : "bg-red-50 text-red-600"
-                              }`}
-                            >
-                              <option value="Scheduled">Scheduled</option>
-                              <option value="Completed">Completed</option>
-                              <option value="Missed">Missed</option>
-                              <option value="Cancelled">Cancelled</option>
-                            </select>
-                          </td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col">
                               <span
@@ -574,6 +565,31 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                               </span>
                             </div>
                           </td>
+                          <td className="px-5 py-4">
+                            <select
+                              value={apt.status || "Scheduled"}
+                              onChange={(e) =>
+                                handleUpdateStatus(apt.id, e.target.value)
+                              }
+                              disabled={isReadOnlyPatient}
+                              className={`px-3 py-1.5 rounded-lg font-poppins text-xs font-semibold focus:outline-none transition-colors border-none cursor-pointer ${
+                                (apt.status || "Scheduled") === "Scheduled" ||
+                                isToday
+                                  ? "bg-blue-50 text-blue-600"
+                                  : (apt.status || "Scheduled") === "Completed"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : (apt.status || "Scheduled") ===
+                                        "Cancelled"
+                                      ? "bg-gray-100 text-gray-600"
+                                      : "bg-red-50 text-red-600"
+                              }`}
+                            >
+                              <option value="Scheduled">Scheduled</option>
+                              <option value="Completed">Completed</option>
+                              <option value="Missed">Missed</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                          </td>
                           {!isReadOnlyPatient && (
                             <td className="px-5 py-4">
                               <div className="flex items-center justify-end gap-1">
@@ -590,7 +606,9 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
                                   />
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteAppointment(apt.id)}
+                                  onClick={() =>
+                                    handleDeleteAppointment(apt.id)
+                                  }
                                   className="p-2 rounded-lg hover:bg-red-50 transition-colors group/delete relative"
                                   aria-label="Delete appointment"
                                   title="Delete appointment"
