@@ -24,7 +24,14 @@ import {
   to12HourDisplay,
 } from "../../../utils";
 import { MedicationSection } from "../../features";
-import { Card, DataTable, PieChart, SectionHeader, StatCard, Button } from "../../ui";
+import {
+  Card,
+  DataTable,
+  PieChart,
+  SectionHeader,
+  StatCard,
+  Button,
+} from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import AddMedicationModal from "../../modals/AddMedicationModal";
@@ -53,7 +60,8 @@ const getInitials = (name = "") => {
 };
 
 const getPatientColor = (patient) => {
-  const base = patient?.id || patient?._id || patient?.email || patient?.name || "";
+  const base =
+    patient?.id || patient?._id || patient?.email || patient?.name || "";
   const str = String(base);
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
@@ -349,6 +357,16 @@ function PatientDetailPage() {
       ),
     },
     {
+      key: "recommendSupply",
+      label: "Recommended Supply",
+      sortValue: (row) => Number(row?.recommendSupply ?? 0),
+      render: (value, row) => (
+        <span className="font-poppins text-sm text-text-primary">
+          {value ? `${value} ${row.unit || ""}` : "—"}
+        </span>
+      ),
+    },
+    {
       key: "supplyStatus",
       label: "Supply Status",
       sortValue: (row) => getSupplyStatus(row)?.ratio ?? null,
@@ -370,16 +388,6 @@ function PatientDetailPage() {
         );
       },
     },
-    {
-      key: "recommendSupply",
-      label: "Recommended Supply",
-      sortValue: (row) => Number(row?.recommendSupply ?? 0),
-      render: (value, row) => (
-        <span className="font-poppins text-sm text-text-primary">
-          {value ? `${value} ${row.unit || ""}` : "—"}
-        </span>
-      ),
-    },
   ];
 
   // Today's adherence (Caregiver): scheduled medications only.
@@ -399,8 +407,12 @@ function PatientDetailPage() {
   );
 
   const adherence = patient?.adherence?.[adherenceRange] || null;
-  const adherenceLabels = Array.isArray(adherence?.labels) ? adherence.labels : [];
-  const adherenceValues = Array.isArray(adherence?.values) ? adherence.values : [];
+  const adherenceLabels = Array.isArray(adherence?.labels)
+    ? adherence.labels
+    : [];
+  const adherenceValues = Array.isArray(adherence?.values)
+    ? adherence.values
+    : [];
   const adherenceIsEmpty =
     (adherence?.expectedTotal || 0) === 0 && (adherence?.takenTotal || 0) === 0;
 
@@ -1036,7 +1048,10 @@ function PatientDetailPage() {
           {adherence && !adherenceIsEmpty && adherenceValues.length > 0 ? (
             <div className="flex items-stretch justify-between h-32 gap-2 mt-4">
               {Array.from({
-                length: Math.max(adherenceValues.length, adherenceLabels.length),
+                length: Math.max(
+                  adherenceValues.length,
+                  adherenceLabels.length,
+                ),
               }).map((_, index) => {
                 const rawValue = Number(adherenceValues[index] ?? 0);
                 const value = Number.isFinite(rawValue)
