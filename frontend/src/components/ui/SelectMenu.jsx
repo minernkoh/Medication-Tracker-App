@@ -33,9 +33,7 @@ function SelectMenu({
 }) {
   const isCaregiver = mode === "Caregiver";
   const modeTextClass = isCaregiver ? "text-secondary" : "text-primary";
-  const modeRingClass = isCaregiver
-    ? "focus-visible:ring-secondary/35"
-    : "focus-visible:ring-primary/35";
+  const modeRingClass = isCaregiver ? "focus-visible:ring-secondary/35" : "focus-visible:ring-primary/35";
 
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -43,9 +41,7 @@ function SelectMenu({
   const [panelStyle, setPanelStyle] = useState(null);
 
   const selected = useMemo(() => {
-    return Array.isArray(options)
-      ? options.find((o) => o.value === value)
-      : null;
+    return Array.isArray(options) ? options.find((o) => o.value === value) : null;
   }, [options, value]);
 
   const label = selected?.label || (value ? String(value) : "");
@@ -127,73 +123,57 @@ function SelectMenu({
     close();
   };
 
-  const triggerTextClass = isPlaceholderSelected
-    ? "text-text-secondary"
-    : "text-text-primary";
+  const triggerTextClass = isPlaceholderSelected ? "text-text-secondary" : "text-text-primary";
 
-  const modeHoverBorderClass = isCaregiver
-    ? "hover:border-secondary"
-    : "hover:border-primary";
-  const modeFocusBorderClass = isCaregiver
-    ? "focus-visible:border-secondary"
-    : "focus-visible:border-primary";
+  const modeHoverBorderClass = isCaregiver ? "hover:border-secondary" : "hover:border-primary";
+  const modeFocusBorderClass = isCaregiver ? "focus-visible:border-secondary" : "focus-visible:border-primary";
 
-  const triggerClasses =
-    `w-full px-4 py-3 rounded-xl border font-poppins text-sm focus:outline-none transition-colors flex items-center justify-between gap-2 ${
-      disabled
-        ? "text-text-secondary bg-background-subtle border-border-default cursor-not-allowed"
-        : `bg-background-default border-border-default hover:bg-background-hover ${modeHoverBorderClass} ${modeFocusBorderClass}`
-    } ${modeRingClass} focus-visible:ring-2 focus-visible:ring-offset-2 ${buttonClassName}`.trim();
+  const triggerClasses = `w-full px-4 py-3 rounded-xl border font-poppins text-sm focus:outline-none transition-colors flex items-center justify-between gap-2 ${
+    disabled
+      ? "text-text-secondary bg-background-subtle border-border-default cursor-not-allowed"
+      : `bg-background-default border-border-default hover:bg-background-hover ${modeHoverBorderClass} ${modeFocusBorderClass}`
+  } ${modeRingClass} focus-visible:ring-2 focus-visible:ring-offset-2 ${buttonClassName}`.trim();
 
-  const panel =
-    open && panelStyle
-      ? createPortal(
-          <div
-            ref={panelRef}
-            style={panelStyle}
-            className={`rounded-2xl border border-border-default bg-background-default shadow-2xl overflow-hidden ${className}`.trim()}
-            role="listbox"
-            aria-label={ariaLabel}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`max-h-72 overflow-y-auto ${listClassName}`.trim()}>
-              {items.map((opt) => {
-                const isOptSelected = opt.value === value;
-                const isOptPlaceholder = Boolean(opt.__isPlaceholder);
-                const isOptDisabled =
-                  disabled || (isOptPlaceholder && placeholderDisabled);
-                return (
-                  <button
-                    key={`${opt.value}__${opt.label}`}
-                    type="button"
-                    onClick={() => handleSelect(opt)}
-                    disabled={isOptDisabled}
-                    className={`w-full px-4 py-3 flex items-center justify-between gap-3 text-left font-poppins text-sm transition-colors ${
-                      isOptDisabled
-                        ? "text-text-secondary/60 cursor-not-allowed"
-                        : "text-text-primary hover:bg-background-hover"
-                    } ${isOptSelected ? "bg-background-hover" : ""}`}
-                  >
-                    <span
-                      className={`${isOptSelected ? `font-semibold ${modeTextClass}` : ""}`}
-                    >
-                      {opt.label}
-                    </span>
-                    {isOptSelected && !isOptPlaceholder && (
-                      <CheckIcon
-                        size={18}
-                        weight="bold"
-                        className={modeTextClass}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
+  const panel = open && panelStyle
+    ? createPortal(
+        <div
+          ref={panelRef}
+          style={panelStyle}
+          className={`rounded-2xl border border-border-default bg-background-default shadow-2xl overflow-hidden ${className}`.trim()}
+          role="listbox"
+          aria-label={ariaLabel}
+        >
+          <div className={`max-h-72 overflow-y-auto ${listClassName}`.trim()}>
+            {items.map((opt) => {
+              const isOptSelected = opt.value === value;
+              const isOptPlaceholder = Boolean(opt.__isPlaceholder);
+              const isOptDisabled = disabled || (isOptPlaceholder && placeholderDisabled);
+              return (
+                <button
+                  key={`${opt.value}__${opt.label}`}
+                  type="button"
+                  onClick={() => handleSelect(opt)}
+                  disabled={isOptDisabled}
+                  className={`w-full px-4 py-3 flex items-center justify-between gap-3 text-left font-poppins text-sm transition-colors ${
+                    isOptDisabled
+                      ? "text-text-secondary/60 cursor-not-allowed"
+                      : "text-text-primary hover:bg-background-hover"
+                  } ${isOptSelected ? "bg-background-hover" : ""}`}
+                >
+                  <span className={`${isOptSelected ? `font-semibold ${modeTextClass}` : ""}`}>
+                    {opt.label}
+                  </span>
+                  {isOptSelected && !isOptPlaceholder && (
+                    <CheckIcon size={18} weight="bold" className={modeTextClass} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
 
   return (
     <>
@@ -221,9 +201,7 @@ function SelectMenu({
           <CaretDownIcon
             size={16}
             weight="regular"
-            className={
-              isPlaceholderSelected ? "text-text-secondary" : modeTextClass
-            }
+            className={isPlaceholderSelected ? "text-text-secondary" : modeTextClass}
           />
         )}
       </button>
@@ -233,3 +211,4 @@ function SelectMenu({
 }
 
 export default SelectMenu;
+

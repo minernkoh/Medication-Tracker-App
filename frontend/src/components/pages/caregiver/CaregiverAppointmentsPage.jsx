@@ -41,8 +41,7 @@ const normalizeDateInput = (value) => {
   return parsed.toISOString().split("T")[0];
 };
 
-const getPatientColor = (patient, index) =>
-  getPatientAvatarColor(patient, index);
+const getPatientColor = (patient, index) => getPatientAvatarColor(patient, index);
 
 const normalizeAppointment = (appointment, index) => {
   if (!appointment) return null;
@@ -59,7 +58,7 @@ const normalizeAppointment = (appointment, index) => {
     patientInitials: getPatientInitials(patientName),
     patientColor: getPatientColor(patient, index),
     title: appointment.title,
-    doctorName: appointment.doctorName,
+    doctor: appointment.doctorName,
     location: appointment.location,
     date: normalizedDate,
     time: appointment.time,
@@ -192,10 +191,8 @@ function CaregiverAppointmentsPage() {
     if (key === "title") {
       return multiplier * a.title.localeCompare(b.title);
     }
-    if (key === "doctorName") {
-      return (
-        multiplier * (a.doctorName || "").localeCompare(b.doctorName || "")
-      );
+    if (key === "doctor") {
+      return multiplier * (a.doctor || "").localeCompare(b.doctor || "");
     }
     if (key === "location") {
       return multiplier * (a.location || "").localeCompare(b.location || "");
@@ -461,10 +458,7 @@ function CaregiverAppointmentsPage() {
               onChange={(next) => setFilterPatient(next)}
               options={[
                 { value: "all", label: "All Patients" },
-                ...patients.map((patient) => ({
-                  value: patient,
-                  label: patient,
-                })),
+                ...patients.map((patient) => ({ value: patient, label: patient })),
               ]}
               mode="Caregiver"
               aria-label="Filter by patient"
@@ -522,11 +516,11 @@ function CaregiverAppointmentsPage() {
                     </th>
                     <th
                       className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
-                      onClick={() => handleSort("doctorName")}
+                      onClick={() => handleSort("doctor")}
                     >
                       <div className="flex items-center">
                         Doctor
-                        <SortIndicator columnKey="doctorName" />
+                        <SortIndicator columnKey="doctor" />
                       </div>
                     </th>
                     <th
@@ -605,9 +599,7 @@ function CaregiverAppointmentsPage() {
                             >
                               {formatDateNumeric(apt.date)}
                             </span>
-                            <span
-                              className={`${textStyles.caption.small} mt-0.5`}
-                            >
+                            <span className={`${textStyles.caption.small} mt-0.5`}>
                               {formatTime(apt.time)}
                             </span>
                           </div>
@@ -635,7 +627,7 @@ function CaregiverAppointmentsPage() {
                               weight="regular"
                               color={colors.icon.secondary}
                             />
-                            {apt.doctorName}
+                            {apt.doctor}
                           </p>
                         </td>
                         <td className="px-5 py-4">
