@@ -64,6 +64,7 @@ const medicationSchema = new mongoose.Schema(
     },
     taken: { type: Boolean, default: false },
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     takenTime: String, // e.g., "9:00 AM"
     frequency: String, // e.g., "2 times per day", "Every 4 hours"
     quantity: { type: Number }, // Current amount remaining
@@ -73,6 +74,8 @@ const medicationSchema = new mongoose.Schema(
     pillColor: String, // Hex color code
     instructions: [String], // Array of instruction strings
 =======
+=======
+>>>>>>> Stashed changes
     takenTime: String,
     frequency: String,
     quantity: { type: Number },
@@ -82,6 +85,9 @@ const medicationSchema = new mongoose.Schema(
     additionalInfo: String,
     pillColor: String,
     instructions: [String],
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

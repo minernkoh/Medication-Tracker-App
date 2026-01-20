@@ -8,7 +8,10 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ["patient", "caregiver"], required: true },
   caregivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
   nickname: String,
   phone: String,
   relationship: String,
