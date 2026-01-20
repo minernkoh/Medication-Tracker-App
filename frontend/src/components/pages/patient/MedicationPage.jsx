@@ -313,6 +313,16 @@ const MedicationPage = ({ mode = "Personal" }) => {
       ),
     },
     {
+      key: "recommendSupply",
+      label: "Recommended Supply",
+      sortValue: (row) => Number(row?.recommendSupply ?? 0),
+      render: (value, row) => (
+        <span className="font-poppins text-sm text-text-primary">
+          {value ? formatQuantity(value, row.unit) : "—"}
+        </span>
+      ),
+    },
+    {
       key: "supplyStatus",
       label: "Supply Status",
       sortValue: (row) => getSupplyStatus(row)?.ratio ?? null,
@@ -333,16 +343,6 @@ const MedicationPage = ({ mode = "Personal" }) => {
           </span>
         );
       },
-    },
-    {
-      key: "recommendSupply",
-      label: "Recommended Supply",
-      sortValue: (row) => Number(row?.recommendSupply ?? 0),
-      render: (value, row) => (
-        <span className="font-poppins text-sm text-text-primary">
-          {value ? formatQuantity(value, row.unit) : "—"}
-        </span>
-      ),
     },
   ];
 

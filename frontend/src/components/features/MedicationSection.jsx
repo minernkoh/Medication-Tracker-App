@@ -189,10 +189,10 @@ function MedicationSection({
 
   // For pending: group by hour if showTimeGroups is true
   // For taken: group by hour if showTimeGroups is true
+  // Pending sections should always show hour headers for consistency (Personal mode expectation).
+  // `showTimeGroups` remains respected for Taken sections.
   const groupedPendingMeds =
-    isPending && showTimeGroups && medications.length > 0
-      ? groupPendingByHour(medications)
-      : null;
+    isPending && medications.length > 0 ? groupPendingByHour(medications) : null;
   const groupedTakenMeds =
     !isPending && showTimeGroups && medications.length > 0
       ? groupTakenByHour(medications)
@@ -256,6 +256,9 @@ function MedicationSection({
       if (!hourLabel || !timeLabel) return;
       if (!groups.has(hourLabel)) groups.set(hourLabel, []);
       const arr = groups.get(hourLabel);
+      // Avoid redundant display like "8:00 AM 8:00 AM" when the scheduled time
+      // matches the hour bucket label exactly.
+      if (timeLabel === hourLabel) return;
       if (!arr.includes(timeLabel)) arr.push(timeLabel);
     });
 

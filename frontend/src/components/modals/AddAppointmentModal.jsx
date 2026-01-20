@@ -10,10 +10,13 @@
 import React, { useState, useEffect } from "react";
 import { Modal, FormField, Button } from "../ui";
 import {
+  buildTimeOptions,
   getNowTimeInputRounded,
   roundTimeToInterval,
   toTimeInput,
 } from "../../utils";
+
+const TIME_OPTIONS_15 = buildTimeOptions(15);
 
 function AddAppointmentModal({
   isOpen,
@@ -258,17 +261,13 @@ function AddAppointmentModal({
             <FormField
               label="Time"
               name="time"
-              type="time"
+              as="select"
               value={formData.time}
               onChange={handleChange}
-              onBlur={(e) => {
-                const rounded = roundTimeToInterval(e.target.value, 15, "nearest");
-                setFormData((prev) => ({ ...prev, time: rounded || "" }));
-                if (errors.time) setErrors((prev) => ({ ...prev, time: "" }));
-              }}
+              options={TIME_OPTIONS_15}
+              placeholder="Select a time…"
               error={errors.time}
               required
-              step="900"
             />
           </div>
 

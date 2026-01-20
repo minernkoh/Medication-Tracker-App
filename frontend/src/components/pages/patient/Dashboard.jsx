@@ -309,9 +309,9 @@ function DashboardPage({ userName = "", mode = "Personal", onMenuClick }) {
           />
 
           {/* Stats and appointment cards */}
-          <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
+          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 items-stretch w-full">
             {/* Today's Progress card */}
-            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl h-full">
+            <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl h-full self-stretch">
               <div className="flex items-center justify-between w-full">
                 <p className={`${textStyles.heading.small} text-text-primary`}>
                   {dateLabel ? `Progress · ${dateLabel}` : "Today's Progress"}

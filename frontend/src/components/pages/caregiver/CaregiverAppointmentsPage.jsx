@@ -34,7 +34,7 @@ const PATIENT_COLORS = [
 const normalizeDateInput = (value) => {
   if (!value) return "";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  if (Number.isNaN(parsed.getTime())) return typeof value === "string" ? value : "";
   return parsed.toISOString().split("T")[0];
 };
 

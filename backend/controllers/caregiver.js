@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Medication = require("../models/Medication");
 const MedicationLog = require("../models/MedicationLog");
 const Appointment = require("../models/Appointments");
+const mongoose = require("mongoose");
 
 const getTodayStr = () => new Date().toISOString().split("T")[0];
 const LOW_SUPPLY_THRESHOLD = 10;
@@ -234,8 +235,18 @@ const buildAdherenceSummary = async (patientId, medications) => {
 
 const getPatients = async (req, res) => {
   try {
+    const caregiverObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
+      ? new mongoose.Types.ObjectId(req.user.id)
+      : null;
+    const caregiverIds = caregiverObjectId
+      ? [req.user.id, caregiverObjectId]
+      : [req.user.id];
+
     const patients = await User.find({
-      $or: [{ caregivers: req.user.id }, { caregiver: req.user.id }],
+      $or: [
+        { caregivers: { $in: caregiverIds } },
+        { caregiver: { $in: caregiverIds } },
+      ],
     }).select("-password");
     const today = getTodayStr();
     const patientsWithStats = await Promise.all(
@@ -466,9 +477,19 @@ const deletePatient = async (req, res) => {
 
 const getPatientById = async (req, res) => {
   try {
+    const caregiverObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
+      ? new mongoose.Types.ObjectId(req.user.id)
+      : null;
+    const caregiverIds = caregiverObjectId
+      ? [req.user.id, caregiverObjectId]
+      : [req.user.id];
+
     const patient = await User.findOne({
       _id: req.params.id,
-      $or: [{ caregivers: req.user.id }, { caregiver: req.user.id }],
+      $or: [
+        { caregivers: { $in: caregiverIds } },
+        { caregiver: { $in: caregiverIds } },
+      ],
     }).select("-password");
     if (!patient) return res.status(404).json({ message: "Patient not found" });
 

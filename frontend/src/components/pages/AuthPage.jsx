@@ -331,13 +331,8 @@ function AuthPage({ onLogin, onSignup }) {
             {/* Account type selection - Required for signup, optional for signin */}
             <div className="space-y-3">
               <label className="font-poppins font-semibold text-sm text-text-primary">
-                {isLogin ? "Account Type (Optional)" : "I am a..."}
+                Select Account Type
               </label>
-              <p className="font-poppins text-xs text-text-secondary">
-                {isLogin
-                  ? "If you have multiple accounts, select which one to access"
-                  : "Select the type of account you want to create"}
-              </p>
               <div className="flex gap-4">
                 <AccountTypeCard
                   type="patient"

@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { Modal, Button } from "../ui";
 import { PlusIcon } from "@phosphor-icons/react";
 import {
+  buildTimeOptions,
   getModeHexColor,
   roundTimeToInterval,
   TIME_BUCKET_TO_24H,
@@ -43,6 +44,8 @@ const DEFAULT_FORM_DATA = {
   timeOfDay: [],
   additionalInfo: "",
 };
+
+const TIME_OPTIONS_15 = buildTimeOptions(15);
 
 function AddMedicationModal({
   isOpen,
@@ -155,7 +158,9 @@ function AddMedicationModal({
           ? String(medication.recommendSupply)
           : "",
       unit:
-        getUnitForType(medication.type || DEFAULT_FORM_DATA.type) || DEFAULT_FORM_DATA.unit,
+        medication.unit ||
+        getUnitForType(medication.type || DEFAULT_FORM_DATA.type) ||
+        DEFAULT_FORM_DATA.unit,
       instructions,
       timeOfDay: normalizedTimesOfDay,
       additionalInfo: medication.additionalInfo || "",
@@ -175,11 +180,17 @@ function AddMedicationModal({
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "type") {
-      setFormData((prev) => ({
-        ...prev,
-        type: value,
-        unit: getUnitForType(value),
-      }));
+      setFormData((prev) => {
+        const prevTypeUnit = getUnitForType(prev.type);
+        const nextTypeUnit = getUnitForType(value);
+        const shouldAutoUpdateUnit =
+          !String(prev.unit || "").trim() || prev.unit === prevTypeUnit;
+        return {
+          ...prev,
+          type: value,
+          unit: shouldAutoUpdateUnit ? nextTypeUnit : prev.unit,
+        };
+      });
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -396,27 +407,44 @@ function AddMedicationModal({
             )}
           </div>
 
-          {/* Dosage */}
-          <div>
-            <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Dosage *
-            </label>
-            <input
-              type="text"
-              name="dosage"
-              value={formData.dosage}
-              onChange={handleChange}
-              placeholder="e.g., 500mg or 2"
-              className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
-                errors.dosage ? "border-red-500" : "border-border-default"
-              }`}
-              required
-            />
-            {errors.dosage && (
-              <p className="font-poppins text-xs text-red-500 mt-1">
-                {errors.dosage}
-              </p>
-            )}
+          {/* Dosage + Unit */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Dosage *
+              </label>
+              <input
+                type="text"
+                name="dosage"
+                value={formData.dosage}
+                onChange={handleChange}
+                placeholder="e.g., 2"
+                className={`w-full px-4 py-3 rounded-xl border font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors ${
+                  errors.dosage ? "border-red-500" : "border-border-default"
+                }`}
+                required
+              />
+              {errors.dosage && (
+                <p className="font-poppins text-xs text-red-500 mt-1">
+                  {errors.dosage}
+                </p>
+              )}
+            </div>
+
+            <div className="col-span-1">
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Unit
+              </label>
+              <input
+                type="text"
+                name="unit"
+                value={formData.unit}
+                onChange={handleChange}
+                placeholder="e.g., ml"
+                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
+                aria-label="Dosage unit"
+              />
+            </div>
           </div>
 
           {/* Type - Text input with suggestions */}
@@ -513,21 +541,19 @@ function AddMedicationModal({
             </label>
             <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
               <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="time"
-                  step="900"
+                <select
                   value={scheduleTimeInput}
                   onChange={(e) => setScheduleTimeInput(e.target.value)}
-                  onBlur={(e) => addScheduleTimeFromInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addScheduleTimeFromInput(scheduleTimeInput);
-                    }
-                  }}
                   className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
                   aria-label="Schedule time"
-                />
+                >
+                  <option value="">Select a time…</option>
+                  {TIME_OPTIONS_15.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
                 <Button
                   type="button"
                   variant="ghost"
@@ -573,7 +599,7 @@ function AddMedicationModal({
 
           {/* Total Quantity */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
+            <div className="col-span-3">
               <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
                 Total Quantity *
               </label>
@@ -594,28 +620,12 @@ function AddMedicationModal({
                 </p>
               )}
             </div>
-
-            <div className="col-span-1">
-              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                Unit
-              </label>
-              <input
-                type="text"
-                name="unit"
-                value={formData.unit}
-                placeholder="e.g., pills"
-                className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm bg-background-subtle text-text-secondary focus:outline-none focus:border-border-default focus:ring-0 transition-colors cursor-not-allowed"
-                aria-label="Unit"
-                readOnly
-                aria-readonly="true"
-              />
-            </div>
           </div>
 
           {/* Recommended Supply */}
           <div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2">
+              <div className="col-span-3">
                 <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
                   Recommended Supply
                 </label>
@@ -626,22 +636,6 @@ function AddMedicationModal({
                   onChange={handleChange}
                   placeholder="e.g., 30"
                   className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              <div className="col-span-1">
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Unit
-                </label>
-                <input
-                  type="text"
-                  name="recommendSupplyUnit"
-                  value={formData.unit}
-                  placeholder="e.g., pills"
-                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm bg-background-subtle text-text-secondary focus:outline-none focus:border-border-default focus:ring-0 transition-colors cursor-not-allowed"
-                  aria-label="Recommended supply unit"
-                  readOnly
-                  aria-readonly="true"
                 />
               </div>
             </div>

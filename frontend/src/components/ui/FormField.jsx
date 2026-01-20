@@ -21,6 +21,7 @@ import React from "react";
 function FormField({
   label,
   name,
+  as = "input",
   type = "text",
   value,
   onChange,
@@ -30,6 +31,7 @@ function FormField({
   icon,
   rightElement,
   className = "",
+  options,
   ...inputProps
 }) {
   const isReadOnly = Boolean(inputProps?.readOnly || inputProps?.disabled);
@@ -65,19 +67,46 @@ function FormField({
             {rightElement}
           </div>
         )}
-        <input
-          type={type}
-          id={name}
-          name={name}
-          value={value || ""}
-          onChange={onChange}
-          placeholder={placeholder}
-          required={required}
-          className={inputClass}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${name}-error` : undefined}
-          {...inputProps}
-        />
+        {as === "select" ? (
+          <select
+            id={name}
+            name={name}
+            value={value || ""}
+            onChange={onChange}
+            required={required}
+            className={inputClass}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${name}-error` : undefined}
+            {...inputProps}
+          >
+            {placeholder ? (
+              <option value="" disabled={required}>
+                {placeholder}
+              </option>
+            ) : null}
+            {Array.isArray(options)
+              ? options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))
+              : null}
+          </select>
+        ) : (
+          <input
+            type={type}
+            id={name}
+            name={name}
+            value={value || ""}
+            onChange={onChange}
+            placeholder={placeholder}
+            required={required}
+            className={inputClass}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${name}-error` : undefined}
+            {...inputProps}
+          />
+        )}
       </div>
       {error && (
         <p

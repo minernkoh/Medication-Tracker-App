@@ -170,22 +170,18 @@ function Sidebar({
               <p className="font-poppins font-semibold text-sm">
                 {displayName}
               </p>
-              {isReadOnly && (
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-full">
-                  <EyeIcon
-                    size={12}
-                    weight="bold"
-                    color={colors.icon.primary}
-                  />
-                  <p className="font-poppins font-semibold text-xs text-blue-700">
-                    View Only
-                  </p>
-                </div>
-              )}
             </div>
             <p className="font-poppins font-normal text-xs w-full text-text-secondary">
               {displayEmail}
             </p>
+            {isReadOnly && (
+              <div className="mt-2 flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-full">
+                <EyeIcon size={12} weight="bold" color={colors.icon.primary} />
+                <p className="font-poppins font-semibold text-xs text-blue-700">
+                  View Only
+                </p>
+              </div>
+            )}
             {isReadOnly && caregiverName && (
               <p className="font-poppins font-normal text-[11px] w-full text-text-secondary mt-1">
                 Caregiver: {caregiverName}

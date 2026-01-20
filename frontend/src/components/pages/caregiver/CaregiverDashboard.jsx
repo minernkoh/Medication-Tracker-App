@@ -254,7 +254,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
       return aVal - bVal;
     });
 
-    return items.slice(0, 3);
+    return items.slice(0, 5);
   }, [patients]);
 
   const appointmentDateTimeLocal = useCallback((appt) => {
@@ -595,11 +595,11 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   <p className="font-poppins text-sm font-semibold text-text-primary leading-tight">
                     Today&apos;s adherence
                   </p>
-                  <p className="font-poppins text-xs text-text-secondary leading-tight">
+                  <span className="sr-only">
                     {totalMedicationsDate > 0
                       ? `${totalMedicationsTakenDate}/${totalMedicationsDate} doses taken`
                       : "No scheduled doses"}
-                  </p>
+                  </span>
                 </div>
               </div>
 
@@ -640,6 +640,10 @@ const CaregiverDashboard = ({ userName = "" }) => {
               </div>
 
               <div className="pt-4 flex-1">
+                <span className="sr-only">
+                  {totalLowSupply} low supply alert
+                  {totalLowSupply === 1 ? "" : "s"} total
+                </span>
                 {lowSupplyPreviewItems.length > 0 ? (
                   <ul className="space-y-2">
                     {lowSupplyPreviewItems.map((item) => {
@@ -673,17 +677,6 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   </p>
                 )}
               </div>
-
-              <div className="mt-auto pt-4">
-                <div className="flex items-baseline gap-2">
-                  <p className="font-poppins font-bold text-2xl text-text-primary leading-none tracking-tight tabular-nums">
-                    {totalLowSupply}
-                  </p>
-                  <p className="font-poppins text-sm font-semibold text-text-secondary">
-                    alert{totalLowSupply === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </div>
             </button>
 
             {/* Upcoming appointments */}
@@ -691,7 +684,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
               type="button"
               onClick={() => navigate("/appointments")}
               className="bg-background-default border border-border-default rounded-2xl p-5 text-left ring-inset hover:bg-background-hover hover:border-secondary hover:ring-2 hover:ring-secondary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 h-full flex flex-col"
-              aria-label="View upcoming appointments"
+              aria-label="View next appointment"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -703,12 +696,16 @@ const CaregiverDashboard = ({ userName = "" }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="font-poppins text-base font-semibold text-text-primary leading-tight">
-                    Upcoming appointments
+                    Next appointment
                   </p>
                 </div>
               </div>
 
               <div className="pt-4 flex-1">
+                <span className="sr-only">
+                  {upcomingAppointments} upcoming appointment
+                  {upcomingAppointments === 1 ? "" : "s"} total
+                </span>
                 {nextUpcomingAppointment ? (
                   <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
                     <p className="font-poppins text-sm font-semibold text-text-primary truncate">
@@ -728,20 +725,9 @@ const CaregiverDashboard = ({ userName = "" }) => {
                   </div>
                 ) : (
                   <p className="font-poppins text-sm text-text-secondary">
-                    No upcoming appointments scheduled.
+                    No next appointment scheduled.
                   </p>
                 )}
-              </div>
-
-              <div className="mt-auto pt-4">
-                <div className="flex items-baseline gap-2">
-                  <p className="font-poppins font-bold text-2xl text-text-primary leading-none tracking-tight tabular-nums">
-                    {upcomingAppointments}
-                  </p>
-                  <p className="font-poppins text-sm font-semibold text-text-secondary">
-                    appointment{upcomingAppointments === 1 ? "" : "s"}
-                  </p>
-                </div>
               </div>
             </button>
           </div>

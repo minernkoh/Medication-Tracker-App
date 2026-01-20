@@ -37,23 +37,29 @@ import { getBoxShadow, getAuthData, setAuthData } from "../../utils";
 const SUPPLY_DEMO_ROWS = [
   {
     name: "Aspirin",
-    qty: "45",
-    status: "75%",
-    statusColor: "bg-green-100 text-green-700",
+    quantity: 45,
+    recommendSupply: 60,
+    supplyStatus: "High",
+    supplyStatusColor: "bg-green-100 text-green-700",
+    supplyStatusRank: 4,
     iconColor: colors.success.DEFAULT,
   },
   {
     name: "Vitamin D",
-    qty: "30",
-    status: "50%",
-    statusColor: "bg-amber-100 text-amber-700",
+    quantity: 30,
+    recommendSupply: 60,
+    supplyStatus: "Med",
+    supplyStatusColor: "bg-amber-100 text-amber-700",
+    supplyStatusRank: 3,
     iconColor: colors.warning.DEFAULT,
   },
   {
     name: "Metformin",
-    qty: "15",
-    status: "25%",
-    statusColor: "bg-red-100 text-red-700",
+    quantity: 15,
+    recommendSupply: 60,
+    supplyStatus: "Low",
+    supplyStatusColor: "bg-red-100 text-red-700",
+    supplyStatusRank: 2,
     iconColor: colors.danger.DEFAULT,
   },
 ];
@@ -93,13 +99,14 @@ function OnboardingTutorial({ onComplete, user }) {
     if (supplySortConfig.key === "name") {
       return multiplier * a.name.localeCompare(b.name);
     }
-    if (supplySortConfig.key === "qty") {
-      return multiplier * (Number(a.qty) - Number(b.qty));
+    if (supplySortConfig.key === "quantity") {
+      return multiplier * (Number(a.quantity) - Number(b.quantity));
     }
-    if (supplySortConfig.key === "status") {
-      const aPercent = parseInt(a.status.replace("%", ""), 10);
-      const bPercent = parseInt(b.status.replace("%", ""), 10);
-      return multiplier * (aPercent - bPercent);
+    if (supplySortConfig.key === "recommendSupply") {
+      return multiplier * (Number(a.recommendSupply) - Number(b.recommendSupply));
+    }
+    if (supplySortConfig.key === "supplyStatus") {
+      return multiplier * (Number(a.supplyStatusRank) - Number(b.supplyStatusRank));
     }
     return 0;
   });
@@ -126,14 +133,22 @@ function OnboardingTutorial({ onComplete, user }) {
         : "You're all set to start tracking your health journey. Let's walk through the key features together.",
       illustration: (
         <div className="relative w-full h-full flex items-center justify-center rounded-3xl overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-blue-100/50 rounded-3xl" />
+          <div
+            className={`absolute inset-0 bg-gradient-to-br rounded-3xl ${
+              isCaregiver
+                ? "from-secondary/10 to-rose-100/50"
+                : "from-primary/10 to-blue-100/50"
+            }`}
+          />
           <div className="relative flex items-center gap-6">
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/30 animate-pulse">
               <FirstAidKitIcon size={32} weight="fill" color={colors.text.onPrimary} />
             </div>
             <div className="text-left">
               <p className="font-poppins font-bold text-2xl text-text-primary">MedTracker</p>
-              <p className="font-poppins text-text-secondary">Your health companion</p>
+              <p className="font-poppins text-text-secondary">
+                {isCaregiver ? "Caregiver companion" : "Your health companion"}
+              </p>
             </div>
           </div>
         </div>
@@ -190,16 +205,16 @@ function OnboardingTutorial({ onComplete, user }) {
                     {/* Mini list */}
                     <div className="divide-y divide-border-default">
                       {[
-                        { name: "John Doe", initials: "JD", alerts: 1, adherence: 75, color: colors.patient.blue },
-                        { name: "Jane Smith", initials: "JS", alerts: 0, adherence: 100, color: colors.patient.pink },
-                      ].map((p) => (
-                        <div key={p.initials} className="px-4 py-3 flex items-center justify-between gap-3">
+                        { name: "John Doe", avatarText: "JD", alerts: 1, adherence: 75, avatarBg: colors.patient.blue },
+                        { name: "Jane Smith", avatarText: "JS", alerts: 0, adherence: 100, avatarBg: colors.patient.pink },
+                      ].map((p, idx) => (
+                        <div key={`${p.name}-${idx}`} className="px-4 py-3 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <div
                               className="w-9 h-9 rounded-full flex items-center justify-center text-white font-poppins font-bold text-xs flex-shrink-0"
-                              style={{ backgroundColor: p.color }}
+                              style={{ backgroundColor: p.avatarBg }}
                             >
-                              {p.initials}
+                              {p.avatarText}
                             </div>
                             <div className="min-w-0">
                               <p className="font-poppins font-semibold text-sm text-text-primary truncate">{p.name}</p>
@@ -338,8 +353,8 @@ function OnboardingTutorial({ onComplete, user }) {
       title: isCaregiver ? "Monitor Patient Supply" : "Monitor Your Supply",
       subtitle: isCaregiver ? "Stay ahead for your patient" : "Stay on top of your supply",
       description: isCaregiver
-        ? "Track a patient’s inventory. Supply status updates automatically as medications are marked as taken."
-        : "View your medication inventory in a table format. Supply status is calculated as a percentage when you mark medications as taken, helping you track how much you have remaining.",
+        ? "Track a patient’s inventory. Supply status is calculated against their recommended supply and updates as medications are taken."
+        : "View your medication inventory in a table format. Supply status is calculated against your recommended supply, helping you track how much you have remaining.",
       illustration: (
         <div className="relative w-full h-full rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-orange-100/50 rounded-3xl" />
@@ -349,7 +364,7 @@ function OnboardingTutorial({ onComplete, user }) {
                 <thead>
                   <tr className="border-b border-border-default bg-background-subtle">
                         <th
-                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/2 cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[42%] cursor-pointer hover:text-text-primary transition-colors group select-none"
                           onClick={() => handleSupplySort("name")}
                         >
                           <div className="flex items-center">
@@ -358,21 +373,30 @@ function OnboardingTutorial({ onComplete, user }) {
                           </div>
                         </th>
                         <th
-                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4 cursor-pointer hover:text-text-primary transition-colors group select-none"
-                          onClick={() => handleSupplySort("qty")}
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[19%] cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          onClick={() => handleSupplySort("quantity")}
                         >
                           <div className="flex items-center">
-                            Qty
-                            <SupplySortIndicator columnKey="qty" />
+                            Total Qty
+                            <SupplySortIndicator columnKey="quantity" />
                           </div>
                         </th>
                         <th
-                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-1/4 cursor-pointer hover:text-text-primary transition-colors group select-none"
-                          onClick={() => handleSupplySort("status")}
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[22%] cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          onClick={() => handleSupplySort("recommendSupply")}
+                        >
+                          <div className="flex items-center">
+                            Recommended
+                            <SupplySortIndicator columnKey="recommendSupply" />
+                          </div>
+                        </th>
+                        <th
+                          className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[17%] cursor-pointer hover:text-text-primary transition-colors group select-none"
+                          onClick={() => handleSupplySort("supplyStatus")}
                         >
                           <div className="flex items-center">
                             Status
-                            <SupplySortIndicator columnKey="status" />
+                            <SupplySortIndicator columnKey="supplyStatus" />
                           </div>
                         </th>
                   </tr>
@@ -395,12 +419,17 @@ function OnboardingTutorial({ onComplete, user }) {
                       </td>
                       <td className="px-3 py-3">
                         <span className="font-poppins text-xs font-medium text-text-primary truncate">
-                          {med.qty}
+                          {med.quantity}
                         </span>
                       </td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-poppins font-semibold ${med.statusColor} whitespace-nowrap`}>
-                          {med.status}
+                        <span className="font-poppins text-xs font-medium text-text-primary truncate">
+                          {med.recommendSupply}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-poppins font-semibold ${med.supplyStatusColor} whitespace-nowrap`}>
+                          {med.supplyStatus}
                         </span>
                       </td>
                     </tr>
@@ -569,8 +598,8 @@ function OnboardingTutorial({ onComplete, user }) {
                 <div className="relative w-full h-full px-4 py-4 flex items-center justify-center">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                     {[
-                      { name: "John Doe", initials: "JD", color: colors.secondary.DEFAULT, taken: 3, total: 4, nextMed: "12:00 PM" },
-                      { name: "Jane Smith", initials: "JS", color: colors.primary.DEFAULT, taken: 2, total: 2, nextMed: null },
+                      { name: "John Doe", avatarText: "JD", avatarBg: colors.secondary.DEFAULT, taken: 3, total: 4, nextMed: "12:00 PM" },
+                      { name: "Jane Smith", avatarText: "JS", avatarBg: colors.primary.DEFAULT, taken: 2, total: 2, nextMed: null },
                     ].map((patient, i) => {
                       const completionPercent = patient.total > 0 ? Math.round((patient.taken / patient.total) * 100) : 0;
                       return (
@@ -583,9 +612,9 @@ function OnboardingTutorial({ onComplete, user }) {
                             <div className="flex items-center gap-3">
                               <div
                                 className="w-12 h-12 rounded-full flex items-center justify-center text-white font-poppins font-bold text-lg"
-                                style={{ backgroundColor: patient.color }}
+                                style={{ backgroundColor: patient.avatarBg }}
                               >
-                                {patient.initials}
+                                {patient.avatarText}
                               </div>
                               <div>
                                 <h3 className="font-poppins font-bold text-text-primary">{patient.name}</h3>
@@ -645,13 +674,21 @@ function OnboardingTutorial({ onComplete, user }) {
       id: "ready",
       icon: CheckCircleIcon,
       title: "You're All Set!",
-      subtitle: "Ready to start your health journey",
+      subtitle: isCaregiver
+        ? "Ready to support your loved ones"
+        : "Ready to start your health journey",
       description: isCaregiver
         ? "Head to Patients to add your first patient and start managing medications and appointments. You've got this!"
         : "Head to your dashboard to add your first medication. Small steps lead to big health wins!",
       illustration: (
         <div className="relative w-full h-full flex items-center justify-center rounded-3xl overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-green-100/50 rounded-3xl" />
+          <div
+            className={`absolute inset-0 bg-gradient-to-br rounded-3xl ${
+              isCaregiver
+                ? "from-rose-50 to-pink-100/50"
+                : "from-emerald-50 to-green-100/50"
+            }`}
+          />
           <div className="relative text-center">
             <div
               className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center shadow-2xl"
@@ -670,7 +707,7 @@ function OnboardingTutorial({ onComplete, user }) {
               Welcome aboard, {user?.name?.split(" ")[0] || "friend"}!
             </p>
             <p className="font-poppins text-text-secondary">
-              Your health journey starts now
+              {isCaregiver ? "Your caregiving journey starts now" : "Your health journey starts now"}
             </p>
           </div>
         </div>
@@ -710,7 +747,13 @@ function OnboardingTutorial({ onComplete, user }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6">
+    <div
+      className={`min-h-screen bg-gradient-to-br flex items-center justify-center p-6 ${
+        isCaregiver
+          ? "from-rose-50 via-pink-50 to-rose-100"
+          : "from-slate-50 via-blue-50 to-indigo-50"
+      }`}
+    >
       <div className="w-full max-w-5xl">
         {/* Progress bar */}
         <div className="flex items-center gap-2 mb-8">

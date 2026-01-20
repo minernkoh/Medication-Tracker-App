@@ -27,6 +27,7 @@ import {
 import {
   getModeHexColor,
   formatDate,
+  formatDateNumeric,
   formatTime,
   textStyles,
   getStoredUser,
@@ -166,7 +167,9 @@ function AppointmentsPage({ userName = "", mode = "Personal" }) {
     if (apt.status && apt.status !== "Scheduled") return apt.status;
 
     // Use local date and time
-    const [year, month, day] = apt.date.split("-").map(Number);
+    const dateStr = apt?.date;
+    if (!dateStr || typeof dateStr !== "string") return "Scheduled";
+    const [year, month, day] = dateStr.split("-").map(Number);
     const aptDate = new Date(year, month - 1, day);
     if (apt.time) {
       const [hours, minutes] = apt.time.split(":");

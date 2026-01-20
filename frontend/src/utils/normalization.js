@@ -22,7 +22,9 @@ export const normalizeId = (item) => {
 export const normalizeDateInput = (value) => {
   if (!value) return "";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  // Keep invalid strings as-is (for display/debug), but never return non-strings
+  // since downstream formatting/status logic expects a string/Date.
+  if (Number.isNaN(parsed.getTime())) return typeof value === "string" ? value : "";
   return parsed.toISOString().split("T")[0];
 };
 

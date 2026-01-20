@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { Modal, FormField, Button } from "../ui";
 import {
+  buildTimeOptions,
   getModeHexColor,
   roundTimeToInterval,
   TIME_BUCKET_TO_24H,
@@ -20,6 +21,8 @@ const getUnitForType = (rawType) => {
   if (t === "liquid") return "ml";
   return t;
 };
+
+const TIME_OPTIONS_15 = buildTimeOptions(15);
 
 function EditMedicationModal({
   isOpen,
@@ -129,7 +132,7 @@ function EditMedicationModal({
         frequencyText,
         quantity: medication.quantity || "",
         recommendSupply: medication.recommendSupply || "",
-        unit: getUnitForType(medication.type || ""),
+        unit: medication.unit || getUnitForType(medication.type || ""),
         timeOfDay: normalizedTimesOfDay,
         instructions,
         additionalInfo: medication.additionalInfo || "",
@@ -143,11 +146,17 @@ function EditMedicationModal({
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "type") {
-      setFormData((prev) => ({
-        ...prev,
-        type: value,
-        unit: getUnitForType(value),
-      }));
+      setFormData((prev) => {
+        const prevTypeUnit = getUnitForType(prev.type);
+        const nextTypeUnit = getUnitForType(value);
+        const shouldAutoUpdateUnit =
+          !String(prev.unit || "").trim() || prev.unit === prevTypeUnit;
+        return {
+          ...prev,
+          type: value,
+          unit: shouldAutoUpdateUnit ? nextTypeUnit : prev.unit,
+        };
+      });
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -160,14 +169,6 @@ function EditMedicationModal({
       errors.frequency
     ) {
       setErrors((prev) => ({ ...prev, frequency: "" }));
-    }
-  };
-
-  const handleTimeBlur = (name) => (e) => {
-    const rounded = roundTimeToInterval(e.target.value, 15, "nearest");
-    setFormData((prev) => ({ ...prev, [name]: rounded || "" }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -343,11 +344,11 @@ function EditMedicationModal({
               <FormField
                 label="Time Taken"
                 name="takenTime"
-                type="time"
+                as="select"
                 value={formData.takenTime}
                 onChange={handleChange}
-                onBlur={handleTimeBlur("takenTime")}
-                step="900"
+                options={TIME_OPTIONS_15}
+                placeholder="Select a time…"
                 error={errors.takenTime}
                 required
               />
@@ -364,16 +365,28 @@ function EditMedicationModal({
                 required
               />
 
-              <FormField
-                label="Dosage"
-                name="dosage"
-                type="text"
-                value={formData.dosage}
-                onChange={handleChange}
-                placeholder="e.g., 500mg or 2"
-                error={errors.dosage}
-                required
-              />
+              <div className="grid grid-cols-3 gap-3">
+                <FormField
+                  className="col-span-2"
+                  label="Dosage"
+                  name="dosage"
+                  type="text"
+                  value={formData.dosage}
+                  onChange={handleChange}
+                  placeholder="e.g., 2"
+                  error={errors.dosage}
+                  required
+                />
+                <FormField
+                  className="col-span-1"
+                  label="Unit"
+                  name="unit"
+                  type="text"
+                  value={formData.unit}
+                  onChange={handleChange}
+                  placeholder="e.g., ml"
+                />
+              </div>
 
               <FormField
                 label="Type"
@@ -453,21 +466,19 @@ function EditMedicationModal({
                 </label>
                 <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      type="time"
-                      step="900"
+                    <select
                       value={scheduleTimeInput}
                       onChange={(e) => setScheduleTimeInput(e.target.value)}
-                      onBlur={(e) => addScheduleTimeFromInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addScheduleTimeFromInput(scheduleTimeInput);
-                        }
-                      }}
                       className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
                       aria-label="Schedule time"
-                    />
+                    >
+                      <option value="">Select a time…</option>
+                      {TIME_OPTIONS_15.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                     <Button
                       type="button"
                       variant="outline"
@@ -511,7 +522,7 @@ function EditMedicationModal({
 
               <div className="grid grid-cols-3 gap-3">
                 <FormField
-                  className="col-span-2"
+                  className="col-span-3"
                   label="Total Quantity"
                   name="quantity"
                   type="text"
@@ -521,25 +532,12 @@ function EditMedicationModal({
                   error={errors.quantity}
                   required
                 />
-
-                <div className="col-span-1">
-                  <FormField
-                    label="Unit"
-                    name="unit"
-                    type="text"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    placeholder="e.g., pills"
-                    readOnly
-                    aria-readonly="true"
-                  />
-                </div>
               </div>
 
               <div>
                 <div className="grid grid-cols-3 gap-3">
                   <FormField
-                    className="col-span-2"
+                    className="col-span-3"
                     label="Recommended Supply"
                     name="recommendSupply"
                     type="text"
@@ -547,19 +545,6 @@ function EditMedicationModal({
                     onChange={handleChange}
                     placeholder="e.g., 30"
                   />
-
-                  <div className="col-span-1">
-                    <FormField
-                      label="Unit"
-                      name="recommendSupplyUnit"
-                      type="text"
-                      value={formData.unit}
-                      onChange={handleChange}
-                      placeholder="e.g., pills"
-                      readOnly
-                      aria-readonly="true"
-                    />
-                  </div>
                 </div>
                 <p className="font-poppins text-xs text-text-secondary mt-2">
                   Used to calculate supply status and refill reminders. If left blank, we’ll use Total Quantity.

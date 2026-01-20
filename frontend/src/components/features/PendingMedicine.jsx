@@ -122,19 +122,28 @@ function PendingMedicine({
             {/* Schedule groups (group by hour, list original times) */}
             {scheduleGroups?.length ? (
               <div className="space-y-0.5">
-                {scheduleGroups.map((group) => (
-                  <div
-                    key={group.hourLabel}
-                    className="flex flex-wrap gap-x-2 items-baseline"
-                  >
-                    <span className="font-poppins font-bold leading-6 text-sm text-text-secondary">
-                      {group.hourLabel}
-                    </span>
-                    <span className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
-                      {Array.isArray(group.times) ? group.times.join(", ") : ""}
-                    </span>
-                  </div>
-                ))}
+                {scheduleGroups.map((group) => {
+                  const times = Array.isArray(group.times)
+                    ? group.times.filter(
+                        (t) => t && t !== group.hourLabel, // extra safety
+                      )
+                    : [];
+                  return (
+                    <div
+                      key={group.hourLabel}
+                      className="flex flex-wrap gap-x-2 items-baseline"
+                    >
+                      <span className="font-poppins font-bold leading-6 text-sm text-text-secondary">
+                        {group.hourLabel}
+                      </span>
+                      {times.length ? (
+                        <span className="font-poppins font-semibold leading-6 text-sm text-text-secondary">
+                          {times.join(", ")}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
           </div>

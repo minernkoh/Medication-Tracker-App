@@ -53,9 +53,10 @@ export const formatDate = (dateStr) => {
  * @returns {string} Numeric formatted date string
  */
 export const formatDateNumeric = (dateStr) => {
-  const date = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
-  if (isNaN(date.getTime())) return "";
-  
+  if (!dateStr) return "";
+  const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+
   const d = String(date.getDate()).padStart(2, "0");
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const y = String(date.getFullYear()).slice(-2);
