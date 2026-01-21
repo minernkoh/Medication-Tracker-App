@@ -26,6 +26,65 @@ const toLocalIsoDay = (value = new Date()) => {
   return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
 };
 
+const addDaysToIsoDay = (isoDay, days) => {
+  if (!isoDay || !Number.isFinite(days)) return isoDay;
+  const base = new Date(`${isoDay}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return isoDay;
+  base.setDate(base.getDate() + days);
+  return toLocalIsoDay(base);
+};
+
+const getDailyDoseCount = (med) => {
+  const times = Array.isArray(med?.timesOfDay) ? med.timesOfDay : [];
+  if (times.length > 0) return times.length;
+  if (med?.timeOfDay) return 1;
+
+  const frequency = String(med?.frequency || "")
+    .trim()
+    .toLowerCase();
+  if (!frequency) return 0;
+  const timesMatch = frequency.match(/(\d+)\s*times\s*per\s*day/);
+  if (timesMatch) return Number(timesMatch[1]) || 0;
+  if (frequency.includes("once daily")) return 1;
+  const hoursMatch = frequency.match(/every\s+(\d+)\s*hour/);
+  if (hoursMatch) {
+    const hours = Number(hoursMatch[1]);
+    if (Number.isFinite(hours) && hours > 0) {
+      return Math.floor(24 / hours);
+    }
+  }
+  return 0;
+};
+
+const getSupplyWindowEndDate = ({ date, today, startDate, med }) => {
+  const dosage = Number(med?.dosage);
+  const dosesPerDay = getDailyDoseCount(med);
+  if (!Number.isFinite(dosage) || dosage <= 0 || dosesPerDay <= 0) {
+    return null;
+  }
+
+  const useCurrentSupply = date >= today;
+  const rawQuantity = useCurrentSupply
+    ? Number(med?.quantity)
+    : Number(med?.initialQuantity ?? med?.quantity);
+
+  if (!Number.isFinite(rawQuantity)) return null;
+
+  const dailyDose = dosage * dosesPerDay;
+  if (!Number.isFinite(dailyDose) || dailyDose <= 0) return null;
+
+  const supplyDays = Math.floor(rawQuantity / dailyDose);
+  if (supplyDays <= 0) return "__none__";
+
+  if (useCurrentSupply) {
+    const isFuture = date > today;
+    const anchor = isFuture ? addDaysToIsoDay(today, 1) : today;
+    return addDaysToIsoDay(anchor, supplyDays - 1);
+  }
+
+  return addDaysToIsoDay(startDate, supplyDays - 1);
+};
+
 const getMedications = async (req, res) => {
   try {
     const patientId = req.params.patientId || req.user.id;
@@ -44,7 +103,9 @@ const getMedications = async (req, res) => {
     if (date) {
       const logs = await MedicationLog.find({ patient: patientId, date });
       const loggedMedicationIds = Array.from(
-        new Set((Array.isArray(logs) ? logs : []).map((l) => String(l.medication))),
+        new Set(
+          (Array.isArray(logs) ? logs : []).map((l) => String(l.medication)),
+        ),
       );
 
       const meds = await Medication.find({
@@ -75,61 +136,90 @@ const getMedications = async (req, res) => {
         }
       }
 
-      const medsWithStatus = meds.map((med) => {
-        const medObj = med.toObject({ virtuals: true });
-        const medId = med._id.toString();
-        const takenSlots = logsByMedication.get(medId) || new Set();
-        const scheduledSlots = Array.isArray(medObj.timesOfDay)
-          ? medObj.timesOfDay
-          : medObj.timeOfDay
-            ? [medObj.timeOfDay]
-            : [];
-        const pendingSlots = scheduledSlots.filter(
-          (slot) => !takenSlots.has(slot),
-        );
+      const todayStr = toLocalIsoDay();
 
-        medObj.scheduledSlots = scheduledSlots;
-        medObj.takenSlots = Array.from(takenSlots);
-        medObj.pendingSlots = pendingSlots;
+      const medsWithStatus = meds
+        .map((med) => {
+          const medObj = med.toObject({ virtuals: true });
+          const medId = med._id.toString();
+          const takenSlots = logsByMedication.get(medId) || new Set();
+          const hasLogsForDate = takenSlots.size > 0;
+          const scheduledSlots = Array.isArray(medObj.timesOfDay)
+            ? medObj.timesOfDay
+            : medObj.timeOfDay
+              ? [medObj.timeOfDay]
+              : [];
+          const pendingSlots = scheduledSlots.filter(
+            (slot) => !takenSlots.has(slot),
+          );
 
-        const takenTimesMap = takenAtByMedication.get(medId);
-        if (takenTimesMap) {
-          medObj.takenTimesBySlot = Array.from(takenTimesMap.entries()).reduce(
-            (acc, [slot, takenAt]) => {
+          const createdAtStr = medObj?.createdAt
+            ? toLocalIsoDay(medObj.createdAt)
+            : null;
+
+          if (createdAtStr && date < createdAtStr && !hasLogsForDate) {
+            return null;
+          }
+
+          if (createdAtStr) {
+            const supplyEndDate = getSupplyWindowEndDate({
+              date,
+              today: todayStr,
+              startDate: createdAtStr,
+              med: medObj,
+            });
+            if (supplyEndDate === "__none__" && !hasLogsForDate) {
+              return null;
+            }
+            if (supplyEndDate && date > supplyEndDate && !hasLogsForDate) {
+              return null;
+            }
+          }
+
+          medObj.scheduledSlots = scheduledSlots;
+          medObj.takenSlots = Array.from(takenSlots);
+          medObj.pendingSlots = pendingSlots;
+
+          const takenTimesMap = takenAtByMedication.get(medId);
+          if (takenTimesMap) {
+            medObj.takenTimesBySlot = Array.from(
+              takenTimesMap.entries(),
+            ).reduce((acc, [slot, takenAt]) => {
               acc[slot] = takenAt;
               return acc;
-            },
-            {},
-          );
-        }
+            }, {});
+          }
 
-        if (scheduledSlots.length > 0) {
-          const allTaken = scheduledSlots.every((slot) => takenSlots.has(slot));
-          if (allTaken) {
+          if (scheduledSlots.length > 0) {
+            const allTaken = scheduledSlots.every((slot) =>
+              takenSlots.has(slot),
+            );
+            if (allTaken) {
+              medObj.status = "taken";
+              medObj.taken = true;
+            } else {
+              medObj.status = "pending";
+              medObj.taken = false;
+            }
+          } else if (takenSlots.size > 0) {
             medObj.status = "taken";
             medObj.taken = true;
-          } else {
+          } else if (medObj.status === "taken" || medObj.status === "pending") {
             medObj.status = "pending";
             medObj.taken = false;
           }
-        } else if (takenSlots.size > 0) {
-          medObj.status = "taken";
-          medObj.taken = true;
-        } else if (medObj.status === "taken" || medObj.status === "pending") {
-          medObj.status = "pending";
-          medObj.taken = false;
-        }
 
-        // Archived meds should only surface in history contexts; if they have any
-        // intake logs for the requested date, treat them as "taken" so they show
-        // under taken/history views (and not as pending/supply).
-        if (medObj.isArchived && takenSlots.size > 0) {
-          medObj.status = "taken";
-          medObj.taken = true;
-        }
+          // Archived meds should only surface in history contexts; if they have any
+          // intake logs for the requested date, treat them as "taken" so they show
+          // under taken/history views (and not as pending/supply).
+          if (medObj.isArchived && takenSlots.size > 0) {
+            medObj.status = "taken";
+            medObj.taken = true;
+          }
 
-        return medObj;
-      });
+          return medObj;
+        })
+        .filter(Boolean);
       if (req.query.status) {
         return res.json(
           medsWithStatus.filter((m) => m.status === req.query.status),
@@ -138,7 +228,10 @@ const getMedications = async (req, res) => {
       return res.json(medsWithStatus);
     }
 
-    const meds = await Medication.find({ patient: patientId, ...isArchivedFilter });
+    const meds = await Medication.find({
+      patient: patientId,
+      ...isArchivedFilter,
+    });
     res.json(meds);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -18,6 +18,7 @@ import {
   PatientDetailPage,
   CaregiverAppointmentsPage,
 } from "./components";
+import AccountDetailsPage from "./components/pages/AccountDetailsPage";
 import { ErrorProvider } from "./contexts/ErrorContext";
 import { MedicationsProvider } from "./contexts/MedicationsContext";
 import NotFoundPage from "./components/pages/NotFoundPage";
@@ -54,6 +55,7 @@ function AppLayout({
   onPatientSignup,
   onShowOnboarding,
   onDeleteAccount,
+  onUserUpdate,
 }) {
   const firstName = user?.name ? user.name.split(" ")[0] : "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -93,7 +95,9 @@ function AppLayout({
             type="button"
             onClick={() => setIsSidebarCollapsed((prev) => !prev)}
             className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={
+              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
             aria-pressed={isSidebarCollapsed}
             title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -228,8 +232,17 @@ function AppLayout({
                   onLogout={onLogout}
                   onShowOnboarding={onShowOnboarding}
                   onDeleteAccount={onDeleteAccount}
+                  onUserUpdate={onUserUpdate}
                 />
               </React.Suspense>
+            }
+          />
+
+          {/* Account Details */}
+          <Route
+            path="/account"
+            element={
+              <AccountDetailsPage user={user} onUserUpdate={onUserUpdate} />
             }
           />
 
@@ -336,7 +349,9 @@ function App() {
   // Patient "View Only" notification (shown once when caregiver is assigned)
   useEffect(() => {
     if (!isAuthenticated) return;
-    const notified = Boolean(getAuthField("caregiverAssignmentNotified", false));
+    const notified = Boolean(
+      getAuthField("caregiverAssignmentNotified", false),
+    );
     const caregivers = user?.caregivers;
     const hasCaregiver =
       Boolean(user?.caregiver) ||
@@ -502,6 +517,11 @@ function App() {
     handleLogout();
   };
 
+  const handleUserUpdate = (updatedUser) => {
+    setUser(updatedUser);
+    updateAuthField("user", updatedUser);
+  };
+
   // Show onboarding tutorial for new users
   if (showOnboarding && pendingUser) {
     return (
@@ -541,6 +561,7 @@ function App() {
             onPatientSignup={handlePatientSignup}
             onShowOnboarding={handleShowOnboardingFromSettings}
             onDeleteAccount={handleDeleteAccount}
+            onUserUpdate={handleUserUpdate}
           />
 
           <Modal

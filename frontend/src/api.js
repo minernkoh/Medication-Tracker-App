@@ -9,7 +9,12 @@
  * - `api.auth`, `api.medications`, `api.appointments`, `api.users`, `api.caregiver`
  */
 
-import { getAuthData, getStoredToken, setAuthData, removeAuthData } from "./utils/storageUtils";
+import {
+  getAuthData,
+  getStoredToken,
+  setAuthData,
+  removeAuthData,
+} from "./utils/storageUtils";
 import { toLocalIsoDay } from "./utils/dateUtils";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
@@ -348,6 +353,14 @@ export const api = {
     getCurrent: async () => {
       const response = await fetch(`${API_URL}/users/me`, {
         headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    update: async (userId, data) => {
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
       });
       return handleResponse(response);
     },

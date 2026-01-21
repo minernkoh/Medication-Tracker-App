@@ -28,13 +28,10 @@ const updateUser = async (req, res) => {
     return res.status(404).json({ message: "User not found" });
   }
 
-  if (
+  const isPatientReadOnly =
     user.role === "patient" &&
     (user.caregivers?.length > 0 || user.caregiver) &&
-    req.user.id === user.id
-  ) {
-    return res.status(403).json({ message: "Read-only access" });
-  }
+    req.user.id === user.id;
 
   if (
     req.user.id !== user.id &&
@@ -52,6 +49,20 @@ const updateUser = async (req, res) => {
 
   if (!updates.password) {
     delete updates.password;
+  }
+
+  if (isPatientReadOnly) {
+    const allowedFields = ["name"];
+    const updateKeys = Object.keys(updates).filter(
+      (key) => updates[key] !== undefined,
+    );
+    const hasDisallowedFields = updateKeys.some(
+      (key) => !allowedFields.includes(key),
+    );
+
+    if (hasDisallowedFields) {
+      return res.status(403).json({ message: "Read-only access" });
+    }
   }
 
   Object.assign(user, updates);

@@ -275,15 +275,6 @@ function EditMedicationModal({
       frequencyString = formData.frequencyText;
     }
 
-    const additionalInfo = [
-      formData.additionalInfo,
-      ...(formData.instructions.length > 0
-        ? [formData.instructions.join(", ")]
-        : []),
-    ]
-      .filter(Boolean)
-      .join(", ");
-
     const updatedMedication = {
       ...medication,
       name: formData.name,
@@ -296,7 +287,7 @@ function EditMedicationModal({
       timeOfDay: formData.timeOfDay?.[0] || null,
       timesOfDay: formData.timeOfDay,
       instructions: formData.instructions,
-      additionalInfo,
+      additionalInfo: formData.additionalInfo,
     };
 
     onSave(updatedMedication);

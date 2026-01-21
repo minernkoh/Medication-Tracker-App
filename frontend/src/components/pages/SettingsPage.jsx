@@ -1,7 +1,7 @@
 /**
  * SettingsPage Component - User settings and preferences
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   UserIcon,
   ShieldCheckIcon,
@@ -9,6 +9,7 @@ import {
   CaretRightIcon,
   GraduationCapIcon,
   TrashIcon,
+  PencilSimpleIcon,
 } from "@phosphor-icons/react";
 import { getModeHexColor } from "../../utils/modeUtils";
 import { GradientBackground, Modal, FormField, Button } from "../ui";
@@ -22,12 +23,19 @@ function SettingsPage({
   onLogout,
   onShowOnboarding,
   onDeleteAccount,
+  onUserUpdate,
 }) {
   const modeHexColor = getModeHexColor(mode);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showUpdateName, setShowUpdateName] = useState(false);
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [nameForm, setNameForm] = useState({
+    name: user?.name || "",
+  });
+  const [nameErrors, setNameErrors] = useState({});
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -35,6 +43,52 @@ function SettingsPage({
   });
   const [passwordErrors, setPasswordErrors] = useState({});
   const { showError } = useError();
+
+  useEffect(() => {
+    setNameForm({ name: user?.name || "" });
+  }, [user]);
+
+  const resetNameForm = () => {
+    setNameForm({ name: user?.name || "" });
+    setNameErrors({});
+  };
+
+  const handleNameChange = (e) => {
+    const { value } = e.target;
+    setNameForm({ name: value });
+    if (nameErrors.name) {
+      setNameErrors((prev) => ({ ...prev, name: "" }));
+    }
+  };
+
+  const validateNameForm = () => {
+    const errors = {};
+    if (!nameForm.name.trim()) {
+      errors.name = "Name is required";
+    }
+    setNameErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const submitUpdateName = async (e) => {
+    e?.preventDefault();
+    if (!validateNameForm()) return;
+    setIsUpdatingName(true);
+    try {
+      const updatedUser = await api.users.update(user?.id || user?._id, {
+        name: nameForm.name.trim(),
+      });
+      if (onUserUpdate) {
+        onUserUpdate(updatedUser);
+      }
+      setShowUpdateName(false);
+      resetNameForm();
+    } catch (error) {
+      showError(error.message || "Unable to update name");
+    } finally {
+      setIsUpdatingName(false);
+    }
+  };
 
   const resetPasswordForm = () => {
     setPasswordForm({
@@ -198,6 +252,12 @@ function SettingsPage({
                 }
               />
               <SettingsRow
+                icon={PencilSimpleIcon}
+                label="Update Name"
+                description="Edit your display name"
+                onClick={() => setShowUpdateName(true)}
+              />
+              <SettingsRow
                 icon={ShieldCheckIcon}
                 label="Change Password"
                 description="Update your password"
@@ -348,6 +408,53 @@ function SettingsPage({
             value={passwordForm.confirmPassword}
             onChange={handlePasswordChange}
             error={passwordErrors.confirmPassword}
+            required
+          />
+        </form>
+      </Modal>
+
+      {/* Update Name Modal */}
+      <Modal
+        isOpen={showUpdateName}
+        onClose={() => {
+          setShowUpdateName(false);
+          resetNameForm();
+        }}
+        title="Update Name"
+        size="md"
+        mode={mode}
+        footerContent={
+          <>
+            <Button
+              variant="modalSecondary"
+              onClick={() => {
+                setShowUpdateName(false);
+                resetNameForm();
+              }}
+              fullWidth
+              mode={mode}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={mode === "Caregiver" ? "secondary" : "primary"}
+              onClick={submitUpdateName}
+              fullWidth
+              disabled={isUpdatingName}
+              mode={mode}
+            >
+              {isUpdatingName ? "Updating…" : "Update Name"}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={submitUpdateName} className="p-5 space-y-4">
+          <FormField
+            label="Full Name"
+            name="name"
+            value={nameForm.name}
+            onChange={handleNameChange}
+            error={nameErrors.name}
             required
           />
         </form>

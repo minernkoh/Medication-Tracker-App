@@ -14,6 +14,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import { api } from "../api";
 import { useError } from "./ErrorContext";
@@ -35,12 +36,14 @@ export function MedicationsProvider({ children }) {
   const [isLoading, setIsLoading] = useState(false);
   const { showError } = useError();
   const isReadOnlyPatient = isReadOnlyPatientUser(getStoredUser());
+  const lastLoadedDateRef = useRef(toLocalIsoDay(new Date()));
 
   const loadMedications = useCallback(
     async (date = null) => {
       setIsLoading(true);
       try {
         const targetDate = date || toLocalIsoDay(new Date());
+        lastLoadedDateRef.current = targetDate;
         const meds = await api.medications.getAll(targetDate);
         setMedications(
           (Array.isArray(meds) ? meds : []).map(normalizeMedication),
@@ -122,13 +125,14 @@ export function MedicationsProvider({ children }) {
               : med,
           ),
         );
+        await loadMedications(lastLoadedDateRef.current);
         return updated;
       } catch (error) {
         showError(error.message || "Unable to update medication");
         throw error;
       }
     },
-    [showError, isReadOnlyPatient],
+    [showError, isReadOnlyPatient, loadMedications],
   );
 
   const deleteMedication = useCallback(

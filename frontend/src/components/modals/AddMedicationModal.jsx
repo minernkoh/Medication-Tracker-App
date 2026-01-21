@@ -8,7 +8,13 @@
  * @param {string} mode - "Personal" or "Caregiver"
  */
 import { useState, useEffect } from "react";
-import { Modal, Button, TimePickerDropdown, SelectMenu, AutocompleteInput } from "../ui";
+import {
+  Modal,
+  Button,
+  TimePickerDropdown,
+  SelectMenu,
+  AutocompleteInput,
+} from "../ui";
 import { PlusIcon } from "@phosphor-icons/react";
 import {
   getModeHexColor,
@@ -181,7 +187,9 @@ function AddMedicationModal({
   const isCaregiver = mode === "Caregiver";
   const submitVariant = isCaregiver ? "secondary" : "primary";
   const accentColor = getModeHexColor(mode);
-  const formId = isEditing ? "edit-medication-details-form" : "add-medication-form";
+  const formId = isEditing
+    ? "edit-medication-details-form"
+    : "add-medication-form";
 
   // Unit is derived from Type (and presets); keep the supply/quantity unit fields non-editable.
   const readOnlyUnitInputClass =
@@ -194,7 +202,8 @@ function AddMedicationModal({
     : "focus:border-primary focus:ring-2 focus:ring-primary/20";
   const inputNormalClass = `${inputBaseClass} border-border-default ${inputFocusClass}`;
   const inputErrorClass = `${inputBaseClass} border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
-  const getInputClass = (hasError) => (hasError ? inputErrorClass : inputNormalClass);
+  const getInputClass = (hasError) =>
+    hasError ? inputErrorClass : inputNormalClass;
 
   const renderError = (name) => {
     if (!errors?.[name]) return null;
@@ -219,7 +228,9 @@ function AddMedicationModal({
       instructions: Array.isArray(preset.formData.instructions)
         ? preset.formData.instructions
         : [],
-      timeOfDay: Array.isArray(preset.formData.timeOfDay) ? preset.formData.timeOfDay : [],
+      timeOfDay: Array.isArray(preset.formData.timeOfDay)
+        ? preset.formData.timeOfDay
+        : [],
     };
   };
 
@@ -286,7 +297,9 @@ function AddMedicationModal({
     }
     // Frequency validation uses a shared `frequency` key
     if (
-      (name === "frequencyType" || name === "frequencyValue" || name === "frequencyText") &&
+      (name === "frequencyType" ||
+        name === "frequencyValue" ||
+        name === "frequencyText") &&
       errors.frequency
     ) {
       setErrors((prev) => ({ ...prev, frequency: "" }));
@@ -378,18 +391,6 @@ function AddMedicationModal({
       frequencyString = formData.frequencyText;
     }
 
-    // Format instructions into additionalInfo string
-    const additionalInfo =
-      [
-        formData.additionalInfo,
-        ...(formData.instructions.length > 0
-          ? [formData.instructions.join(", ")]
-          : []),
-      ]
-        .filter(Boolean)
-        .join(", ")
-        .trim() || null;
-
     // Get the first time of day for timeOfDay field (for backward compatibility)
     const primaryTimeOfDay =
       formData.timeOfDay.length > 0 ? formData.timeOfDay[0] : null;
@@ -407,7 +408,7 @@ function AddMedicationModal({
       frequency: frequencyString,
       quantity: quantityValue,
       recommendSupply: recommendSupplyValue,
-      additionalInfo: additionalInfo,
+      additionalInfo: formData.additionalInfo?.trim() || null,
       instructions: formData.instructions,
       timeOfDay: primaryTimeOfDay,
       timesOfDay: formData.timeOfDay,
@@ -417,7 +418,10 @@ function AddMedicationModal({
     if (!medication) {
       payload.status = "pending";
       payload.initialQuantity = quantityValue; // Used for percentage calculation
-    } else if (payload.initialQuantity === null || payload.initialQuantity === undefined) {
+    } else if (
+      payload.initialQuantity === null ||
+      payload.initialQuantity === undefined
+    ) {
       // Preserve existing initialQuantity; if missing, default to current quantity.
       payload.initialQuantity = quantityValue;
     }
@@ -448,7 +452,9 @@ function AddMedicationModal({
       });
     }
     // `MEDICATION_PRESETS` is already sorted, but keep this stable anyway.
-    return list.sort((a, b) => String(a.label).localeCompare(String(b.label))).slice(0, 10);
+    return list
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)))
+      .slice(0, 10);
   })();
 
   return (
@@ -581,7 +587,9 @@ function AddMedicationModal({
                     value={formData.frequencyValue}
                     onChange={handleChange}
                     placeholder={
-                      formData.frequencyType === "timesPerDay" ? "e.g., 2" : "e.g., 4"
+                      formData.frequencyType === "timesPerDay"
+                        ? "e.g., 2"
+                        : "e.g., 4"
                     }
                     min={1}
                     max={formData.frequencyType === "timesPerDay" ? 12 : 24}
@@ -596,11 +604,17 @@ function AddMedicationModal({
                 )}
 
                 {/* Frequency Type Selector */}
-                <div className={formData.frequencyType === "custom" ? "sm:col-span-2" : ""}>
+                <div
+                  className={
+                    formData.frequencyType === "custom" ? "sm:col-span-2" : ""
+                  }
+                >
                   <SelectMenu
                     value={formData.frequencyType}
                     onChange={(nextValue) =>
-                      handleChange({ target: { name: "frequencyType", value: nextValue } })
+                      handleChange({
+                        target: { name: "frequencyType", value: nextValue },
+                      })
                     }
                     options={[
                       { value: "timesPerDay", label: "Times per day" },
@@ -658,29 +672,30 @@ function AddMedicationModal({
                 </Button>
               </div>
 
-              {Array.isArray(formData.timeOfDay) && formData.timeOfDay.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {[...formData.timeOfDay]
-                    .slice()
-                    .sort()
-                    .map((t) => (
-                      <span
-                        key={t}
-                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-poppins font-semibold bg-background-hover text-text-primary border border-border-default"
-                      >
-                        {to12HourDisplay(t)}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTimeOfDay(t)}
-                          className="text-text-secondary hover:text-danger transition-colors"
-                          aria-label={`Remove ${to12HourDisplay(t)}`}
+              {Array.isArray(formData.timeOfDay) &&
+                formData.timeOfDay.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {[...formData.timeOfDay]
+                      .slice()
+                      .sort()
+                      .map((t) => (
+                        <span
+                          key={t}
+                          className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-poppins font-semibold bg-background-hover text-text-primary border border-border-default"
                         >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                </div>
-              )}
+                          {to12HourDisplay(t)}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTimeOfDay(t)}
+                            className="text-text-secondary hover:text-danger transition-colors"
+                            aria-label={`Remove ${to12HourDisplay(t)}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                )}
             </div>
             {renderError("timeOfDay")}
           </div>
@@ -750,7 +765,8 @@ function AddMedicationModal({
               </div>
             </div>
             <p className="font-poppins text-xs text-text-secondary mt-2">
-              Used to calculate supply status and refill reminders. If left blank, we’ll use Total Quantity.
+              Used to calculate supply status and refill reminders. If left
+              blank, we’ll use Total Quantity.
             </p>
           </div>
 

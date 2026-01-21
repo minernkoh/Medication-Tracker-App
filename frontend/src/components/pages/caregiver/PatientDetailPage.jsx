@@ -322,10 +322,7 @@ function PatientDetailPage() {
                 .map((s) => s.trim())
                 .filter(Boolean)
             : [];
-        const notes = String(row?.additionalInfo || "").trim();
-        return instructionsList.length > 0
-          ? instructionsList.join(", ")
-          : notes || "";
+        return instructionsList.join(", ");
       },
       render: (value, row) => {
         const instructionsList = Array.isArray(value)
@@ -353,6 +350,16 @@ function PatientDetailPage() {
           );
         }
 
+        return (
+          <span className="font-poppins text-sm text-text-secondary">—</span>
+        );
+      },
+    },
+    {
+      key: "additionalInfo",
+      label: "Description",
+      sortValue: (row) => String(row?.additionalInfo || "").trim(),
+      render: (value, row) => {
         const notes = String(row?.additionalInfo || "").trim();
         if (notes) {
           return (

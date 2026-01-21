@@ -209,6 +209,14 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
   const handleEditMedication = (medication) => {
     if (isReadOnlyPatient) return;
     setEditingMedication(medication);
+    const realMed = medication.sourceMedication || medication;
+    const medWithContext = {
+      ...realMed,
+      slot: medication.slot || realMed.slot,
+      takenDate: toLocalIsoDay(selectedDate),
+      takenTime: medication.takenTime || realMed.takenTime,
+    };
+    setEditingMedication(medWithContext);
     setShowEditModal(true);
   };
 
@@ -218,6 +226,28 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
       await updateMedication(updatedMedication.id, {
         takenTime: updatedMedication.takenTime,
       });
+
+      if (updatedMedication?.takenDate && updatedMedication?.status === "taken") {
+        const targetDate = updatedMedication.takenDate;
+        const viewDate = toLocalIsoDay(selectedDate);
+        const timeSlot =
+          updatedMedication.slot ||
+          updatedMedication.timeOfDay ||
+          updatedMedication.timesOfDay?.[0];
+
+        if (targetDate !== viewDate) {
+          await resetMedicationStatus(updatedMedication.id, viewDate, timeSlot);
+        }
+        await markMedicationAsTaken(
+          updatedMedication.id,
+          updatedMedication.takenTime,
+          targetDate,
+          timeSlot,
+        );
+      } else {
+        await updateMedication(updatedMedication.id, updatedMedication);
+      }
+
       setShowEditModal(false);
       setEditingMedication(null);
     } catch {

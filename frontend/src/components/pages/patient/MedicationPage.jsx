@@ -113,16 +113,27 @@ const MedicationPage = ({ mode = "Personal" }) => {
     try {
       if (isReadOnlyPatient) return;
       if (
+        // 1. Check if the medication has a "takenDate" (meaning it's an edit from the "Taken Today" section)
         updatedMedication?.takenDate &&
+        // 2. Confirm that the intended action is to mark it as "taken"
         updatedMedication?.status === "taken"
       ) {
+        // A. If both conditions are met, we're dealing with editing a *specific dose*
+        // a.1 Get the current day
         const todayStr = toLocalIsoDay(new Date());
+        // a.2. Get the date the user selected
         const targetDate = updatedMedication.takenDate;
+        // a.3. If the user selected a day in the past we have to reconcile the current date with the users selected date
         const timeSlot =
           updatedMedication.timeOfDay || updatedMedication.timesOfDay?.[0];
+
+        // a.4. if the current day does NOT match the users selected day, reconcile
         if (targetDate !== todayStr) {
+          // a.4.1. Clear the current day
           await resetMedicationStatus(updatedMedication.id, todayStr, timeSlot);
         }
+
+        // a.5. Mark the selected day as taken
         await markMedicationAsTaken(
           updatedMedication.id,
           updatedMedication.takenTime,
@@ -130,15 +141,28 @@ const MedicationPage = ({ mode = "Personal" }) => {
           timeSlot,
         );
       } else {
+        // B. If the updatedMedication does NOT have a "takenDate"
+        // b.1. We're dealing with a general medication update
         await updateMedication(updatedMedication.id, updatedMedication);
       }
+
+      // C. Once complete
+      // c.1. Close the modal
       setShowEditModal(false);
+
+      // c.2. Clear the current edit
       setEditingMedication(null);
     } catch {
       // Errors are surfaced via global error handler
     }
   };
 
+  /**
+   * handleSaveSupplyMedication - async function to update a medication
+   *
+   * @param {Object} updatedMedication the medication that will be updated
+   * @returns {Promise<void>}
+   */
   const handleSaveSupplyMedication = async (updatedMedication) => {
     try {
       if (isReadOnlyPatient) return;
@@ -181,8 +205,14 @@ const MedicationPage = ({ mode = "Personal" }) => {
 
   // Sort pending medications by time of day
   const pendingMedsSorted = [...pendingMeds].sort((a, b) => {
-    const aSlot = a?.timeOfDay || (Array.isArray(a?.timesOfDay) ? a.timesOfDay[0] : "") || "";
-    const bSlot = b?.timeOfDay || (Array.isArray(b?.timesOfDay) ? b.timesOfDay[0] : "") || "";
+    const aSlot =
+      a?.timeOfDay ||
+      (Array.isArray(a?.timesOfDay) ? a.timesOfDay[0] : "") ||
+      "";
+    const bSlot =
+      b?.timeOfDay ||
+      (Array.isArray(b?.timesOfDay) ? b.timesOfDay[0] : "") ||
+      "";
     return (
       timeToMinutes(toTimeInput(aSlot) || aSlot) -
       timeToMinutes(toTimeInput(bSlot) || bSlot)
@@ -250,10 +280,7 @@ const MedicationPage = ({ mode = "Personal" }) => {
                 .map((s) => s.trim())
                 .filter(Boolean)
             : [];
-        const notes = String(row?.additionalInfo || "").trim();
-        return instructionsList.length > 0
-          ? instructionsList.join(", ")
-          : notes || "";
+        return instructionsList.join(", ");
       },
       render: (value, row) => {
         const instructionsList = Array.isArray(value)
@@ -281,6 +308,16 @@ const MedicationPage = ({ mode = "Personal" }) => {
           );
         }
 
+        return (
+          <span className="font-poppins text-sm text-text-secondary">—</span>
+        );
+      },
+    },
+    {
+      key: "additionalInfo",
+      label: "Description",
+      sortValue: (row) => String(row?.additionalInfo || "").trim(),
+      render: (value, row) => {
         const notes = String(row?.additionalInfo || "").trim();
         if (notes) {
           return (
