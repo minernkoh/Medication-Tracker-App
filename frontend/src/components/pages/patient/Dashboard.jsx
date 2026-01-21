@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
-import { PlusIcon, PillIcon, ArrowRightIcon } from "@phosphor-icons/react";
+import { PlusIcon, PillIcon } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import {
   TodayAdherencePieChart,
@@ -29,7 +29,7 @@ import {
   toLocalIsoDay,
   textStyles,
   normalizeAppointment,
-  filterMedsByStatus,
+  splitMedicationsBySlot,
 } from "../../../utils";
 
 function DashboardPage({ userName = "", mode = "Personal" }) {
@@ -114,15 +114,9 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
 
       const map = {};
       for (const [dateStr, meds] of results) {
-        const taken = meds.filter((m) => m?.status === "taken").length;
-        const notTaken = meds.filter((med) => {
-          const isPending = med?.status === "pending";
-          const isSupplyWithSchedule =
-            med?.status === "supply" &&
-            (med?.timeOfDay ||
-              (Array.isArray(med?.timesOfDay) && med.timesOfDay.length > 0));
-          return isPending || isSupplyWithSchedule;
-        }).length;
+        const split = splitMedicationsBySlot(meds);
+        const taken = split.taken.length;
+        const notTaken = split.pending.length;
         const total = taken + notTaken;
         map[dateStr] = total > 0 ? Math.round((taken / total) * 100) : 0;
       }
@@ -186,17 +180,24 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
 
   const dateLabel = isSelectedDateToday() ? null : formatSelectedDateForLabel();
 
-  // Calculate medication stats for today
+  // Slot-level medication split for the selected day
+  const splitMeds = useMemo(
+    () => splitMedicationsBySlot(medications),
+    [medications],
+  );
+
+  const pendingMedications = useMemo(() => {
+    return [...(splitMeds.pending || [])].sort(
+      (a, b) => timeToMinutes(a?.timeOfDay) - timeToMinutes(b?.timeOfDay),
+    );
+  }, [splitMeds.pending]);
+
+  const takenMedications = splitMeds.taken || [];
+
+  // Calculate medication stats for selected day (dose/slot level)
   const getMedicationStats = () => {
-    const taken = filterMedsByStatus(medications, "taken").length;
-    // Include medications with status "pending" OR "supply" that have a scheduled time
-    const notTaken = medications.filter((med) => {
-      const isPending = med.status === "pending";
-      const isSupplyWithSchedule =
-        med.status === "supply" &&
-        (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
-      return isPending || isSupplyWithSchedule;
-    }).length;
+    const taken = takenMedications.length;
+    const notTaken = pendingMedications.length;
     const total = taken + notTaken;
     const percentage = total > 0 ? Math.round((taken / total) * 100) : 0;
 
@@ -223,20 +224,6 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
       // Errors are surfaced via global error handler
     }
   };
-
-  // Get medications by status - transform to match MedicationSection format
-  // Include medications with status "pending" OR "supply" that have a scheduled time
-  const pendingMedications = medications
-    .filter((med) => {
-      const isPending = med.status === "pending";
-      const isSupplyWithSchedule =
-        med.status === "supply" &&
-        (med.timeOfDay || (med.timesOfDay && med.timesOfDay.length > 0));
-      return isPending || isSupplyWithSchedule;
-    })
-    .sort((a, b) => timeToMinutes(a.timeOfDay) - timeToMinutes(b.timeOfDay));
-
-  const takenMedications = filterMedsByStatus(medications, "taken");
 
   const stats = getMedicationStats();
   const hasMedications = medications.length > 0;
@@ -367,7 +354,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                         <p
                           className={`${textStyles.body.small} text-text-secondary mt-0.5`}
                         >
-                          Total Medications
+                          Total Doses
                         </p>
                       </div>
                     </div>
@@ -396,9 +383,10 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                       ? undefined
                       : (med) =>
                           markMedicationAsTaken(
-                            med,
+                            med?.sourceMedication || med,
                             null,
                             toLocalIsoDay(selectedDate),
+                            med?.slot || null,
                           )
                   }
                   showTimeGroups={true}
@@ -424,8 +412,9 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                       ? undefined
                       : (med) =>
                           resetMedicationStatus(
-                            med,
+                            med?.sourceMedication || med,
                             toLocalIsoDay(selectedDate),
+                            med?.slot || null,
                           )
                   }
                   showTimeGroups={true}
@@ -464,7 +453,6 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
                         >
                           <PlusIcon size={20} weight="bold" />
                           <span>Add Your First Medication</span>
-                          <ArrowRightIcon size={20} weight="bold" />
                         </button>
                         <p
                           className={`${textStyles.caption.small} max-w-md text-text-secondary`}

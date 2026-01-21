@@ -126,6 +126,7 @@ export {
   calculateSupplyStatus,
   getTimeGroup,
   filterMedsByStatus,
+  splitMedicationsBySlot,
 } from "./medicationUtils";
 
 // Normalization utilities

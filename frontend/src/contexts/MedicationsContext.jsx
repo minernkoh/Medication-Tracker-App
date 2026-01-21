@@ -40,7 +40,8 @@ export function MedicationsProvider({ children }) {
     async (date = null) => {
       setIsLoading(true);
       try {
-        const meds = await api.medications.getAll(date);
+        const targetDate = date || toLocalIsoDay(new Date());
+        const meds = await api.medications.getAll(targetDate);
         setMedications(
           (Array.isArray(meds) ? meds : []).map(normalizeMedication),
         );
@@ -249,6 +250,7 @@ export function MedicationsProvider({ children }) {
 
       api.medications
         .markAsTaken(medicationId, currentTime, targetDate, resolvedTimeSlot)
+        .then(() => loadMedications(targetDate))
         .catch((error) => {
           showError(error.message || "Unable to update medication status");
           loadMedications(targetDate);

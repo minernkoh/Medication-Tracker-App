@@ -571,10 +571,10 @@ function AuthPage({ onLogin, onSignup }) {
             <button
               type="button"
               onClick={() => {
-                setIsLogin(!isLogin);
+                setIsLogin((prev) => !prev);
                 setErrors({});
-                setAccountType("patient");
-                setHasSelectedAccountType(false);
+                // Preserve the selected account type when switching
+                // between Sign In and Sign Up (e.g. Caregiver stays selected).
               }}
               className={`font-semibold ${
                 isCaregiverSelected

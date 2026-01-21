@@ -20,6 +20,16 @@ import {
   toTimeInput,
 } from "../../utils";
 
+const stripBracketedText = (input) => {
+  const raw = String(input || "");
+  // Remove any (...) / [...] / {...} blocks (and surrounding whitespace)
+  // e.g. "Aspirin (once daily)" -> "Aspirin"
+  return raw
+    .replace(/\s*[[({][^)\]}]*[)\]}]\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 const getUnitForType = (rawType) => {
   const t = String(rawType || "")
     .trim()
@@ -200,16 +210,17 @@ function AddMedicationModal({
     );
   };
 
-  const applyPreset = (preset) => {
-    if (!preset || !preset.formData) return;
-    setFormData({
+  const buildFormDataFromPreset = (preset) => {
+    if (!preset || !preset.formData) return null;
+    return {
       ...DEFAULT_FORM_DATA,
       ...preset.formData,
       // Ensure arrays exist
-      instructions: Array.isArray(preset.formData.instructions) ? preset.formData.instructions : [],
+      instructions: Array.isArray(preset.formData.instructions)
+        ? preset.formData.instructions
+        : [],
       timeOfDay: Array.isArray(preset.formData.timeOfDay) ? preset.formData.timeOfDay : [],
-    });
-    setErrors({});
+    };
   };
 
   const isFormEmptyEnoughToAutofill = (fd) => {
@@ -226,17 +237,18 @@ function AddMedicationModal({
     );
   };
 
-  const maybeAutofillFromName = (nextName, fdSnapshot) => {
+  const maybeGetPresetFromName = (nextName, fdSnapshot) => {
     if (isEditing) return;
     if (!nextName) return;
     const preset = findMedicationPresetByName(nextName);
     if (!preset) return;
     if (!isFormEmptyEnoughToAutofill(fdSnapshot)) return;
-    applyPreset(preset);
+    return preset;
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let didAutofill = false;
     if (name === "type") {
       setFormData((prev) => {
         const prevTypeUnit = getUnitForType(prev.type);
@@ -249,17 +261,24 @@ function AddMedicationModal({
           unit: shouldAutoUpdateUnit ? nextTypeUnit : prev.unit,
         };
       });
-    } else {
-      setFormData((prev) => {
-        const next = { ...prev, [name]: value };
-        if (name === "name") {
-          // If the user picked a known medication from the datalist (exact match),
-          // autofill the rest of the form only if they haven't started filling it.
-          maybeAutofillFromName(value, prev);
+    } else if (name === "name") {
+      const preset = maybeGetPresetFromName(value, formData);
+      if (preset) {
+        const next = buildFormDataFromPreset(preset);
+        if (next) {
+          setFormData(next);
+          setErrors({});
+          didAutofill = true;
         }
-        return next;
-      });
+      }
+      if (!didAutofill) {
+        setFormData((prev) => ({ ...prev, name: value }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
+
+    if (didAutofill) return;
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -381,7 +400,7 @@ function AddMedicationModal({
 
     const payload = {
       ...(medication || {}),
-      name: formData.name,
+      name: stripBracketedText(formData.name),
       dosage: parseFloat(formData.dosage) || 0,
       unit: formData.unit,
       type: formData.type,
@@ -409,20 +428,27 @@ function AddMedicationModal({
   if (!isOpen) return null;
 
   const presetNameOptions = (() => {
+    // Show at most 10 *distinct configurations* (one option per preset),
+    // and avoid "similar" duplicates from preset synonyms/brand names.
     const seen = new Set();
     const list = [];
     for (const preset of MEDICATION_PRESETS || []) {
-      const names = Array.isArray(preset?.names) ? preset.names : [];
-      for (const raw of names) {
-        const n = String(raw || "").trim();
-        if (!n) continue;
-        const key = n.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        list.push({ value: n, label: n });
-      }
+      const rawValue = preset?.formData?.name ?? preset?.names?.[0] ?? "";
+      const value = String(rawValue || "").trim();
+      if (!value) continue;
+      const cleanValue = stripBracketedText(value);
+      const key = cleanValue.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const rawLabel = String(preset?.label || cleanValue);
+      const cleanLabel = stripBracketedText(rawLabel) || cleanValue;
+      list.push({
+        value: cleanValue,
+        label: cleanLabel,
+      });
     }
-    return list.sort((a, b) => a.label.localeCompare(b.label));
+    // `MEDICATION_PRESETS` is already sorted, but keep this stable anyway.
+    return list.sort((a, b) => String(a.label).localeCompare(String(b.label))).slice(0, 10);
   })();
 
   return (

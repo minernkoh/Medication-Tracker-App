@@ -313,7 +313,7 @@ function MedicationSection({
                   <div className="space-y-3">
                     {meds.map((med) => (
                       <PendingMedicine
-                        key={med.id}
+                        key={med.uiKey || med.id}
                         type="Due"
                         medicationName={med.name}
                         dosage={formatQuantity(med.dosage, med.unit)}
@@ -345,7 +345,7 @@ function MedicationSection({
                   <div className="space-y-3">
                     {meds.map((med) => (
                       <PendingMedicine
-                        key={med.id}
+                        key={med.uiKey || med.id}
                         type="Taken"
                         medicationName={med.name}
                         dosage={formatQuantity(med.dosage, med.unit)}
@@ -355,7 +355,7 @@ function MedicationSection({
                             : med.additionalInfo
                         }
                         pillColor={med.pillColor}
-                        onEdit={onEdit ? () => onEdit(med) : undefined}
+                        onEdit={onEdit ? () => onEdit(med.sourceMedication || med) : undefined}
                         onDelete={onDelete ? () => onDelete(med) : undefined}
                         mode={mode}
                       />
@@ -370,7 +370,7 @@ function MedicationSection({
               {(isPending ? sortedPendingMeds : sortedTakenMeds || medications).map(
                 (med) => (
                   <PendingMedicine
-                    key={med.id}
+                    key={med.uiKey || med.id}
                     type={isPending ? "Due" : "Taken"}
                     medicationName={med.name}
                     dosage={formatQuantity(med.dosage, med.unit)}
@@ -392,7 +392,9 @@ function MedicationSection({
                         ? () => onMarkAsTaken(med)
                         : undefined
                     }
-                    onEdit={!isPending && onEdit ? () => onEdit(med) : undefined}
+                    onEdit={
+                      !isPending && onEdit ? () => onEdit(med.sourceMedication || med) : undefined
+                    }
                     onDelete={
                       !isPending && onDelete ? () => onDelete(med) : undefined
                     }

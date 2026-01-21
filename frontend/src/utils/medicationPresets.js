@@ -175,8 +175,7 @@ export const MEDICATION_PRESETS = [
   {
     key: "paracetamol",
     label: "Paracetamol / Panadol (4x daily)",
-    // Include the misspelling requested so it still matches autocomplete input.
-    names: ["Paracetamol", "Paractemol", "Panadol"],
+    names: ["Paracetamol", "Panadol"],
     formData: {
       name: "Paracetamol",
       dosage: "1",

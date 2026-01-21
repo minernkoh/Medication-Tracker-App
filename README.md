@@ -211,9 +211,23 @@ Optional:
 - `PORT` (defaults to `5001`)
 - `HOST` (defaults to `127.0.0.1`)
 
-Frontend (optional): override the Vite dev proxy target by creating `frontend/.env`:
+Backend `.env` template:
 
 ```env
+PORT=5001
+HOST=127.0.0.1
+MONGODB_URI=mongodb://127.0.0.1:27017/medtrack
+JWT_SECRET={random string here}
+```
+
+Frontend (optional): create `frontend/.env` to override API/proxy settings:
+
+```bash
+cp frontend/env.example frontend/.env
+```
+
+```env
+VITE_API_URL=/api
 VITE_API_TARGET=http://127.0.0.1:5001
 ```
 

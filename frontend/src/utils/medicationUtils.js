@@ -3,6 +3,8 @@
  * Shared logic for supply calculations, status determination, and grouping
  */
 
+import { to12HourDisplay, toTimeInput } from "./timeUtils";
+
 /**
  * Calculate supply status based on ratio of Total Quantity vs Recommend Supply
  * @param {object} med - Normalized medication object
@@ -95,4 +97,101 @@ export const filterMedsByStatus = (meds, targetStatus) => {
     return meds.filter((m) => !m?.isArchived && m.status === targetStatus);
   }
   return meds.filter((m) => m.status === targetStatus);
+};
+
+const formatSlotLabel = (slot) => {
+  const normalized = toTimeInput(String(slot || ""));
+  return normalized ? to12HourDisplay(normalized) : String(slot || "");
+};
+
+const formatTakenTimeForSlot = (med, slot) => {
+  const takenAt = med?.takenTimesBySlot?.[slot];
+  if (takenAt) {
+    const date = new Date(takenAt);
+    if (!Number.isNaN(date.getTime())) {
+      const hh = String(date.getHours()).padStart(2, "0");
+      const mm = String(date.getMinutes()).padStart(2, "0");
+      return to12HourDisplay(`${hh}:${mm}`);
+    }
+  }
+  return formatSlotLabel(slot);
+};
+
+/**
+ * Split medications into slot-level "pending" and "taken" entries for a single day.
+ *
+ * The backend provides `scheduledSlots`, `pendingSlots`, `takenSlots` and
+ * `takenTimesBySlot` when medications are loaded with a `?date=YYYY-MM-DD` query.
+ * This helper expands multi-schedule medications into one card per slot so that
+ * marking a dose as taken moves that dose from Pending -> Taken immediately.
+ *
+ * - Pending entries exclude archived medications (matches `filterMedsByStatus` behavior).
+ * - Taken entries include archived medications if they have logs for that date.
+ *
+ * Each slot entry includes:
+ * - `uiKey`: unique string for React keys
+ * - `slot`: the schedule slot for the card
+ * - `sourceMedication`: the original medication object (full schedule preserved)
+ * - `timesOfDay`/`timeOfDay`: overwritten to the single slot for UI grouping/sorting
+ */
+export const splitMedicationsBySlot = (meds = []) => {
+  const pending = [];
+  const taken = [];
+
+  (Array.isArray(meds) ? meds : []).forEach((med) => {
+    if (!med) return;
+
+    const scheduledSlots = Array.isArray(med?.scheduledSlots)
+      ? med.scheduledSlots
+      : Array.isArray(med?.timesOfDay) && med.timesOfDay.length > 0
+        ? med.timesOfDay
+        : med?.timeOfDay
+          ? [med.timeOfDay]
+          : [];
+
+    const takenSlotsSet = new Set(
+      Array.isArray(med?.takenSlots) ? med.takenSlots : [],
+    );
+
+    const pendingSlots = Array.isArray(med?.pendingSlots)
+      ? med.pendingSlots
+      : scheduledSlots.filter((slot) => !takenSlotsSet.has(slot));
+
+    // No schedule: keep medication-level behavior
+    if (!scheduledSlots.length) {
+      if (med.status === "taken") {
+        taken.push(med);
+      } else if (!med?.isArchived) {
+        pending.push(med);
+      }
+      return;
+    }
+
+    const buildSlotEntry = (slot, status) => ({
+      ...med,
+      uiKey: `${med.id}-${slot}-${status}`,
+      status,
+      timeOfDay: slot,
+      timesOfDay: [slot],
+      takenTime: status === "taken" ? formatTakenTimeForSlot(med, slot) : med.takenTime,
+      slot,
+      sourceMedication: med,
+    });
+
+    // Pending slots -> pending section
+    if (!med?.isArchived) {
+      pendingSlots.forEach((slot) => {
+        pending.push(buildSlotEntry(slot, "pending"));
+      });
+    }
+
+    // Taken slots -> taken section
+    scheduledSlots.forEach((slot) => {
+      if (takenSlotsSet.has(slot)) {
+        taken.push(buildSlotEntry(slot, "taken"));
+      }
+    });
+  });
+
+  return { pending, taken };
 };

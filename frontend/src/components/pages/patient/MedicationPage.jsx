@@ -23,6 +23,7 @@ import {
   timeToMinutes,
   calculateSupplyStatus,
   filterMedsByStatus,
+  splitMedicationsBySlot,
   toTimeInput,
   toLocalIsoDay,
 } from "../../../utils";
@@ -165,38 +166,26 @@ const MedicationPage = ({ mode = "Personal" }) => {
   /**
    * Handle resetting medication status (from taken to pending)
    */
-  const handleResetMedicationStatus = async (medication) => {
-    try {
-      if (isReadOnlyPatient) return;
-      const timeSlot = medication?.timeOfDay || medication?.timesOfDay?.[0];
-      await resetMedicationStatus(medication?.id, null, timeSlot);
-    } catch (error) {
-      // Errors are surfaced via global error handler
-    }
-  };
 
   // ============================================================================
   // MEDICATION FILTERING & SORTING
   // ============================================================================
 
-  // Filter medications by status for display
+  const todayStr = toLocalIsoDay(new Date());
 
-  const pendingMeds = filterMedsByStatus(medications, "pending");
-  const takenMeds = filterMedsByStatus(medications, "taken");
+  // Slot-level split for "Today" views
+  const splitMeds = splitMedicationsBySlot(medications);
+  const pendingMeds = splitMeds.pending;
+  const takenMeds = splitMeds.taken;
   const supplyMeds = filterMedsByStatus(medications, "supply");
 
   // Sort pending medications by time of day
   const pendingMedsSorted = [...pendingMeds].sort((a, b) => {
-    const aSlot =
-      (Array.isArray(a.timesOfDay) && a.timesOfDay.length > 0
-        ? a.timesOfDay[0]
-        : a.timeOfDay) || "";
-    const bSlot =
-      (Array.isArray(b.timesOfDay) && b.timesOfDay.length > 0
-        ? b.timesOfDay[0]
-        : b.timeOfDay) || "";
+    const aSlot = a?.timeOfDay || (Array.isArray(a?.timesOfDay) ? a.timesOfDay[0] : "") || "";
+    const bSlot = b?.timeOfDay || (Array.isArray(b?.timesOfDay) ? b.timesOfDay[0] : "") || "";
     return (
-      timeToMinutes(toTimeInput(aSlot)) - timeToMinutes(toTimeInput(bSlot))
+      timeToMinutes(toTimeInput(aSlot) || aSlot) -
+      timeToMinutes(toTimeInput(bSlot) || bSlot)
     );
   });
 
@@ -416,7 +405,15 @@ const MedicationPage = ({ mode = "Personal" }) => {
                 variant="pending"
                 medications={pendingMedsSorted}
                 onMarkAsTaken={
-                  isReadOnlyPatient ? undefined : markMedicationAsTaken
+                  isReadOnlyPatient
+                    ? undefined
+                    : (med) =>
+                        markMedicationAsTaken(
+                          med?.sourceMedication || med,
+                          null,
+                          todayStr,
+                          med?.slot || null,
+                        )
                 }
                 showTimeGroups={true}
                 compact={false}
@@ -430,7 +427,14 @@ const MedicationPage = ({ mode = "Personal" }) => {
                 medications={takenMeds}
                 onEdit={isReadOnlyPatient ? undefined : handleEditMedication}
                 onDelete={
-                  isReadOnlyPatient ? undefined : handleResetMedicationStatus
+                  isReadOnlyPatient
+                    ? undefined
+                    : (med) =>
+                        resetMedicationStatus(
+                          med?.sourceMedication || med,
+                          todayStr,
+                          med?.slot || null,
+                        )
                 }
                 showTimeGroups={true}
                 compact={false}
