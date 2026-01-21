@@ -150,7 +150,28 @@ function AuthPage({ onLogin, onSignup }) {
             loginPayload.role = accountType;
           }
 
-          await onLogin?.(loginPayload);
+          try {
+            await onLogin?.(loginPayload);
+          } catch (error) {
+            const message = error?.message || "";
+
+            // If the backend reports multiple accounts for the email, the user must
+            // specify an account type. The UI shows a default selection (Patient),
+            // but role isn't sent until the user explicitly clicks a card.
+            // To match the UI, retry once using the currently selected account type.
+            const shouldRetryWithRole =
+              message.includes("Multiple accounts found") &&
+              !hasSelectedAccountType &&
+              Boolean(accountType);
+
+            if (shouldRetryWithRole) {
+              setHasSelectedAccountType(true);
+              await onLogin?.({ ...loginPayload, role: accountType });
+              return;
+            }
+
+            throw error;
+          }
         }
       } catch (error) {
         showError(error?.message || "Authentication failed");
