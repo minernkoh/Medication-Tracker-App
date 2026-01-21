@@ -36,24 +36,18 @@ import { getMedicationColor } from "../../utils/medicationColors";
 const SUPPLY_DEMO_ROWS = [
   {
     name: "Aspirin",
-    quantity: 45,
-    recommendSupply: 60,
     supplyStatus: "High",
     supplyStatusColor: "bg-green-100 text-green-700",
     supplyStatusRank: 4,
   },
   {
     name: "Vitamin D",
-    quantity: 30,
-    recommendSupply: 60,
     supplyStatus: "Med",
     supplyStatusColor: "bg-amber-100 text-amber-700",
     supplyStatusRank: 3,
   },
   {
     name: "Metformin",
-    quantity: 15,
-    recommendSupply: 60,
     supplyStatus: "Low",
     supplyStatusColor: "bg-red-100 text-red-700",
     supplyStatusRank: 2,
@@ -135,14 +129,6 @@ function OnboardingTutorial({ onComplete, user }) {
     if (supplySortConfig.key === "name") {
       return multiplier * a.name.localeCompare(b.name);
     }
-    if (supplySortConfig.key === "quantity") {
-      return multiplier * (Number(a.quantity) - Number(b.quantity));
-    }
-    if (supplySortConfig.key === "recommendSupply") {
-      return (
-        multiplier * (Number(a.recommendSupply) - Number(b.recommendSupply))
-      );
-    }
     if (supplySortConfig.key === "supplyStatus") {
       return (
         multiplier * (Number(a.supplyStatusRank) - Number(b.supplyStatusRank))
@@ -152,9 +138,9 @@ function OnboardingTutorial({ onComplete, user }) {
   });
 
   const TutorialIllustrationFrame = ({ children }) => (
-    <div className="relative w-full h-56 sm:h-64 rounded-3xl overflow-hidden">
+    <div className="relative w-full h-72 sm:h-80 rounded-3xl overflow-hidden">
       {/* Scale illustration to avoid any internal scrolling */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 p-3 sm:p-4 flex items-center justify-center">
         <div className="w-full h-full flex items-center justify-center origin-center scale-[0.82] sm:scale-[0.88] md:scale-[0.92] lg:scale-100 [&_img]:max-w-full [&_img]:max-h-full [&_img]:h-auto [&_img]:object-contain">
           {children}
         </div>
@@ -162,7 +148,7 @@ function OnboardingTutorial({ onComplete, user }) {
     </div>
   );
 
-  const steps = [
+  const allSteps = [
     {
       id: "welcome",
       icon: SparkleIcon,
@@ -181,7 +167,13 @@ function OnboardingTutorial({ onComplete, user }) {
             }`}
           />
           <div className="relative flex items-center gap-6">
-            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/30 animate-pulse">
+            <div
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl animate-pulse ${
+                isCaregiver
+                  ? "bg-secondary shadow-secondary/30"
+                  : "bg-primary shadow-primary/30"
+              }`}
+            >
               <FirstAidKitIcon
                 size={32}
                 weight="fill"
@@ -234,76 +226,147 @@ function OnboardingTutorial({ onComplete, user }) {
                         aria-label="Add patient"
                       >
                         <PlusIcon size={14} weight="bold" />
-                        Add
+                        Add Patient
                       </button>
                     </div>
 
-                    {/* Search */}
-                    <div className="px-4 py-3 border-b border-border-default">
-                      <div className="relative w-full">
-                        <MagnifyingGlassIcon
-                          size={16}
-                          weight="regular"
-                          color={colors.text.secondary}
-                          className="absolute left-3 top-1/2 -translate-y-1/2"
-                        />
-                        <div className="w-full pl-9 pr-3 py-2 rounded-xl border border-border-default bg-white font-poppins text-xs text-text-secondary/70">
-                          Search patients…
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Mini list */}
-                    <div className="divide-y divide-border-default">
-                      {[
-                        {
-                          name: "John Doe",
-                          avatarText: "JD",
-                          alerts: 1,
-                          adherence: 75,
-                          avatarBg: colors.patient.blue,
-                        },
-                        {
-                          name: "Jane Smith",
-                          avatarText: "JS",
-                          alerts: 0,
-                          adherence: 100,
-                          avatarBg: colors.patient.pink,
-                        },
-                      ].map((p, idx) => (
-                        <div
-                          key={`${p.name}-${idx}`}
-                          className="px-4 py-3 flex items-center justify-between gap-3"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div
-                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold text-xs"
-                              style={{ backgroundColor: p.avatarBg }}
-                            >
-                              {p.avatarText}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-poppins font-semibold text-sm text-text-primary truncate">
-                                {p.name}
-                              </p>
-                              <p className="font-poppins text-xs text-text-secondary truncate">
-                                {p.adherence}% adherence today
-                              </p>
-                            </div>
-                          </div>
-                          {p.alerts > 0 ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-poppins text-xs font-semibold flex-shrink-0">
-                              <WarningCircleIcon size={14} weight="fill" />
-                              {p.alerts}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-poppins text-xs font-semibold flex-shrink-0">
-                              <CheckCircleIcon size={14} weight="fill" />
-                              Good
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                    {/* Mini table (matches PatientsPage columns) */}
+                    <div className="w-full overflow-hidden">
+                      <table className="w-full table-fixed">
+                        <thead>
+                          <tr className="border-b border-border-default bg-background-subtle">
+                            <th className="text-left px-3 py-2.5 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[34%]">
+                              Patient
+                            </th>
+                            <th className="text-left px-3 py-2.5 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[16%]">
+                              Meds
+                            </th>
+                            <th className="text-left px-3 py-2.5 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[26%]">
+                              Today
+                            </th>
+                            <th className="text-left px-3 py-2.5 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[14%]">
+                              Next
+                            </th>
+                            <th className="text-left px-3 py-2.5 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[10%]">
+                              Supply
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-border-default">
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div
+                                  className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold text-[11px]"
+                                  style={{
+                                    backgroundColor: colors.patient.blue,
+                                  }}
+                                >
+                                  JD
+                                </div>
+                                <span className="font-poppins font-semibold text-xs text-text-primary truncate">
+                                  John Doe
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <PillIcon
+                                  size={14}
+                                  weight="regular"
+                                  className="text-icon-secondary"
+                                />
+                                <span className="font-poppins text-xs text-text-primary">
+                                  4
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-warning"
+                                    style={{ width: "75%" }}
+                                  />
+                                </div>
+                                <span className="font-poppins text-xs font-medium text-warning tabular-nums">
+                                  75%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <CalendarCheckIcon
+                                  size={14}
+                                  weight="regular"
+                                  className="text-icon-secondary"
+                                />
+                                <span className="font-poppins text-[11px] text-text-primary truncate">
+                                  1/15
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <span className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-600 font-poppins text-[11px] font-semibold">
+                                <WarningCircleIcon size={12} weight="fill" />1
+                              </span>
+                            </td>
+                          </tr>
+                          <tr className="border-b border-border-default last:border-0">
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div
+                                  className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white font-poppins font-bold text-[11px]"
+                                  style={{
+                                    backgroundColor: colors.patient.pink,
+                                  }}
+                                >
+                                  JS
+                                </div>
+                                <span className="font-poppins font-semibold text-xs text-text-primary truncate">
+                                  Jane Smith
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <PillIcon
+                                  size={14}
+                                  weight="regular"
+                                  className="text-icon-secondary"
+                                />
+                                <span className="font-poppins text-xs text-text-primary">
+                                  2
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-success"
+                                    style={{ width: "100%" }}
+                                  />
+                                </div>
+                                <span className="font-poppins text-xs font-medium text-success tabular-nums">
+                                  100%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <span className="font-poppins text-[11px] text-text-secondary italic">
+                                None
+                              </span>
+                            </td>
+                            <td className="px-3 py-3">
+                              <span className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-poppins text-[11px] font-semibold">
+                                <CheckCircleIcon size={12} weight="fill" />
+                                Good
+                              </span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -319,57 +382,77 @@ function OnboardingTutorial({ onComplete, user }) {
               "Open a patient to view today’s meds, update taken status, track supply, and manage upcoming appointments—all in one place.",
             illustration: (
               <div className="relative w-full h-full rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-purple-100/50" />
+                <div className="absolute inset-0 bg-gradient-to-br from-rose-50 to-pink-100/50" />
                 <div className="relative w-full h-full px-4 py-4 flex items-center justify-center">
                   <div className="bg-background-default border border-border-default rounded-2xl p-4 w-full max-w-full">
-                    <div className="flex items-center gap-3 mb-4 min-w-0">
+                    <div className="flex items-center gap-4 mb-4 min-w-0">
                       <div
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-poppins font-bold flex-shrink-0"
+                        className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-poppins font-bold text-lg flex-shrink-0"
                         style={{ backgroundColor: colors.patient.blue }}
                       >
                         JD
                       </div>
                       <div className="min-w-0">
-                        <p className="font-poppins font-bold text-text-primary truncate">
-                          John (John Doe)
+                        <p className="font-poppins font-bold text-base text-text-primary truncate">
+                          John Doe
                         </p>
                         <p className="font-poppins text-xs text-text-secondary truncate">
-                          Son • 72 years old
+                          Patient overview
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-background-subtle rounded-xl p-3">
-                        <p className="font-poppins text-xs text-text-secondary">
-                          Today
-                        </p>
-                        <p className="font-poppins font-bold text-text-primary">
-                          2/3
-                        </p>
+                      <div className="bg-background-default border border-border-subtle rounded-xl p-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-50 flex-shrink-0">
+                            <CheckCircleIcon
+                              size={16}
+                              weight="fill"
+                              className="text-success"
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <p className="font-poppins text-xs font-semibold text-text-primary truncate">
+                            Today&apos;s Adherence
+                          </p>
+                        </div>
+                        <div className="mt-2 flex items-center justify-center">
+                          <TodayAdherencePieChart
+                            taken={2}
+                            notTaken={1}
+                            size={56}
+                          />
+                        </div>
                       </div>
-                      <div className="bg-background-subtle rounded-xl p-3">
-                        <p className="font-poppins text-xs text-text-secondary">
-                          Weekly
-                        </p>
-                        <p className="font-poppins font-bold text-text-primary">
-                          86%
-                        </p>
+
+                      <div className="bg-background-default border border-border-subtle rounded-xl p-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-red-50 flex-shrink-0">
+                            <WarningCircleIcon
+                              size={16}
+                              weight="fill"
+                              className="text-danger"
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <p className="font-poppins text-xs font-semibold text-text-primary truncate">
+                            Low Supply Alerts
+                          </p>
+                        </div>
+                        <div className="mt-2 flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-poppins text-xs font-semibold text-text-primary truncate">
+                              Metformin
+                            </p>
+                            <p className="font-poppins text-[11px] text-text-secondary truncate">
+                              Low supply
+                            </p>
+                          </div>
+                          <span className="font-poppins text-xs font-semibold text-danger tabular-nums whitespace-nowrap">
+                            15 left
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between bg-amber-50 text-amber-700 px-3 py-2 rounded-xl">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <WarningCircleIcon
-                          size={16}
-                          weight="fill"
-                          className="flex-shrink-0"
-                        />
-                        <p className="font-poppins text-xs font-semibold truncate">
-                          Low supply: Metformin
-                        </p>
-                      </div>
-                      <span className="font-poppins text-xs font-bold flex-shrink-0">
-                        25%
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -409,9 +492,7 @@ function OnboardingTutorial({ onComplete, user }) {
                   <ClockIcon
                     size={16}
                     weight="regular"
-                    className={
-                      isCaregiver ? "text-secondary" : "text-primary"
-                    }
+                    className={isCaregiver ? "text-secondary" : "text-primary"}
                   />
                   {group.time}
                 </h3>
@@ -438,8 +519,8 @@ function OnboardingTutorial({ onComplete, user }) {
         ? "Stay ahead for your patient"
         : "Stay on top of your supply",
       description: isCaregiver
-        ? "Track a patient’s inventory. Supply status is calculated against their recommended supply and updates as medications are taken."
-        : "View your medication inventory in a table format. Supply status is calculated against your recommended supply, helping you track how much you have remaining.",
+        ? "Track a patient’s inventory at a glance. Supply status updates as medications are taken."
+        : "View your medication inventory in a simple table. Supply status helps you quickly spot what’s running low.",
       illustration: (
         <div className="relative w-full h-full rounded-3xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-orange-100/50 rounded-3xl" />
@@ -449,7 +530,7 @@ function OnboardingTutorial({ onComplete, user }) {
                 <thead>
                   <tr className="border-b border-border-default bg-background-subtle">
                     <th
-                      className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[42%] cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[70%] cursor-pointer hover:text-text-primary transition-colors group select-none"
                       onClick={() => handleSupplySort("name")}
                     >
                       <div className="flex items-center">
@@ -458,25 +539,7 @@ function OnboardingTutorial({ onComplete, user }) {
                       </div>
                     </th>
                     <th
-                      className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[19%] cursor-pointer hover:text-text-primary transition-colors group select-none"
-                      onClick={() => handleSupplySort("quantity")}
-                    >
-                      <div className="flex items-center">
-                        Total Qty
-                        <SupplySortIndicator columnKey="quantity" />
-                      </div>
-                    </th>
-                    <th
-                      className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[22%] cursor-pointer hover:text-text-primary transition-colors group select-none"
-                      onClick={() => handleSupplySort("recommendSupply")}
-                    >
-                      <div className="flex items-center">
-                        Recommended
-                        <SupplySortIndicator columnKey="recommendSupply" />
-                      </div>
-                    </th>
-                    <th
-                      className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[17%] cursor-pointer hover:text-text-primary transition-colors group select-none"
+                      className="text-left px-3 py-3 font-poppins font-semibold text-[11px] text-text-secondary uppercase tracking-wide w-[30%] cursor-pointer hover:text-text-primary transition-colors group select-none"
                       onClick={() => handleSupplySort("supplyStatus")}
                     >
                       <div className="flex items-center">
@@ -511,16 +574,6 @@ function OnboardingTutorial({ onComplete, user }) {
                               {med.name}
                             </span>
                           </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className="font-poppins text-xs font-medium text-text-primary truncate">
-                            {med.quantity}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className="font-poppins text-xs font-medium text-text-primary truncate">
-                            {med.recommendSupply}
-                          </span>
                         </td>
                         <td className="px-3 py-3">
                           <span
@@ -630,46 +683,46 @@ function OnboardingTutorial({ onComplete, user }) {
           <div className="absolute inset-0 bg-gradient-to-br from-violet-50 to-purple-100/50 rounded-3xl" />
           <div className="relative">
             {/* Progress card matching Dashboard */}
-            <div className="bg-background-default border border-border-default flex flex-col gap-4 p-4 rounded-2xl w-64">
-              <p className="font-poppins font-semibold text-sm text-text-primary w-full">
+            <div className="bg-background-default border border-border-default flex flex-col gap-3 p-3 rounded-2xl w-56">
+              <p className="font-poppins font-semibold text-xs text-text-primary w-full">
                 Today&apos;s Progress
               </p>
               {/* Pie Chart and Stats */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full">
-                <TodayAdherencePieChart taken={3} notTaken={1} size={100} />
+              <div className="flex flex-col md:flex-row items-center justify-center gap-3 w-full">
+                <TodayAdherencePieChart taken={3} notTaken={1} size={84} />
                 {/* Stats */}
-                <div className="flex flex-col gap-3 items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-full bg-success" />
+                <div className="flex flex-col gap-2 items-start">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3.5 h-3.5 rounded-full bg-success" />
                     <div className="flex flex-col">
-                      <p className="font-poppins font-semibold text-base text-text-primary">
+                      <p className="font-poppins font-semibold text-sm text-text-primary">
                         3
                       </p>
-                      <p className="font-poppins text-sm text-text-secondary">
+                      <p className="font-poppins text-xs text-text-secondary">
                         Taken
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div
-                      className="w-4 h-4 rounded-full"
+                      className="w-3.5 h-3.5 rounded-full"
                       style={{ backgroundColor: "rgba(100,100,100,0.1)" }}
                     />
                     <div className="flex flex-col">
-                      <p className="font-poppins font-semibold text-base text-text-primary">
+                      <p className="font-poppins font-semibold text-sm text-text-primary">
                         1
                       </p>
-                      <p className="font-poppins text-sm text-text-secondary">
+                      <p className="font-poppins text-xs text-text-secondary">
                         Pending
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 pt-2 border-t border-border-subtle">
+                  <div className="flex items-center gap-2 pt-2 border-t border-border-subtle">
                     <div className="flex flex-col">
-                      <p className="font-poppins font-semibold text-base text-text-primary">
+                      <p className="font-poppins font-semibold text-sm text-text-primary">
                         4
                       </p>
-                      <p className="font-poppins text-sm text-text-secondary">
+                      <p className="font-poppins text-xs text-text-secondary">
                         Total Medications
                       </p>
                     </div>
@@ -858,6 +911,24 @@ function OnboardingTutorial({ onComplete, user }) {
     },
   ];
 
+  // Keep caregiver onboarding short: patients → patient detail covers meds/supply/appts/adherence.
+  const steps = isCaregiver
+    ? allSteps.filter((s) =>
+        ["welcome", "patients", "patientDetail", "caregiver", "ready"].includes(
+          s.id,
+        ),
+      )
+    : allSteps.filter((s) =>
+        [
+          "welcome",
+          "medications",
+          "supply",
+          "appointments",
+          "progress",
+          "ready",
+        ].includes(s.id),
+      );
+
   const currentStepData = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
   const IconComponent = currentStepData.icon;
@@ -898,39 +969,41 @@ function OnboardingTutorial({ onComplete, user }) {
       }`}
     >
       <div className="w-full max-w-5xl">
-        {/* Progress bar */}
-        <div className="flex items-center gap-2 mb-8">
-          {steps.map((_, index) => (
-            <div
-              key={index}
-              className="h-1.5 flex-1 rounded-full transition-all duration-300"
-              style={{
-                backgroundColor:
-                  index <= currentStep
-                    ? isCaregiver
-                      ? colors.secondary.DEFAULT
-                      : colors.primary.DEFAULT
-                    : colors.background.subtle,
-              }}
-            />
-          ))}
-        </div>
-
         {/* Main card */}
-        <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2">
+        <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden flex flex-col md:min-h-[640px]">
+          {/* Progress bar (inside card) */}
+          <div className="px-6 sm:px-8 md:px-10 pt-6 sm:pt-8 pb-6 sm:pb-8">
+            <div className="flex items-center gap-2">
+              {steps.map((_, index) => (
+                <div
+                  key={index}
+                  className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                  style={{
+                    backgroundColor:
+                      index <= currentStep
+                        ? isCaregiver
+                          ? colors.secondary.DEFAULT
+                          : colors.primary.DEFAULT
+                        : colors.background.subtle,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 flex-1">
             {/* Illustration (left on md+) */}
-            <div className="p-6 sm:p-8 md:p-10 bg-white">
+            <div className="px-6 sm:px-8 md:px-10 pb-6 sm:pb-8 md:pb-10 bg-white flex items-center">
               <TutorialIllustrationFrame>
                 {currentStepData.illustration}
               </TutorialIllustrationFrame>
             </div>
 
             {/* Content + navigation (right on md+) */}
-            <div className="p-6 sm:p-8 md:p-10 flex flex-col">
-              <div className="flex-1 text-center md:text-left">
+            <div className="px-6 sm:px-8 md:px-10 pb-6 sm:pb-8 md:pb-10 flex flex-col">
+              <div className="flex-1 w-full flex flex-col items-center justify-center text-center">
                 <div
-                  className="w-12 h-12 rounded-xl mx-auto md:mx-0 mb-4 flex items-center justify-center"
+                  className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center"
                   style={{
                     backgroundColor: isCaregiver
                       ? colors.secondary.light
@@ -948,11 +1021,11 @@ function OnboardingTutorial({ onComplete, user }) {
                   />
                 </div>
 
-                <h2 className="font-poppins font-bold text-2xl text-text-primary mb-2">
+                <h2 className="font-poppins font-bold text-2xl text-text-primary mb-2 max-w-sm mx-auto">
                   {currentStepData.title}
                 </h2>
                 <p
-                  className="font-poppins font-medium text-sm mb-3"
+                  className="font-poppins font-medium text-sm mb-3 max-w-sm mx-auto"
                   style={{
                     color: isCaregiver
                       ? colors.secondary.DEFAULT
@@ -961,33 +1034,38 @@ function OnboardingTutorial({ onComplete, user }) {
                 >
                   {currentStepData.subtitle}
                 </p>
-                <p className="font-poppins text-text-secondary leading-relaxed max-w-md md:max-w-none md:pr-2 mx-auto md:mx-0">
+                <p className="font-poppins text-text-secondary leading-relaxed max-w-sm mx-auto">
                   {currentStepData.description}
                 </p>
               </div>
 
               {/* Navigation */}
-              <div className="pt-6 flex items-center justify-between">
-                <button
-                  onClick={handleBack}
-                  disabled={currentStep === 0}
-                  className={`flex items-center gap-2 font-poppins font-medium text-sm px-4 py-2.5 rounded-xl transition-all ${
-                    currentStep === 0
-                      ? "text-gray-300 cursor-not-allowed"
-                      : "text-text-secondary hover:bg-gray-100"
-                  }`}
-                >
-                  <ArrowLeftIcon size={16} weight="bold" />
-                  Back
-                </button>
+              <div className="pt-6 w-full grid grid-cols-3 items-center">
+                <div className="justify-self-start">
+                  <button
+                    onClick={handleBack}
+                    disabled={currentStep === 0}
+                    className={`flex items-center gap-2 font-poppins font-medium text-sm px-4 py-2.5 rounded-xl transition-all ${
+                      currentStep === 0
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-text-secondary hover:bg-gray-100"
+                    }`}
+                  >
+                    <ArrowLeftIcon size={16} weight="bold" />
+                    Back
+                  </button>
+                </div>
 
-                <div className="flex items-center gap-3">
+                <div className="justify-self-center">
                   <button
                     onClick={handleSkip}
                     className="font-poppins font-medium text-sm text-text-secondary hover:text-text-primary px-4 py-2.5 rounded-xl transition-colors"
                   >
                     {isLastStep ? "Skip" : "Skip Tutorial"}
                   </button>
+                </div>
+
+                <div className="justify-self-end">
                   <button
                     onClick={handleNext}
                     className="flex items-center gap-2 font-poppins font-semibold text-sm text-white px-6 py-2.5 rounded-xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
@@ -1012,11 +1090,6 @@ function OnboardingTutorial({ onComplete, user }) {
             </div>
           </div>
         </div>
-
-        {/* Step indicator */}
-        <p className="text-center font-poppins text-sm text-text-secondary mt-6">
-          Step {currentStep + 1} of {steps.length}
-        </p>
       </div>
     </div>
   );

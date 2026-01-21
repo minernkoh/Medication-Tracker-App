@@ -17,7 +17,9 @@ const MedicationLog = require("../models/MedicationLog");
 const getCurrentUser = async (req, res) => {
   const user = await User.findById(req.user.id)
     .select("-password")
-    .populate("caregivers", "name email role");
+    .populate("caregivers", "name email role")
+    // Support legacy single-caregiver field too (so UI can show a name, not an ObjectId).
+    .populate("caregiver", "name email role");
   res.json(user);
 };
 

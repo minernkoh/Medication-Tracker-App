@@ -14,6 +14,7 @@ import {
   SectionHeader,
   GradientBackground,
   Button,
+  ReadMoreText,
 } from "../../ui";
 import { MedicationSection } from "../../features";
 import { AddMedicationModal, EditMedicationModal } from "../../modals";
@@ -282,7 +283,7 @@ const MedicationPage = ({ mode = "Personal" }) => {
             : [];
         return instructionsList.join(", ");
       },
-      render: (value, row) => {
+      render: (value) => {
         const instructionsList = Array.isArray(value)
           ? value
           : typeof value === "string"
@@ -315,15 +316,17 @@ const MedicationPage = ({ mode = "Personal" }) => {
     },
     {
       key: "additionalInfo",
-      label: "Description",
+      label: "Notes",
       sortValue: (row) => String(row?.additionalInfo || "").trim(),
       render: (value, row) => {
         const notes = String(row?.additionalInfo || "").trim();
         if (notes) {
           return (
-            <span className="font-poppins text-sm text-text-primary max-w-[260px] whitespace-normal break-words">
-              {notes}
-            </span>
+            <ReadMoreText
+              text={notes}
+              maxChars={80}
+              className="font-poppins text-sm text-text-primary max-w-[260px]"
+            />
           );
         }
 

@@ -34,6 +34,7 @@ import {
   Button,
   EmptyState,
   SelectMenu,
+  ReadMoreText,
 } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import ConfirmDialog from "../../ui/ConfirmDialog";
@@ -405,13 +406,14 @@ function AppointmentsPage({ mode = "Personal" }) {
           {/* Appointments table */}
           <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden shadow-sm">
             {sortedAppointments.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="max-h-[36rem] overflow-y-auto overflow-x-hidden no-scrollbar">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-max">
                   <thead>
                     <tr className="border-b border-border-default bg-background-subtle">
                       <th
                         onClick={() => handleSort("date")}
-                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                        className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Date & Time
@@ -420,7 +422,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("title")}
-                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                        className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Appointment
@@ -429,7 +431,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("doctorName")}
-                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                        className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Doctor
@@ -438,7 +440,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("location")}
-                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                        className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Location
@@ -447,7 +449,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                       </th>
                       <th
                         onClick={() => handleSort("status")}
-                        className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                        className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       >
                         <div className="flex items-center">
                           Status
@@ -456,7 +458,7 @@ function AppointmentsPage({ mode = "Personal" }) {
                       </th>
                       {!isReadOnlyPatient && (
                         <th
-                          className={`px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
+                          className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
                         >
                           Actions
                         </th>
@@ -497,13 +499,13 @@ function AppointmentsPage({ mode = "Personal" }) {
                               >
                                 {apt.title}
                               </span>
-                              {apt.notes && (
-                                <span
-                                  className={`${textStyles.caption.small} mt-0.5 italic max-w-[200px] truncate`}
-                                >
-                                  {apt.notes}
-                                </span>
-                              )}
+                              {apt.notes ? (
+                                <ReadMoreText
+                                  text={apt.notes}
+                                  maxChars={70}
+                                  className={`${textStyles.caption.small} mt-0.5 italic max-w-[260px]`}
+                                />
+                              ) : null}
                             </div>
                           </td>
                           <td className="px-5 py-4">
@@ -596,7 +598,8 @@ function AppointmentsPage({ mode = "Personal" }) {
                       );
                     })}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             ) : (
               <EmptyState

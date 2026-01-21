@@ -19,6 +19,54 @@ const { checkPatientAccess } = require("../utils/auth");
 const escapeRegex = (value = "") =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Normalize schedule/log slot keys so legacy values still match:
+// - "morning"/"afternoon"/"night" -> canonical HH:MM
+// - "9:00 AM" -> "09:00"
+// - "9:00" -> "09:00"
+const TIME_BUCKET_TO_24H = Object.freeze({
+  morning: "08:00",
+  afternoon: "12:00",
+  night: "20:00",
+});
+
+const normalizeTimeSlotKey = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const lowered = raw.toLowerCase();
+  if (TIME_BUCKET_TO_24H[lowered]) return TIME_BUCKET_TO_24H[lowered];
+  const ampmMatch = lowered.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (ampmMatch) {
+    let hour = Number(ampmMatch[1]);
+    const minute = String(ampmMatch[2]);
+    const ampm = String(ampmMatch[3]).toUpperCase();
+    if (ampm === "PM" && hour !== 12) hour += 12;
+    if (ampm === "AM" && hour === 12) hour = 0;
+    const hh = String(hour).padStart(2, "0");
+    const mm = minute.padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+  const m = lowered.match(/^(\d{1,2}):(\d{2})$/);
+  if (m) {
+    const hh = String(Number(m[1])).padStart(2, "0");
+    const mm = String(m[2]).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+  return lowered;
+};
+
+const buildTimeSlotKeySet = (rawValue) => {
+  const raw = String(rawValue || "").trim();
+  const normalized = normalizeTimeSlotKey(raw);
+  const out = new Set();
+  if (raw) out.add(raw);
+  if (normalized) out.add(normalized);
+  // Add bucket equivalents when possible (helps undo legacy logs)
+  if (normalized === "08:00") out.add("morning");
+  if (normalized === "12:00") out.add("afternoon");
+  if (normalized === "20:00") out.add("night");
+  return out;
+};
+
 const toLocalIsoDay = (value = new Date()) => {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
@@ -123,7 +171,7 @@ const getMedications = async (req, res) => {
 
       for (const log of logs) {
         const medId = log.medication.toString();
-        const slot = log.timeSlot;
+        const slot = normalizeTimeSlotKey(log.timeSlot);
         if (!logsByMedication.has(medId)) {
           logsByMedication.set(medId, new Set());
         }
@@ -144,28 +192,31 @@ const getMedications = async (req, res) => {
           const medId = med._id.toString();
           const takenSlots = logsByMedication.get(medId) || new Set();
           const hasLogsForDate = takenSlots.size > 0;
-          const scheduledSlots = Array.isArray(medObj.timesOfDay)
+          const scheduledSlotsRaw = Array.isArray(medObj.timesOfDay)
             ? medObj.timesOfDay
             : medObj.timeOfDay
               ? [medObj.timeOfDay]
               : [];
+          const scheduledSlots = scheduledSlotsRaw
+            .map((s) => normalizeTimeSlotKey(s))
+            .filter(Boolean);
           const pendingSlots = scheduledSlots.filter(
             (slot) => !takenSlots.has(slot),
           );
 
-          const createdAtStr = medObj?.createdAt
-            ? toLocalIsoDay(medObj.createdAt)
+          const activeFromStr = (medObj?.activeFrom || medObj?.createdAt)
+            ? toLocalIsoDay(medObj.activeFrom || medObj.createdAt)
             : null;
 
-          if (createdAtStr && date < createdAtStr && !hasLogsForDate) {
+          if (activeFromStr && date < activeFromStr && !hasLogsForDate) {
             return null;
           }
 
-          if (createdAtStr) {
+          if (activeFromStr) {
             const supplyEndDate = getSupplyWindowEndDate({
               date,
               today: todayStr,
-              startDate: createdAtStr,
+              startDate: activeFromStr,
               med: medObj,
             });
             if (supplyEndDate === "__none__" && !hasLogsForDate) {
@@ -299,6 +350,19 @@ const markMedicationAsTaken = async (req, res) => {
     }
 
     const date = req.body?.date || toLocalIsoDay();
+    const activeFromStr = med?.activeFrom
+      ? toLocalIsoDay(med.activeFrom)
+      : med?.createdAt
+        ? toLocalIsoDay(med.createdAt)
+        : null;
+
+    // Prevent creating "history" before the medication existed/was activated.
+    if (activeFromStr && date < activeFromStr) {
+      return res.status(400).json({
+        message:
+          "Cannot record intake for a date before this medication was added.",
+      });
+    }
     const takenTime =
       req.body?.takenTime ||
       new Date().toLocaleTimeString("en-US", {
@@ -316,6 +380,7 @@ const markMedicationAsTaken = async (req, res) => {
     if (!timeSlot) {
       timeSlot = "scheduled";
     }
+    timeSlot = normalizeTimeSlotKey(timeSlot) || "scheduled";
     await MedicationLog.findOneAndUpdate(
       { medication: med._id, date, timeSlot },
       { patient: patient._id, takenAt: new Date() },
@@ -362,10 +427,11 @@ const undoMarkAsTaken = async (req, res) => {
 
     const date = req.body?.date || toLocalIsoDay();
     const timeSlot = req.body?.timeSlot || req.body?.timeOfDay || null;
+    const timeSlotKeys = timeSlot ? Array.from(buildTimeSlotKeySet(timeSlot)) : null;
 
     const query = { medication: med._id, date };
-    if (timeSlot) {
-      query.timeSlot = timeSlot;
+    if (timeSlotKeys && timeSlotKeys.length > 0) {
+      query.timeSlot = { $in: timeSlotKeys };
     }
     const deleteResult = await MedicationLog.deleteMany(query);
 
@@ -440,6 +506,7 @@ const createMedication = async (req, res) => {
           ...req.body,
           patient: patientId,
           createdBy: req.user.id,
+          activeFrom: new Date(),
           isArchived: false,
           archivedAt: null,
         },
@@ -452,6 +519,7 @@ const createMedication = async (req, res) => {
       ...req.body,
       patient: patientId,
       createdBy: req.user.id,
+      activeFrom: new Date(),
       isArchived: false,
       archivedAt: null,
     });

@@ -22,7 +22,7 @@ import {
   getPatientInitials,
 } from "../../../utils/patientUtils";
 import ConfirmDialog from "../../ui/ConfirmDialog";
-import { Button, DataTable } from "../../ui";
+import { Button, DataTable, FormField } from "../../ui";
 import { api } from "../../../api";
 import { useError } from "../../../contexts/ErrorContext";
 import { getStoredUser } from "../../../utils/storageUtils";
@@ -264,18 +264,39 @@ function PatientsPage() {
 
         {/* Search bar */}
         <div className="mb-6">
-          <div className="relative max-w-md">
-            <MagnifyingGlassIcon
-              size={20}
-              weight="regular"
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-icon-secondary"
-            />
-            <input
-              type="text"
+          <div className="w-full max-w-md">
+            <FormField
+              name="patientsSearch"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search patients..."
-              className="w-full pl-12 pr-4 py-3 rounded-xl border border-border-default bg-white font-poppins text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
+              icon={
+                <MagnifyingGlassIcon
+                  size={18}
+                  weight="regular"
+                  className="text-icon-secondary"
+                />
+              }
+              rightElement={
+                searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="p-1.5 rounded-lg hover:bg-background-hover transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <XIcon
+                      size={16}
+                      weight="bold"
+                      className="text-icon-secondary"
+                    />
+                  </button>
+                ) : null
+              }
+              inputMode="search"
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Search patients"
             />
           </div>
         </div>

@@ -805,10 +805,10 @@ function AddMedicationModal({
             </div>
           </div>
 
-          {/* Notes / Instructions */}
+          {/* Notes */}
           <div>
             <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-              Notes / Instructions
+              Notes
             </label>
             <textarea
               name="additionalInfo"

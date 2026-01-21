@@ -86,9 +86,14 @@ const signin = async (req, res) => {
       process.env.JWT_SECRET,
     );
 
-    const userObj = user.toObject();
-    delete userObj.password;
-    res.json({ token, user: userObj });
+    // Return a populated user profile so the UI can show caregiver names immediately
+    // (ex: "Caregiver: Alice") without waiting for a separate `/users/me` refresh.
+    const populated = await User.findById(user._id)
+      .select("-password")
+      .populate("caregivers", "name email role")
+      .populate("caregiver", "name email role");
+
+    res.json({ token, user: populated });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

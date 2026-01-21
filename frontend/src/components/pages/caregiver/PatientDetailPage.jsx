@@ -10,6 +10,7 @@ import {
   PillIcon,
   CalendarCheckIcon,
   PlusIcon,
+  PencilSimpleIcon,
   WarningCircleIcon,
   StethoscopeIcon,
   MapPinIcon,
@@ -26,6 +27,7 @@ import {
   getAppointmentStatusSortRank,
   normalizeMedication,
   normalizeAppointment,
+  splitMedicationsBySlot,
   toTimeInput,
   to12HourDisplay,
 } from "../../../utils";
@@ -35,7 +37,10 @@ import {
   TodayAdherencePieChart,
   SectionHeader,
   Button,
+  Modal,
+  FormField,
   SelectMenu,
+  ReadMoreText,
 } from "../../ui";
 import AddAppointmentModal from "../../modals/AddAppointmentModal";
 import AddMedicationModal from "../../modals/AddMedicationModal";
@@ -76,6 +81,12 @@ function PatientDetailPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [adherenceRange, setAdherenceRange] = useState("weekly"); // weekly | monthly | yearly
   const [weekAdherence, setWeekAdherence] = useState({});
+
+  // Modal state: patient name edit (mirror SettingsPage "Update Name")
+  const [showUpdateName, setShowUpdateName] = useState(false);
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const [nameForm, setNameForm] = useState({ name: "" });
+  const [nameErrors, setNameErrors] = useState({});
 
   // Modal state: medications
   const [editingMedication, setEditingMedication] = useState(null);
@@ -134,6 +145,56 @@ function PatientDetailPage() {
 
   const patient = patientData;
 
+  useEffect(() => {
+    setNameForm({ name: patient?.name || "" });
+  }, [patient?.name]);
+
+  const resetNameForm = useCallback(() => {
+    setNameForm({ name: patient?.name || "" });
+    setNameErrors({});
+  }, [patient?.name]);
+
+  const handleNameChange = useCallback(
+    (e) => {
+      const { value } = e.target;
+      setNameForm({ name: value });
+      if (nameErrors.name) {
+        setNameErrors((prev) => ({ ...prev, name: "" }));
+      }
+    },
+    [nameErrors.name],
+  );
+
+  const validateNameForm = useCallback(() => {
+    const errors = {};
+    if (!nameForm.name.trim()) {
+      errors.name = "Name is required";
+    }
+    setNameErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [nameForm.name]);
+
+  const submitUpdateName = useCallback(
+    async (e) => {
+      e?.preventDefault();
+      if (!validateNameForm()) return;
+      setIsUpdatingName(true);
+      try {
+        await api.users.update(patientId, {
+          name: nameForm.name.trim(),
+        });
+        setShowUpdateName(false);
+        resetNameForm();
+        await loadPatient();
+      } catch (error) {
+        showError(error.message || "Unable to update name");
+      } finally {
+        setIsUpdatingName(false);
+      }
+    },
+    [loadPatient, nameForm.name, patientId, resetNameForm, showError, validateNameForm],
+  );
+
   const isSelectedDateToday = useCallback(() => {
     const todayLocal = new Date();
     return (
@@ -164,92 +225,6 @@ function PatientDetailPage() {
       );
     });
   }, [patient?.appointments]);
-
-  const isScheduledMedication = (med) => {
-    if (!med) return false;
-    if (med.timeOfDay) return true;
-    if (Array.isArray(med.timesOfDay) && med.timesOfDay.length > 0) return true;
-    return false;
-  };
-
-  const formatSlotLabel = (slot) => {
-    const normalized = toTimeInput(slot);
-    return normalized ? to12HourDisplay(normalized) : String(slot || "");
-  };
-
-  const formatTakenTimeForSlot = (med, slot) => {
-    const takenAt = med?.takenTimesBySlot?.[slot];
-    if (takenAt) {
-      const date = new Date(takenAt);
-      if (!Number.isNaN(date.getTime())) {
-        const hh = String(date.getHours()).padStart(2, "0");
-        const mm = String(date.getMinutes()).padStart(2, "0");
-        return to12HourDisplay(`${hh}:${mm}`);
-      }
-    }
-    return formatSlotLabel(slot);
-  };
-
-  const splitMedicationsBySlot = (meds = []) => {
-    const pending = [];
-    const taken = [];
-
-    meds.forEach((med) => {
-      const scheduledSlots = Array.isArray(med?.scheduledSlots)
-        ? med.scheduledSlots
-        : Array.isArray(med?.timesOfDay) && med.timesOfDay.length > 0
-          ? med.timesOfDay
-          : med?.timeOfDay
-            ? [med.timeOfDay]
-            : [];
-
-      const takenSlotsSet = new Set(
-        Array.isArray(med?.takenSlots) ? med.takenSlots : [],
-      );
-
-      const pendingSlots = Array.isArray(med?.pendingSlots)
-        ? med.pendingSlots
-        : scheduledSlots.filter((slot) => !takenSlotsSet.has(slot));
-
-      if (!scheduledSlots.length) {
-        if (med.status === "taken") {
-          taken.push(med);
-        } else {
-          pending.push(med);
-        }
-        return;
-      }
-
-      const buildSlotEntry = (slot, status) => ({
-        ...med,
-        // Keep a stable reference to the real medication id (Mongo ObjectId string).
-        // `id` below is intentionally made unique per slot for React list keys.
-        medicationId: med.id,
-        id: `${med.id}-${slot}-${status}`,
-        status,
-        timeOfDay: slot,
-        timesOfDay: [slot],
-        takenTime:
-          status === "taken"
-            ? formatTakenTimeForSlot(med, slot)
-            : med.takenTime,
-        slot,
-        sourceMedication: med,
-      });
-
-      pendingSlots.forEach((slot) => {
-        pending.push(buildSlotEntry(slot, "pending"));
-      });
-
-      scheduledSlots.forEach((slot) => {
-        if (takenSlotsSet.has(slot)) {
-          taken.push(buildSlotEntry(slot, "taken"));
-        }
-      });
-    });
-
-    return { pending, taken };
-  };
 
   // Separate medications by status (slot-level)
   const splitMeds = splitMedicationsBySlot(patient?.medications || []);
@@ -324,7 +299,7 @@ function PatientDetailPage() {
             : [];
         return instructionsList.join(", ");
       },
-      render: (value, row) => {
+      render: (value) => {
         const instructionsList = Array.isArray(value)
           ? value
           : typeof value === "string"
@@ -357,15 +332,17 @@ function PatientDetailPage() {
     },
     {
       key: "additionalInfo",
-      label: "Description",
+      label: "Notes",
       sortValue: (row) => String(row?.additionalInfo || "").trim(),
       render: (value, row) => {
         const notes = String(row?.additionalInfo || "").trim();
         if (notes) {
           return (
-            <span className="font-poppins text-sm text-text-primary max-w-[260px] whitespace-normal break-words">
-              {notes}
-            </span>
+            <ReadMoreText
+              text={notes}
+              maxChars={80}
+              className="font-poppins text-sm text-text-primary max-w-[260px]"
+            />
           );
         }
 
@@ -453,9 +430,13 @@ function PatientDetailPage() {
             {value || "—"}
           </span>
           {row?.notes ? (
-            <span className="font-poppins text-xs text-text-secondary mt-0.5 italic max-w-[240px] truncate">
-              {row.notes}
-            </span>
+            <ReadMoreText
+              text={row.notes}
+              maxChars={70}
+              className="font-poppins text-xs text-text-secondary mt-0.5 italic max-w-[260px]"
+              buttonClassName="text-text-secondary hover:text-text-primary"
+              withTitle
+            />
           ) : null}
         </div>
       ),
@@ -518,21 +499,10 @@ function PatientDetailPage() {
     },
   ];
 
-  // Today's adherence (Caregiver): scheduled medications only.
-  // A medication counts as "taken" if ANY schedule slot has a log for today,
-  // which is exactly what GET /patients/:id/medications?date=YYYY-MM-DD encodes
-  // via `status === "taken"` for that day.
-  const scheduledMedsToday = (patient?.medications || []).filter(
-    isScheduledMedication,
-  );
-  const totalScheduledToday = scheduledMedsToday.length;
-  const takenScheduledToday = scheduledMedsToday.filter(
-    (m) => String(m?.status || "").toLowerCase() === "taken",
-  ).length;
-  const pendingScheduledToday = Math.max(
-    totalScheduledToday - takenScheduledToday,
-    0,
-  );
+  // Today's adherence (Caregiver): dose/slot-level, matching the Pending/Taken cards.
+  // This prevents "100%" from showing while any items are still pending.
+  const takenDosesToday = takenMeds.length;
+  const pendingDosesToday = pendingMeds.length;
 
   const scrollToSection = (id) => {
     if (typeof document === "undefined") return;
@@ -638,7 +608,14 @@ function PatientDetailPage() {
 
   // Handler to edit a medication
   const handleEditMedication = (medication) => {
-    setEditingMedication(medication);
+    const realMed = medication?.sourceMedication || medication;
+    setEditingMedication({
+      ...(realMed || {}),
+      ...(medication || {}),
+      status: "taken",
+      takenDate: selectedDateStr,
+      takenTime: medication?.takenTime || realMed?.takenTime,
+    });
     setShowEditModal(true);
   };
 
@@ -842,7 +819,7 @@ function PatientDetailPage() {
     handleUndoTakenMedication(med);
   };
 
-  // Calendar: compute adherence across the visible week (per-medication, caregiver semantics)
+  // Calendar: compute adherence across the visible week (dose/slot-level)
   useEffect(() => {
     if (!patientId || !visibleWeekStart) return;
     let isActive = true;
@@ -872,15 +849,10 @@ function PatientDetailPage() {
       const map = {};
       for (const [dateStr, meds] of results) {
         const list = Array.isArray(meds) ? meds : [];
-        const scheduled = list.filter(
-          (m) =>
-            Boolean(m?.timeOfDay) ||
-            (Array.isArray(m?.timesOfDay) && m.timesOfDay.length > 0),
-        );
-        const total = scheduled.length;
-        const taken = scheduled.filter(
-          (m) => String(m?.status || "").toLowerCase() === "taken",
-        ).length;
+        const split = splitMedicationsBySlot(list);
+        const taken = split.taken.length;
+        const notTaken = split.pending.length;
+        const total = taken + notTaken;
         map[dateStr] = total > 0 ? Math.round((taken / total) * 100) : 0;
       }
 
@@ -948,7 +920,17 @@ function PatientDetailPage() {
             </div>
 
             {/* Quick actions */}
-            <div className="flex gap-3 md:ml-auto" />
+            <div className="flex gap-3 md:ml-auto">
+              <Button
+                variant="modalSecondary"
+                size="sm"
+                mode="Caregiver"
+                icon={<PencilSimpleIcon size={16} weight="bold" />}
+                onClick={() => setShowUpdateName(true)}
+              >
+                Update Name
+              </Button>
+            </div>
           </div>
 
           {/* Alerts */}
@@ -985,12 +967,63 @@ function PatientDetailPage() {
               <h3 className="font-poppins font-semibold text-sm text-text-primary mb-2">
                 Notes
               </h3>
-              <p className="font-poppins text-sm text-text-secondary">
-                {patient.notes}
-              </p>
+              <ReadMoreText
+                text={patient.notes}
+                maxChars={160}
+                className="font-poppins text-sm text-text-secondary"
+                buttonClassName="text-text-secondary hover:text-text-primary"
+                withTitle
+              />
             </div>
           )}
         </div>
+
+        <Modal
+          isOpen={showUpdateName}
+          onClose={() => {
+            setShowUpdateName(false);
+            resetNameForm();
+          }}
+          title="Update Name"
+          size="md"
+          mode="Caregiver"
+          footerContent={
+            <>
+              <Button
+                variant="modalSecondary"
+                mode="Caregiver"
+                onClick={() => {
+                  setShowUpdateName(false);
+                  resetNameForm();
+                }}
+                fullWidth
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                mode="Caregiver"
+                onClick={submitUpdateName}
+                fullWidth
+                disabled={isUpdatingName}
+              >
+                {isUpdatingName ? "Updating…" : "Update Name"}
+              </Button>
+            </>
+          }
+        >
+          <form onSubmit={submitUpdateName} className="p-5 space-y-4">
+            <FormField
+              label="Full Name"
+              name="name"
+              value={nameForm.name}
+              onChange={handleNameChange}
+              error={nameErrors.name}
+              required
+              mode="Caregiver"
+            />
+          </form>
+        </Modal>
 
         {/* Calendar (date selector) */}
         <Calendar
@@ -1003,7 +1036,7 @@ function PatientDetailPage() {
         />
 
         {/* Stats cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 items-start">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 items-start">
           {/* Today's adherence */}
           <button
             type="button"
@@ -1029,8 +1062,8 @@ function PatientDetailPage() {
 
             <div className="flex-1 flex items-center justify-center pt-4">
               <TodayAdherencePieChart
-                taken={takenScheduledToday}
-                notTaken={pendingScheduledToday}
+                taken={takenDosesToday}
+                notTaken={pendingDosesToday}
               />
             </div>
           </button>
@@ -1420,7 +1453,7 @@ function PatientDetailPage() {
           </div>
 
           {adherence && !adherenceIsEmpty && adherenceValues.length > 0 ? (
-            <div className="flex items-stretch justify-between h-32 gap-2 mt-4">
+            <div className="flex items-stretch justify-between h-24 gap-3 mt-4">
               {Array.from({
                 length: Math.max(
                   adherenceValues.length,
@@ -1438,7 +1471,7 @@ function PatientDetailPage() {
                 return (
                   <div
                     key={`${label}-${index}`}
-                    className="flex-1 flex flex-col items-center gap-2 h-full"
+                    className="flex flex-col items-center gap-2 h-full w-8 sm:w-10 md:w-12"
                   >
                     {/* Fixed-height track so % bar heights render correctly */}
                     <div className="w-full flex-1 flex items-end bg-background-hover rounded-lg overflow-hidden border border-border-subtle">

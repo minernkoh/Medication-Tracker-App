@@ -208,13 +208,16 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
   // The context handlers (handleMarkAsTaken, handleDeleteMedication) manage quantity sync
   const handleEditMedication = (medication) => {
     if (isReadOnlyPatient) return;
-    setEditingMedication(medication);
-    const realMed = medication.sourceMedication || medication;
+    const realMed = medication?.sourceMedication || medication;
     const medWithContext = {
-      ...realMed,
-      slot: medication.slot || realMed.slot,
+      // Keep the full medication data, but preserve slot-level fields
+      // (status/slot/takenTime) so the EditMedicationModal renders "time edit" mode.
+      ...(realMed || {}),
+      ...(medication || {}),
+      id: realMed?.id || medication?.id, // ensure stable id for update calls
+      status: "taken",
       takenDate: toLocalIsoDay(selectedDate),
-      takenTime: medication.takenTime || realMed.takenTime,
+      takenTime: medication?.takenTime || realMed?.takenTime,
     };
     setEditingMedication(medWithContext);
     setShowEditModal(true);
@@ -309,7 +312,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
           />
 
           {/* Stats and appointment cards */}
-          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 items-start w-full">
+          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 items-stretch w-full">
             {/* Today's Progress card */}
             <div className="bg-background-default border border-border-default flex flex-[1_0_0] flex-col gap-5 p-6 rounded-2xl h-full self-stretch">
               <div className="flex items-center justify-between w-full">
@@ -404,7 +407,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
           {hasMedications ? (
             <div className="flex flex-col md:flex-row gap-6 items-stretch w-full">
               {/* Pending medications column */}
-              <div className="flex-1 h-[24rem] max-h-[24rem] flex flex-col min-h-0">
+              <div className="flex-1 h-[28rem] max-h-[28rem] flex flex-col min-h-0">
                 <MedicationSection
                   variant="pending"
                   medications={pendingMedications}
@@ -432,7 +435,7 @@ function DashboardPage({ userName = "", mode = "Personal" }) {
               </div>
 
               {/* Taken medications column */}
-              <div className="flex-1 h-[24rem] max-h-[24rem] flex flex-col min-h-0">
+              <div className="flex-1 h-[28rem] max-h-[28rem] flex flex-col min-h-0">
                 <MedicationSection
                   variant="taken"
                   medications={takenMedications}

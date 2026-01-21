@@ -10,7 +10,6 @@
  * @param {boolean} isOpen - Whether sidebar is open on mobile
  * @param {function} onClose - Function to close sidebar on mobile
  */
-import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   FirstAidKitIcon,
@@ -22,6 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import { SideMenuButtons } from "../ui";
 import { isReadOnlyPatientUser } from "../../utils/modeUtils";
+import { getStoredUser } from "../../utils/storageUtils";
 
 function Sidebar({
   userName,
@@ -35,15 +35,8 @@ function Sidebar({
   isCollapsed = false,
   onToggleCollapsed,
 }) {
-  // Get user data from localStorage if not provided
-  const [userData] = React.useState(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  // Pull the most up-to-date user from storage (includes refreshed/populated caregiver links).
+  const userData = getStoredUser();
 
   const displayName = userName || userData?.name || "User";
   const displayEmail = userEmail || userData?.email || "";
@@ -53,6 +46,17 @@ function Sidebar({
   const isReadOnly = isReadOnlyPatientUser(userData);
   const caregiverName = (() => {
     if (!isReadOnly) return null;
+
+    // Support both shapes:
+    // - userData.caregiver: object (or occasionally string)
+    // - userData.caregivers: array of caregiver objects
+    const caregiver = userData?.caregiver;
+    if (caregiver) {
+      if (typeof caregiver === "string") return caregiver;
+      if (typeof caregiver === "object")
+        return caregiver?.name || caregiver?.email || null;
+    }
+
     const caregivers = userData?.caregivers;
     if (!Array.isArray(caregivers) || caregivers.length === 0) return null;
     const first = caregivers[0];
@@ -100,10 +104,14 @@ function Sidebar({
         <div
           className={`flex items-center opacity-80 pb-5 pt-6 shrink-0 w-full ${
             isCollapsed ? "px-2.5" : "px-4"
-          } justify-between`}
+          } ${isCollapsed ? "justify-center" : "justify-between"}`}
         >
-          <div className="flex items-center gap-[0.8125rem] flex-1 min-w-0">
-            <div className="flex-shrink-0 w-7 h-7">
+          <div
+            className={`items-center gap-[0.8125rem] flex-1 min-w-0 ${
+              isCollapsed ? "hidden" : "flex"
+            }`}
+          >
+            <div className={`flex-shrink-0 w-7 h-7 ${isCollapsed ? "hidden" : ""}`}>
               <FirstAidKitIcon
                 size={28}
                 weight="regular"
@@ -134,7 +142,7 @@ function Sidebar({
           <button
             type="button"
             onClick={() => onToggleCollapsed?.(!isCollapsed)}
-            className="flex-shrink-0 flex items-center justify-center p-2 rounded-lg hover:bg-background-hover transition-colors"
+            className="hidden md:flex flex-shrink-0 items-center justify-center p-2 rounded-lg hover:bg-background-hover transition-colors"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-pressed={isCollapsed}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -149,46 +157,61 @@ function Sidebar({
 
         {/* User profile section */}
         <div
-          className={`border-t border-b border-border-default flex gap-4 items-center py-4 shrink-0 w-full ${
-            isCollapsed ? "px-2.5 justify-center" : "px-4"
+          className={`border-t border-b border-border-default py-4 shrink-0 w-full ${
+            isCollapsed ? "px-2.5" : "px-4"
           }`}
         >
-          <div className="bg-primary flex flex-col items-center justify-center p-2 rounded-full shrink-0 w-8 h-8">
-            <p className="font-poppins font-semibold leading-6 text-base text-text-onPrimary text-center">
-              {userInitial}
-            </p>
-          </div>
           <div
-            className={`flex flex-col items-start leading-6 not-italic shrink-0 text-text-primary flex-1 ${
-              isCollapsed ? "hidden" : ""
-            }`}
+            className={
+              isCollapsed
+                ? "flex items-start justify-center"
+                : "grid grid-cols-[auto,1fr] gap-x-3 items-center"
+            }
           >
-            <div className="flex items-center gap-2">
-              <p className="font-poppins font-semibold text-sm">
-                {displayName}
+            <div className="bg-primary flex flex-col items-center justify-center p-2 rounded-full shrink-0 w-8 h-8 self-center">
+              <p className="font-poppins font-semibold leading-6 text-base text-text-onPrimary text-center">
+                {userInitial}
               </p>
             </div>
-            <p className="font-poppins font-normal text-xs w-full text-text-secondary">
-              {displayEmail}
-            </p>
-            {!isCaregiverMode && isReadOnly && (
-              <div className="mt-2 flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-full">
-                <EyeIcon size={12} weight="bold" className="text-blue-700" />
-                <p className="font-poppins font-semibold text-xs text-blue-700">
-                  View Only
-                </p>
-              </div>
-            )}
-            {!isCaregiverMode && isReadOnly && caregiverName && (
-              <div className="mt-1 w-full">
-                <span
-                  className="inline-flex items-center px-2 py-0.5 rounded-full border border-secondary/20 shadow-sm font-poppins font-semibold text-[11px] w-full truncate bg-secondary-light text-secondary"
-                  title={`Caregiver: ${caregiverName}`}
-                >
-                  Caregiver: {caregiverName}
-                </span>
-              </div>
-            )}
+
+            {!isCollapsed ? (
+              <>
+                <div className="flex flex-col items-start leading-6 not-italic text-text-primary min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 w-full">
+                    <p className="font-poppins font-semibold text-sm truncate min-w-0">
+                      {displayName}
+                    </p>
+                  </div>
+                  <p className="font-poppins font-normal text-xs w-full text-text-secondary truncate min-w-0">
+                    {displayEmail}
+                  </p>
+                </div>
+
+                {!isCaregiverMode && isReadOnly && (
+                  <div className="col-span-2 mt-2 flex flex-col items-start gap-1">
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border shadow-sm font-poppins font-semibold text-[11px] w-fit max-w-full bg-blue-50 text-blue-700 border-blue-200 whitespace-normal">
+                      <EyeIcon
+                        size={12}
+                        weight="bold"
+                        className="text-blue-700"
+                      />
+                      <p className="font-poppins font-semibold text-[11px] text-blue-700 leading-snug">
+                        View Only
+                      </p>
+                    </div>
+
+                    {caregiverName ? (
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full border shadow-sm font-poppins font-semibold text-[11px] w-fit max-w-full bg-secondary-light text-secondary border-secondary/20 whitespace-normal break-words leading-snug text-left"
+                        title={`Caregiver: ${caregiverName}`}
+                      >
+                        {`Caregiver: ${caregiverName}`}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -321,7 +344,9 @@ function Sidebar({
               size={22}
               weight="regular"
               className={
-                displayMode === "Personal" ? "text-icon-primary" : "text-secondary"
+                displayMode === "Personal"
+                  ? "text-icon-primary"
+                  : "text-secondary"
               }
             />
           </div>
@@ -336,7 +361,9 @@ function Sidebar({
             <div className="flex items-center shrink-0">
               <p
                 className={`font-poppins font-semibold leading-6 text-sm transition-colors ${
-                  displayMode === "Personal" ? "text-text-primary" : "text-secondary"
+                  displayMode === "Personal"
+                    ? "text-text-primary"
+                    : "text-secondary"
                 }`}
               >
                 {displayMode === "Personal"

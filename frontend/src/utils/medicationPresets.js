@@ -9,7 +9,9 @@
  */
 
 const normalizeNameKey = (value) => {
-  const raw = String(value || "").trim().toLowerCase();
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!raw) return "";
   // Strip common parenthetical brand names: "Acetaminophen (Tylenol)" -> "acetaminophen"
   const noParen = raw.replace(/\s*\([^)]*\)\s*/g, " ").trim();
@@ -174,7 +176,7 @@ export const MEDICATION_PRESETS = [
   },
   {
     key: "paracetamol",
-    label: "Paracetamol / Panadol (4x daily)",
+    label: "Paracetamol / Panadol",
     names: ["Paracetamol", "Panadol"],
     formData: {
       name: "Paracetamol",
@@ -182,16 +184,19 @@ export const MEDICATION_PRESETS = [
       type: "tablets",
       unit: "tablets",
       frequencyType: "timesPerDay",
-      frequencyValue: "4",
+      frequencyValue: "3",
       frequencyText: "",
       quantity: "120",
       recommendSupply: "120",
       instructions: ["After Meal", "Take with Water"],
-      timeOfDay: ["06:00", "12:00", "18:00", "22:00"],
+      timeOfDay: ["12:00", "18:00", "22:00"],
       additionalInfo: "",
     },
   },
-].slice().sort((a, b) => String(a?.label || "").localeCompare(String(b?.label || ""))).slice(0, 10);
+]
+  .slice()
+  .sort((a, b) => String(a?.label || "").localeCompare(String(b?.label || "")))
+  .slice(0, 10);
 
 const PRESETS_BY_NAME = (() => {
   const map = new Map();
@@ -210,4 +215,3 @@ export const findMedicationPresetByName = (name) => {
   const key = normalizeNameKey(name);
   return key ? PRESETS_BY_NAME.get(key) || null : null;
 };
-

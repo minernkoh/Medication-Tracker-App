@@ -19,6 +19,7 @@ export { default as AutocompleteInput } from "./AutocompleteInput";
 // Data Display
 export { default as Card } from "./Card";
 export { default as DataTable } from "./DataTable";
+export { default as ReadMoreText } from "./ReadMoreText";
 export { default as PieChart } from "./PieChart";
 export { default as TodayAdherencePieChart } from "./TodayAdherencePieChart";
 export { default as StatCard } from "./StatCard";

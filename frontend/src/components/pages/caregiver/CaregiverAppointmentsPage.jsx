@@ -30,6 +30,7 @@ import {
   GradientBackground,
   PageHeader,
   SelectMenu,
+  ReadMoreText,
 } from "../../ui";
 import ActionButtons from "../../ui/ActionButtons";
 import ConfirmDialog from "../../ui/ConfirmDialog";
@@ -473,7 +474,7 @@ function CaregiverAppointmentsPage() {
           {/* Filters */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 w-full">
             {/* Search (left) */}
-            <div className="w-full sm:max-w-sm">
+            <div className="w-full sm:max-w-md">
               <FormField
                 name="appointmentsSearch"
                 value={searchQuery}
@@ -560,12 +561,13 @@ function CaregiverAppointmentsPage() {
 
           {/* Appointments table */}
           <div className="bg-background-default border border-border-default rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="max-h-[36rem] overflow-y-auto overflow-x-hidden no-scrollbar">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max">
                 <thead>
                   <tr className="border-b border-border-default bg-background-subtle">
                     <th
-                      className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       onClick={() => handleSort("patient")}
                     >
                       <div className="flex items-center">
@@ -574,7 +576,7 @@ function CaregiverAppointmentsPage() {
                       </div>
                     </th>
                     <th
-                      className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       onClick={() => handleSort("date")}
                     >
                       <div className="flex items-center">
@@ -583,7 +585,7 @@ function CaregiverAppointmentsPage() {
                       </div>
                     </th>
                     <th
-                      className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       onClick={() => handleSort("title")}
                     >
                       <div className="flex items-center">
@@ -592,7 +594,7 @@ function CaregiverAppointmentsPage() {
                       </div>
                     </th>
                     <th
-                      className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       onClick={() => handleSort("doctor")}
                     >
                       <div className="flex items-center">
@@ -601,7 +603,7 @@ function CaregiverAppointmentsPage() {
                       </div>
                     </th>
                     <th
-                      className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       onClick={() => handleSort("location")}
                     >
                       <div className="flex items-center">
@@ -610,7 +612,7 @@ function CaregiverAppointmentsPage() {
                       </div>
                     </th>
                     <th
-                      className={`px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-left ${textStyles.label.small} text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary transition-colors group select-none`}
                       onClick={() => handleSort("status")}
                     >
                       <div className="flex items-center">
@@ -619,7 +621,7 @@ function CaregiverAppointmentsPage() {
                       </div>
                     </th>
                     <th
-                      className={`px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
+                      className={`sticky top-0 z-10 bg-background-subtle px-5 py-4 text-right ${textStyles.label.small} text-text-secondary uppercase tracking-wide`}
                     >
                       Actions
                     </th>
@@ -690,13 +692,15 @@ function CaregiverAppointmentsPage() {
                             >
                               {apt.title}
                             </span>
-                            {apt.notes && (
-                              <span
-                                className={`${textStyles.caption.small} mt-0.5 italic max-w-[200px] truncate`}
-                              >
-                                {apt.notes}
-                              </span>
-                            )}
+                            {apt.notes ? (
+                              <ReadMoreText
+                                text={apt.notes}
+                                maxChars={70}
+                                className={`${textStyles.caption.small} mt-0.5 italic max-w-[260px]`}
+                                buttonClassName="text-text-secondary hover:text-text-primary"
+                                withTitle
+                              />
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-5 py-4">
@@ -758,7 +762,8 @@ function CaregiverAppointmentsPage() {
                     );
                   })}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
 
             {sortedAppointments.length === 0 && (

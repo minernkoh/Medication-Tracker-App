@@ -266,7 +266,8 @@ function MedicationSection({
             : "cursor-pointer hover:border-transparent hover:ring-2 hover:ring-primary hover:shadow-card-hover transition-all duration-200"
           : ""
       } ${
-        "h-full min-h-0"
+        // Keep cards from growing too tall across pages; allow internal scrolling instead.
+        "h-full min-h-0 max-h-[28rem] overflow-hidden"
       }`}
       onClick={onCardClick ? handleCardClick : undefined}
     >
@@ -299,7 +300,7 @@ function MedicationSection({
 
       {/* Medications Content */}
       {medications.length > 0 ? (
-        <div className={`flex-1 ${compact ? "overflow-y-auto min-h-0" : ""}`}>
+        <div className="flex-1 overflow-y-auto min-h-0 no-scrollbar">
           {isPending && groupedPendingMeds ? (
             // Pending: Grouped by hour header (based on earliest scheduled time)
             <div className="space-y-6">
@@ -355,7 +356,9 @@ function MedicationSection({
                             : med.additionalInfo
                         }
                         pillColor={med.pillColor}
-                        onEdit={onEdit ? () => onEdit(med.sourceMedication || med) : undefined}
+                        // IMPORTANT: pass the slot-level entry so the edit modal
+                        // knows this is a "taken time" edit (status/slot/takenTime).
+                        onEdit={onEdit ? () => onEdit(med) : undefined}
                         onDelete={onDelete ? () => onDelete(med) : undefined}
                         mode={mode}
                       />
@@ -393,7 +396,9 @@ function MedicationSection({
                         : undefined
                     }
                     onEdit={
-                      !isPending && onEdit ? () => onEdit(med.sourceMedication || med) : undefined
+                      // IMPORTANT: pass the slot-level entry so the edit modal
+                      // knows this is a "taken time" edit (status/slot/takenTime).
+                      !isPending && onEdit ? () => onEdit(med) : undefined
                     }
                     onDelete={
                       !isPending && onDelete ? () => onDelete(med) : undefined

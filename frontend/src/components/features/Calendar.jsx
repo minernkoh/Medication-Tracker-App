@@ -478,7 +478,7 @@ function Calendar({
       {datePickerPanel}
 
       {showWeekStrip && (
-        <div className="flex gap-1 md:gap-2 min-h-[4.5rem] items-center shrink-0 w-full overflow-x-auto overflow-y-visible pb-4">
+        <div className="flex gap-1 md:gap-2 min-h-[4.5rem] items-center shrink-0 w-full overflow-x-auto overflow-y-visible pb-4 no-scrollbar">
           <button
             type="button"
             onClick={goToPreviousWeek}

@@ -22,6 +22,14 @@ const isValidTimeOfDay = (v) => {
 
 const medicationSchema = new mongoose.Schema(
   {
+    // The day this medication becomes active for daily/history views.
+    // We use this (instead of `createdAt`) so "revived" meds can start fresh
+    // without showing up in past days.
+    activeFrom: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     name: { type: String, required: true },
     dosage: { type: Number, required: true },
     unit: { type: String, default: "pills" },

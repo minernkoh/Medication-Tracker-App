@@ -120,7 +120,7 @@ function AppointmentCard({
             handleClick();
           }
         }}
-        className="rounded-2xl p-5 bg-background-default border border-border-default cursor-pointer hover:border-transparent hover:ring-2 hover:ring-primary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex flex-[1_0_0] flex-col gap-3 items-start group text-left w-full"
+        className="rounded-2xl p-5 bg-background-default border border-border-default cursor-pointer hover:border-transparent hover:ring-2 hover:ring-primary hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex flex-[1_0_0] flex-col gap-3 items-start group text-left w-full h-full self-stretch"
         aria-label={ariaLabel}
       >
         <div className="flex justify-between items-center w-full">
@@ -166,7 +166,7 @@ function AppointmentCard({
   return (
     <Card
       onClick={handleClick}
-      className="flex flex-[1_0_0] flex-col gap-3 items-start group text-left w-full"
+      className="flex flex-[1_0_0] flex-col gap-3 items-start group text-left w-full h-full self-stretch"
       aria-label={ariaLabel}
     >
       <div className="flex justify-between items-center w-full">

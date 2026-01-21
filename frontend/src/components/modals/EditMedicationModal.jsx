@@ -1,32 +1,19 @@
 /**
- * EditMedicationModal Component - Allows editing medication details
- * Supports editing all medication fields including: name, dosage, quantity, timeOfDay, additionalInfo
+ * EditMedicationModal Component
+ *
+ * Time-focused modal:
+ * - Taken entry: edit "Time Taken"
+ * - Otherwise: edit "Schedule Time(s)" only
  */
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Modal, Button, TimePickerDropdown } from "../ui";
 import {
-  Modal,
-  FormField,
-  Button,
-  TimePickerDropdown,
-  SelectMenu,
-} from "../ui";
-import {
-  getModeHexColor,
   getNowTimeInputRounded,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
   toTimeInput,
   toLocalIsoDay,
 } from "../../utils";
-
-const getUnitForType = (rawType) => {
-  const t = String(rawType || "")
-    .trim()
-    .toLowerCase();
-  if (!t) return "";
-  if (t === "liquid") return "ml";
-  return t;
-};
 
 function EditMedicationModal({
   isOpen,
@@ -36,220 +23,90 @@ function EditMedicationModal({
   mode = "Personal",
 }) {
   const [formData, setFormData] = useState({
-    name: "",
-    dosage: "",
-    type: "pills",
-    frequencyType: "timesPerDay",
-    frequencyValue: "",
-    frequencyText: "",
-    quantity: "",
-    recommendSupply: "",
-    unit: "",
     timeOfDay: [],
-    instructions: [],
-    additionalInfo: "",
     takenDate: "",
     takenTime: "",
   });
   const [scheduleTimeInput, setScheduleTimeInput] = useState("");
   const [errors, setErrors] = useState({});
 
-  const parseFrequency = (frequency = "") => {
-    if (!frequency)
-      return {
-        frequencyType: "timesPerDay",
-        frequencyValue: "",
-        frequencyText: "",
-      };
-    const normalized = String(frequency).trim();
-    const hoursMatch = normalized.match(/every\s+(\d+)\s*hour/i);
-    if (hoursMatch) {
-      return {
-        frequencyType: "everyHours",
-        frequencyValue: hoursMatch[1],
-        frequencyText: "",
-      };
-    }
-    const timesMatch = normalized.match(/(\d+)\s*times\s*per\s*day/i);
-    if (timesMatch) {
-      return {
-        frequencyType: "timesPerDay",
-        frequencyValue: timesMatch[1],
-        frequencyText: "",
-      };
-    }
-    if (normalized.toLowerCase().includes("once daily")) {
-      return {
-        frequencyType: "timesPerDay",
-        frequencyValue: "1",
-        frequencyText: "",
-      };
-    }
-    return {
-      frequencyType: "custom",
-      frequencyValue: "",
-      frequencyText: normalized,
-    };
-  };
+  const isTakenMode = medication?.status === "taken" || medication?.taken;
 
   useEffect(() => {
-    if (medication) {
-      const timesOfDay = Array.isArray(medication.timesOfDay)
+    if (!isOpen || !medication) return;
+
+    const timesOfDay =
+      Array.isArray(medication?.timesOfDay) && medication.timesOfDay.length > 0
         ? medication.timesOfDay
-        : medication.timeOfDay
+        : medication?.timeOfDay
           ? [medication.timeOfDay]
           : [];
-      const normalizedTimesOfDay = (timesOfDay || [])
-        .map((t) => {
-          const raw = String(t || "").trim();
-          if (!raw) return null;
-          const lowered = raw.toLowerCase();
-          if (TIME_BUCKET_TO_24H[lowered]) return TIME_BUCKET_TO_24H[lowered];
-          const asTime = toTimeInput(raw);
-          return asTime || null;
-        })
-        .filter(Boolean);
-      const instructions = Array.isArray(medication.instructions)
-        ? medication.instructions
-        : medication.additionalInfo
-          ? medication.additionalInfo
-              .split(",")
-              .map((i) => i.trim())
-              .filter(Boolean)
-          : [];
-      const { frequencyType, frequencyValue, frequencyText } = parseFrequency(
-        medication.frequency,
-      );
-      const takenForInput = toTimeInput(medication.takenTime || "");
-      const defaultTakenDate =
-        medication.takenDate || toLocalIsoDay(new Date());
-      setFormData({
-        name: medication.name || "",
-        dosage: medication.dosage || "",
-        type: medication.type || "pills",
-        frequencyType,
-        frequencyValue,
-        frequencyText,
-        quantity: medication.quantity || "",
-        recommendSupply: medication.recommendSupply || "",
-        unit: medication.unit || getUnitForType(medication.type || ""),
-        timeOfDay: normalizedTimesOfDay,
-        instructions,
-        additionalInfo: medication.additionalInfo || "",
-        takenDate: defaultTakenDate,
-        takenTime: takenForInput,
-      });
-      setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
-    }
-  }, [medication]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name === "type") {
-      setFormData((prev) => {
-        const prevTypeUnit = getUnitForType(prev.type);
-        const nextTypeUnit = getUnitForType(value);
-        const shouldAutoUpdateUnit =
-          !String(prev.unit || "").trim() || prev.unit === prevTypeUnit;
-        return {
-          ...prev,
-          type: value,
-          unit: shouldAutoUpdateUnit ? nextTypeUnit : prev.unit,
-        };
-      });
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-    // Frequency validation uses a shared `frequency` key
-    if (
-      (name === "frequencyType" ||
-        name === "frequencyValue" ||
-        name === "frequencyText") &&
-      errors.frequency
+    const normalizedTimesOfDay = (timesOfDay || [])
+      .map((t) => {
+        const raw = String(t || "").trim();
+        if (!raw) return null;
+        const lowered = raw.toLowerCase();
+        if (TIME_BUCKET_TO_24H[lowered]) return TIME_BUCKET_TO_24H[lowered];
+        return toTimeInput(raw) || null;
+      })
+      .filter(Boolean);
+
+    setFormData({
+      timeOfDay: normalizedTimesOfDay,
+      takenDate: medication?.takenDate || toLocalIsoDay(new Date()),
+      takenTime: toTimeInput(medication?.takenTime || ""),
+    });
+    setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
+    setErrors({});
+  }, [isOpen, medication]);
+
+  const validate = () => {
+    const nextErrors = {};
+    if (isTakenMode) {
+      if (!formData.takenTime) nextErrors.takenTime = "Field is required";
+    } else if (
+      !Array.isArray(formData.timeOfDay) ||
+      formData.timeOfDay.length === 0
     ) {
-      setErrors((prev) => ({ ...prev, frequency: "" }));
+      nextErrors.timeOfDay = "Add at least one time";
     }
-  };
-
-  const handleInstructionChange = (instruction) => {
-    setFormData((prev) => {
-      const instructions = prev.instructions.includes(instruction)
-        ? prev.instructions.filter((inst) => inst !== instruction)
-        : [...prev.instructions, instruction];
-      return { ...prev, instructions };
-    });
-  };
-
-  const handleTimeOfDayChange = (time) => {
-    setFormData((prev) => {
-      const normalized = String(time || "").trim();
-      if (!normalized) return prev;
-      const next = Array.isArray(prev.timeOfDay) ? [...prev.timeOfDay] : [];
-      if (!next.includes(normalized)) next.push(normalized);
-      return { ...prev, timeOfDay: next };
-    });
-    if (errors.timeOfDay) {
-      setErrors((prev) => ({ ...prev, timeOfDay: "" }));
-    }
-  };
-
-  const handleRemoveTimeOfDay = (time) => {
-    setFormData((prev) => ({
-      ...prev,
-      timeOfDay: (prev.timeOfDay || []).filter((t) => t !== time),
-    }));
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const addScheduleTimeFromInput = (rawValue) => {
     const normalized = String(rawValue || "").trim();
     if (!/^\d{2}:\d{2}$/.test(normalized)) return;
-    handleTimeOfDayChange(normalized);
+
+    setFormData((prev) => {
+      const next = Array.isArray(prev.timeOfDay) ? [...prev.timeOfDay] : [];
+      if (!next.includes(normalized)) next.push(normalized);
+      return { ...prev, timeOfDay: next };
+    });
     setScheduleTimeInput(getNowTimeInputRounded(15, "nearest"));
     if (errors.timeOfDay) {
       setErrors((prev) => ({ ...prev, timeOfDay: "" }));
     }
   };
 
-  const validate = () => {
-    const newErrors = {};
-    if (isTakenMode) {
-      if (!formData.takenTime) newErrors.takenTime = "Field is required";
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    }
-
-    if (!String(formData.name || "").trim())
-      newErrors.name = "Field is required";
-    if (!String(formData.dosage || "").trim())
-      newErrors.dosage = "Field is required";
-    if (!String(formData.quantity || "").trim())
-      newErrors.quantity = "Field is required";
-
-    if (formData.frequencyType === "custom") {
-      if (!String(formData.frequencyText || "").trim())
-        newErrors.frequency = "Field is required";
-    } else if (!formData.frequencyValue) {
-      newErrors.frequency = "Field is required";
-    }
-
-    if (!Array.isArray(formData.timeOfDay) || formData.timeOfDay.length === 0) {
-      newErrors.timeOfDay = "Field is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const removeScheduleTime = (time) => {
+    setFormData((prev) => ({
+      ...prev,
+      timeOfDay: (prev.timeOfDay || []).filter((t) => t !== time),
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!validate()) return;
 
     if (isTakenMode) {
-      if (!validate()) return;
       onSave({
         ...medication,
+        // Ensure downstream handlers treat this as a taken-dose time edit.
+        status: "taken",
+        taken: true,
         takenDate:
           formData.takenDate ||
           medication?.takenDate ||
@@ -261,50 +118,22 @@ function EditMedicationModal({
       return;
     }
 
-    if (!validate()) return;
-
-    let frequencyString = "";
-    if (formData.frequencyType === "timesPerDay") {
-      const times = formData.frequencyValue;
-      frequencyString = times === "1" ? "Once daily" : `${times} times per day`;
-    } else if (formData.frequencyType === "everyHours") {
-      frequencyString = `Every ${formData.frequencyValue} hour${
-        formData.frequencyValue !== "1" ? "s" : ""
-      }`;
-    } else {
-      frequencyString = formData.frequencyText;
-    }
-
-    const updatedMedication = {
+    onSave({
       ...medication,
-      name: formData.name,
-      dosage: parseFloat(formData.dosage) || 0,
-      type: formData.type,
-      frequency: frequencyString,
-      quantity: parseFloat(formData.quantity) || 0,
-      recommendSupply: parseFloat(formData.recommendSupply) || 0,
-      unit: formData.unit,
       timeOfDay: formData.timeOfDay?.[0] || null,
-      timesOfDay: formData.timeOfDay,
-      instructions: formData.instructions,
-      additionalInfo: formData.additionalInfo,
-    };
-
-    onSave(updatedMedication);
+      timesOfDay: Array.isArray(formData.timeOfDay) ? formData.timeOfDay : [],
+    });
   };
 
   if (!isOpen || !medication) return null;
 
-  const isCaregiver = mode === "Caregiver";
-  const submitVariant = isCaregiver ? "secondary" : "primary";
-  const accentColor = getModeHexColor(mode);
-  const isTakenMode = medication?.status === "taken" || medication?.taken;
+  const submitVariant = mode === "Caregiver" ? "secondary" : "primary";
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit Time"
+      title={isTakenMode ? "Edit Time Taken" : "Edit Schedule"}
       size="md"
       mode={mode}
       footerContent={
@@ -320,10 +149,7 @@ function EditMedicationModal({
           <Button
             variant={submitVariant}
             onClick={() => {
-              const form = document.getElementById("edit-medication-form");
-              if (form) {
-                form.requestSubmit();
-              }
+              document.getElementById("edit-medication-form")?.requestSubmit();
             }}
             fullWidth
           >
@@ -335,305 +161,83 @@ function EditMedicationModal({
       <form id="edit-medication-form" onSubmit={handleSubmit} className="p-5">
         <div className="space-y-4">
           {isTakenMode ? (
-            <>
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Time Taken <span className="text-danger">*</span>
-                </label>
-                <TimePickerDropdown
-                  value={formData.takenTime}
-                  onChange={(time) => {
-                    setFormData((prev) => ({ ...prev, takenTime: time }));
-                    if (errors.takenTime) {
-                      setErrors((prev) => ({ ...prev, takenTime: "" }));
-                    }
-                  }}
-                  minuteStep={15}
-                  mode={mode}
-                />
-                {errors.takenTime && (
-                  <p className="mt-1.5 font-poppins font-semibold text-xs text-danger flex items-center gap-1.5 animate-fade-in">
-                    <span className="inline-block w-1 h-1 rounded-full bg-danger flex-shrink-0" />
-                    {errors.takenTime}
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <FormField
-                label="Medication Name"
-                name="name"
-                type="text"
-                value={formData.name}
-                onChange={handleChange}
-                error={errors.name}
-                required
+            <div>
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Time Taken <span className="text-danger">*</span>
+              </label>
+              <TimePickerDropdown
+                value={formData.takenTime}
+                onChange={(time) => {
+                  setFormData((prev) => ({ ...prev, takenTime: time }));
+                  if (errors.takenTime) {
+                    setErrors((prev) => ({ ...prev, takenTime: "" }));
+                  }
+                }}
+                minuteStep={15}
+                mode={mode}
               />
-
-              <div className="grid grid-cols-3 gap-3">
-                <FormField
-                  className="col-span-2"
-                  label="Dosage"
-                  name="dosage"
-                  type="text"
-                  value={formData.dosage}
-                  onChange={handleChange}
-                  placeholder="e.g., 2"
-                  error={errors.dosage}
-                  required
-                />
-                <FormField
-                  className="col-span-1"
-                  label="Unit"
-                  name="unit"
-                  type="text"
-                  value={formData.unit}
-                  onChange={handleChange}
-                  placeholder="e.g., ml"
-                />
-              </div>
-
-              <FormField
-                label="Type"
-                name="type"
-                type="text"
-                value={formData.type}
-                onChange={handleChange}
-                placeholder="e.g., pills, tablets, liquid"
-              />
-
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Frequency
-                </label>
-                <div className="flex flex-col gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 items-start">
-                    {(formData.frequencyType === "timesPerDay" ||
-                      formData.frequencyType === "everyHours") && (
-                      <input
-                        type="number"
-                        name="frequencyValue"
-                        value={formData.frequencyValue}
-                        onChange={handleChange}
-                        placeholder={
-                          formData.frequencyType === "timesPerDay"
-                            ? "e.g., 2"
-                            : "e.g., 4"
-                        }
-                        min={1}
-                        max={formData.frequencyType === "timesPerDay" ? 12 : 24}
-                        className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                        required
-                        aria-label={
-                          formData.frequencyType === "timesPerDay"
-                            ? "Times per day"
-                            : "Every X hours"
-                        }
-                      />
-                    )}
-
-                    <div
-                      className={
-                        formData.frequencyType === "custom"
-                          ? "sm:col-span-2"
-                          : ""
-                      }
-                    >
-                      <SelectMenu
-                        value={formData.frequencyType}
-                        onChange={(nextValue) =>
-                          handleChange({
-                            target: { name: "frequencyType", value: nextValue },
-                          })
-                        }
-                        options={[
-                          { value: "timesPerDay", label: "Times per day" },
-                          { value: "everyHours", label: "Every X hours" },
-                          { value: "custom", label: "Custom" },
-                        ]}
-                        mode={mode}
-                        aria-label="Frequency type"
-                      />
-                    </div>
-                  </div>
-
-                  {formData.frequencyType === "custom" && (
-                    <input
-                      type="text"
-                      name="frequencyText"
-                      value={formData.frequencyText}
-                      onChange={handleChange}
-                      placeholder="e.g., Every 6 hours, 3 times daily"
-                      className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary transition-colors"
-                      required
-                    />
-                  )}
-                </div>
-                {errors.frequency && (
-                  <p className="mt-1.5 font-poppins font-semibold text-xs text-danger">
-                    {errors.frequency}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Schedule Time(s)
-                </label>
-                <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="w-full" aria-label="Schedule time">
-                      <TimePickerDropdown
-                        value={scheduleTimeInput}
-                        onChange={(time) => setScheduleTimeInput(time)}
-                        minuteStep={15}
-                        mode={mode}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        addScheduleTimeFromInput(scheduleTimeInput)
-                      }
-                    >
-                      Add
-                    </Button>
-                  </div>
-
-                  {Array.isArray(formData.timeOfDay) &&
-                    formData.timeOfDay.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {[...formData.timeOfDay]
-                          .slice()
-                          .sort()
-                          .map((t) => (
-                            <span
-                              key={t}
-                              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-poppins font-semibold bg-background-hover text-text-primary border border-border-default"
-                            >
-                              {to12HourDisplay(t)}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveTimeOfDay(t)}
-                                className="text-text-secondary hover:text-danger transition-colors"
-                                aria-label={`Remove ${to12HourDisplay(t)}`}
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          ))}
-                      </div>
-                    )}
-                </div>
-                {errors.timeOfDay && (
-                  <p className="mt-1.5 font-poppins font-semibold text-xs text-danger">
-                    {errors.timeOfDay}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <FormField
-                  className="col-span-2"
-                  label="Total Quantity"
-                  name="quantity"
-                  type="text"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  placeholder="e.g., 30"
-                  error={errors.quantity}
-                  required
-                />
-                <FormField
-                  className="col-span-1"
-                  label="Unit"
-                  name="unit"
-                  type="text"
-                  value={formData.unit}
-                  onChange={handleChange}
-                  placeholder="e.g., pills"
-                  inputProps={{ "aria-label": "Quantity unit" }}
-                />
-              </div>
-
-              <div>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    className="col-span-2"
-                    label="Recommended Supply"
-                    name="recommendSupply"
-                    type="text"
-                    value={formData.recommendSupply}
-                    onChange={handleChange}
-                    placeholder="e.g., 30"
-                  />
-                  <FormField
-                    className="col-span-1"
-                    label="Unit"
-                    name="unit"
-                    type="text"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    placeholder="e.g., pills"
-                    inputProps={{ "aria-label": "Supply unit" }}
-                  />
-                </div>
-                <p className="font-poppins text-xs text-text-secondary mt-2">
-                  Used to calculate supply status and refill reminders. If left
-                  blank, we’ll use Total Quantity.
+              {errors.takenTime ? (
+                <p className="mt-1.5 font-poppins font-semibold text-xs text-danger flex items-center gap-1.5 animate-fade-in">
+                  <span className="inline-block w-1 h-1 rounded-full bg-danger flex-shrink-0" />
+                  {errors.takenTime}
                 </p>
-              </div>
-
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Instructions
-                </label>
-                <div className="flex flex-col gap-2 p-4 rounded-xl border border-border-default bg-background-default">
-                  {[
-                    "Before Meal",
-                    "After Meal",
-                    "With Food",
-                    "On Empty Stomach",
-                    "Causes Drowsiness",
-                    "Avoid Alcohol",
-                    "Take with Water",
-                    "Do Not Crush",
-                  ].map((instruction) => (
-                    <label
-                      key={instruction}
-                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.instructions.includes(instruction)}
-                        onChange={() => handleInstructionChange(instruction)}
-                        className="app-checkbox"
-                        style={{ "--checkbox-accent": accentColor }}
-                      />
-                      <span className="font-poppins text-sm text-text-primary group-hover:text-text-primary">
-                        {instruction}
-                      </span>
-                    </label>
-                  ))}
+              ) : null}
+            </div>
+          ) : (
+            <div>
+              <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
+                Schedule Time(s) <span className="text-danger">*</span>
+              </label>
+              <div className="flex flex-col gap-3 p-4 rounded-xl border border-border-default bg-background-default">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="w-full" aria-label="Schedule time">
+                    <TimePickerDropdown
+                      value={scheduleTimeInput}
+                      onChange={(time) => setScheduleTimeInput(time)}
+                      minuteStep={15}
+                      mode={mode}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addScheduleTimeFromInput(scheduleTimeInput)}
+                  >
+                    Add
+                  </Button>
                 </div>
-              </div>
 
-              <div>
-                <label className="block font-poppins font-semibold text-sm text-text-primary mb-1.5">
-                  Notes / Instructions
-                </label>
-                <textarea
-                  name="additionalInfo"
-                  value={formData.additionalInfo}
-                  onChange={handleChange}
-                  placeholder="e.g., Take after meal, Before sleep"
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-border-default font-poppins text-sm text-text-primary bg-background-default focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none transition-colors"
-                />
+                {Array.isArray(formData.timeOfDay) &&
+                formData.timeOfDay.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {[...formData.timeOfDay]
+                      .slice()
+                      .sort()
+                      .map((t) => (
+                        <span
+                          key={t}
+                          className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-poppins font-semibold bg-background-hover text-text-primary border border-border-default"
+                        >
+                          {to12HourDisplay(t)}
+                          <button
+                            type="button"
+                            onClick={() => removeScheduleTime(t)}
+                            className="text-text-secondary hover:text-danger transition-colors"
+                            aria-label={`Remove ${to12HourDisplay(t)}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                ) : null}
               </div>
-            </>
+              {errors.timeOfDay ? (
+                <p className="mt-1.5 font-poppins font-semibold text-xs text-danger">
+                  {errors.timeOfDay}
+                </p>
+              ) : null}
+            </div>
           )}
         </div>
       </form>

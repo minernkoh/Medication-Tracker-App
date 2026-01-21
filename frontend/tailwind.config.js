@@ -2,78 +2,13 @@
  * Tailwind config (design system)
  *
  * Defines theme tokens (colors, typography, spacing, shadows) used across the UI.
- * Keep this file in sync with `frontend/src/theme/tokens.js` (runtime tokens for charts/icons).
+ * Colors are sourced from `frontend/src/theme/tokens.js` (runtime tokens for charts/icons).
  */
 
 /** @type {import('tailwindcss').Config} */
 
-// Single source of truth for colors - exported for use in components
-export const colors = {
-        // Semantic color tokens
-        primary: {
-          DEFAULT: "#155dfc", // Personal mode primary color
-          hover: "#1350e0",
-          light: "#e8f0fe",
-        },
-        secondary: {
-          DEFAULT: "#da7488", // Caregiver mode primary color
-          hover: "#c86478",
-          light: "#fce8ec",
-        },
-        text: {
-          primary: "#181818", // Main text color
-          secondary: "#646464", // Secondary/subdued text color
-          onPrimary: "#ffffff", // Text on primary background
-          onSecondary: "#ffffff", // Text on secondary background
-        },
-        icon: {
-          DEFAULT: "#181818", // Default icon color
-          primary: "#181818", // Default icon color
-          secondary: "#646464", // Secondary icon color
-          onPrimary: "#ffffff", // Icon on primary background
-          interactive: "#155dfc", // Interactive icon color (hover/active)
-        },
-        background: {
-          default: "#ffffff", // Default background
-          subtle: "#f9f9f9", // Subtle background (cards, hover states)
-          hover: "#f9f9f9", // Hover background
-          success: {
-            hover: "#e9ffee", // Success state hover background
-          },
-        },
-        border: {
-          default: "rgba(100,100,100,0.2)", // Default border color
-          subtle: "rgba(100,100,100,0.1)", // Subtle border
-        },
-        separator: {
-          default: "rgba(100, 100, 100, 1)",
-          subtle: "rgba(100, 100, 100, 0.5)",
-        },
-        // Status colors
-        success: {
-          DEFAULT: "#10b981", // Success green
-          hover: "#059669",
-          light: "#d1fae5",
-        },
-        warning: {
-          DEFAULT: "#f59e0b", // Warning amber
-          hover: "#d97706",
-          light: "#fef3c7",
-        },
-        danger: {
-          DEFAULT: "#ef4444", // Danger red
-          hover: "#dc2626",
-          light: "#fee2e2",
-        },
-        // Patient colors (for caregiver mode)
-        patient: {
-          pink: "#da7488",    // Secondary color
-          blue: "#155dfc",    // Primary color
-          green: "#10b981",   // Success color
-          amber: "#f59e0b",   // Warning color
-          purple: "#8b5cf6",  // Additional patient color
-        },
-};
+import { colors } from "./src/theme/tokens.js";
+export { colors };
 
 // Tailwind config using the colors object
 export default {

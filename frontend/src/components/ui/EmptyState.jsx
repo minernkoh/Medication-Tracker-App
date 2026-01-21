@@ -45,7 +45,7 @@ function EmptyState({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center ${config.padding} ${className}`}
+      className={`flex flex-col w-full h-full min-h-0 flex-1 ${config.padding} ${className} items-center justify-center text-center`}
       role="status"
       aria-live="polite"
     >

@@ -11,12 +11,14 @@
  * @param {string} emptyIcon - Icon component to display when no data
  * @param {string} mode - "Personal" or "Caregiver"
  * @param {string} variant - "default" | "compact"
+ * @param {number} maxVisibleRows - Approximate max number of visible rows before scrolling (default: 10)
  */
 import { useMemo, useState } from "react";
 import { CaretUpIcon, CaretDownIcon, PillIcon } from "@phosphor-icons/react";
 import { getModeClasses } from "../../utils/modeUtils";
 import ActionButtons from "./ActionButtons";
 import EmptyState from "./EmptyState";
+import ReadMoreText from "./ReadMoreText";
 
 function defaultGetRowKey(row, index) {
   return row?.id || row?._id || index;
@@ -77,6 +79,13 @@ function compareNormalized(a, b) {
   return aStr.localeCompare(bStr);
 }
 
+function isNotesColumn(col) {
+  const key = String(col?.key || "").toLowerCase();
+  const label =
+    typeof col?.label === "string" ? String(col.label).toLowerCase() : "";
+  return key.includes("note") || label.includes("note");
+}
+
 function DataTable({
   columns = [],
   data = [],
@@ -96,6 +105,7 @@ function DataTable({
   rowClassName,
   onRowClick,
   getRowKey = defaultGetRowKey,
+  maxVisibleRows = 10,
 }) {
   const modeClasses = getModeClasses(mode);
   const [internalSortConfig, setInternalSortConfig] = useState(defaultSortConfig);
@@ -168,6 +178,15 @@ function DataTable({
   const cellPadding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
   const headerPadding = variant === "compact" ? "px-4 py-3" : "px-5 py-4";
 
+  // Approximate row/header heights to cap tables around N rows, while keeping
+  // the component responsive (content can still be taller if rows wrap).
+  const rowHeightPx = variant === "compact" ? 44 : 52;
+  const headerHeightPx = variant === "compact" ? 44 : 52;
+  const maxTableHeightPx =
+    typeof maxVisibleRows === "number" && maxVisibleRows > 0
+      ? headerHeightPx + maxVisibleRows * rowHeightPx
+      : null;
+
   const getColumnAlign = (col) => {
     const align = String(col?.align || "left").toLowerCase();
     if (align === "center" || align === "right" || align === "left") return align;
@@ -186,93 +205,117 @@ function DataTable({
     return "justify-start";
   };
 
+  const renderCellContent = (col, row, rowIndex) => {
+    const rawValue = row?.[col.key];
+    const rendered = col.render ? col.render(rawValue, row, rowIndex) : rawValue;
+
+    // If this is a "Notes" column and we have a plain string value, truncate it.
+    // (For custom renderers returning JSX, prefer using ReadMoreText in the renderer.)
+    if (isNotesColumn(col) && typeof rendered === "string") {
+      const notes = rendered.trim();
+      if (!notes) return rendered;
+      return (
+        <ReadMoreText
+          text={notes}
+          maxChars={80}
+          className="font-poppins text-sm text-text-primary max-w-[260px]"
+        />
+      );
+    }
+
+    return rendered;
+  };
+
   return (
     <div
       className={`bg-background-default border border-border-default rounded-2xl overflow-hidden shadow-sm ${containerClassName}`}
     >
       {data.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border-default bg-background-subtle">
-                {columns.map((col) => {
-                  const align = getColumnAlign(col);
-                  const alignTextClass = getAlignTextClass(align);
-                  const alignJustifyClass = getAlignJustifyClass(align);
-
-                  return (
-                    <th
-                      key={col.key}
-                      onClick={
-                        col.sortable !== false
-                          ? () => handleSort(col.key)
-                          : undefined
-                      }
-                      className={`${headerPadding} ${alignTextClass} font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide ${
-                        col.sortable !== false && canSort
-                          ? "cursor-pointer hover:text-text-primary transition-colors group select-none"
-                          : ""
-                      }`}
-                    >
-                      <div className={`flex items-center ${alignJustifyClass}`}>
-                        {col.label}
-                        {col.sortable !== false && canSort && (
-                          <SortIndicator columnKey={col.key} />
-                        )}
-                      </div>
-                    </th>
-                  );
-                })}
-                {showActions && (
-                  <th
-                    className={`${headerPadding} text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide`}
-                  >
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedData.map((row, rowIndex) => (
-                <tr
-                  key={getRowKey(row, rowIndex)}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className={`border-b border-border-default transition-colors hover:bg-background-hover ${
-                    typeof rowClassName === "function"
-                      ? rowClassName(row)
-                      : rowClassName || ""
-                  } ${onRowClick ? "cursor-pointer" : ""}`}
-                >
+        <div
+          className="overflow-y-auto overflow-x-hidden no-scrollbar"
+          style={maxTableHeightPx ? { maxHeight: `${maxTableHeightPx}px` } : undefined}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max">
+              <thead>
+                <tr className="border-b border-border-default bg-background-subtle">
                   {columns.map((col) => {
                     const align = getColumnAlign(col);
                     const alignTextClass = getAlignTextClass(align);
+                    const alignJustifyClass = getAlignJustifyClass(align);
+
                     return (
-                      <td
+                      <th
                         key={col.key}
-                        className={`${cellPadding} ${alignTextClass}`}
+                        onClick={
+                          col.sortable !== false
+                            ? () => handleSort(col.key)
+                            : undefined
+                        }
+                        className={`sticky top-0 z-10 bg-background-subtle ${headerPadding} ${alignTextClass} font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide ${
+                          col.sortable !== false && canSort
+                            ? "cursor-pointer hover:text-text-primary transition-colors group select-none"
+                            : ""
+                        }`}
                       >
-                        {col.render
-                          ? col.render(row[col.key], row, rowIndex)
-                          : row[col.key]}
-                      </td>
+                        <div className={`flex items-center ${alignJustifyClass}`}>
+                          {col.label}
+                          {col.sortable !== false && canSort && (
+                            <SortIndicator columnKey={col.key} />
+                          )}
+                        </div>
+                      </th>
                     );
                   })}
                   {showActions && (
-                    <td className={cellPadding}>
-                      <div className="flex justify-end">
-                        <ActionButtons
-                          onEdit={onEdit ? () => onEdit(row) : undefined}
-                          onDelete={onDelete ? () => onDelete(row) : undefined}
-                          size="base"
-                          mode={mode}
-                        />
-                      </div>
-                    </td>
+                    <th
+                      className={`sticky top-0 z-10 bg-background-subtle ${headerPadding} text-right font-poppins font-semibold text-xs text-text-secondary uppercase tracking-wide`}
+                    >
+                      Actions
+                    </th>
                   )}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedData.map((row, rowIndex) => (
+                  <tr
+                    key={getRowKey(row, rowIndex)}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    className={`border-b border-border-default transition-colors hover:bg-background-hover ${
+                      typeof rowClassName === "function"
+                        ? rowClassName(row)
+                        : rowClassName || ""
+                    } ${onRowClick ? "cursor-pointer" : ""}`}
+                  >
+                    {columns.map((col) => {
+                      const align = getColumnAlign(col);
+                      const alignTextClass = getAlignTextClass(align);
+                      return (
+                        <td
+                          key={col.key}
+                          className={`${cellPadding} ${alignTextClass}`}
+                        >
+                          {renderCellContent(col, row, rowIndex)}
+                        </td>
+                      );
+                    })}
+                    {showActions && (
+                      <td className={cellPadding}>
+                        <div className="flex justify-end">
+                          <ActionButtons
+                            onEdit={onEdit ? () => onEdit(row) : undefined}
+                            onDelete={onDelete ? () => onDelete(row) : undefined}
+                            size="base"
+                            mode={mode}
+                          />
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <EmptyState

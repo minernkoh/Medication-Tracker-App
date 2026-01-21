@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ListIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { ListIcon } from "@phosphor-icons/react";
 import {
   DashboardPage,
   AppointmentsPage,
@@ -59,6 +59,10 @@ function AppLayout({
 }) {
   const firstName = user?.name ? user.name.split(" ")[0] : "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem("sidebarCollapsed") === "true";
@@ -67,6 +71,7 @@ function AppLayout({
     }
   });
   const modeColor = getModeHexColor(mode);
+  const effectiveSidebarCollapsed = isDesktop ? isSidebarCollapsed : false;
 
   useEffect(() => {
     try {
@@ -75,6 +80,24 @@ function AppLayout({
       // ignore storage errors
     }
   }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const handler = (e) => setIsDesktop(e.matches);
+
+    // Initialize
+    setIsDesktop(mq.matches);
+
+    // Subscribe (Safari fallback)
+    if (mq.addEventListener) mq.addEventListener("change", handler);
+    else mq.addListener(handler);
+
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
 
   return (
     <div className="h-screen bg-white flex flex-col md:flex-row overflow-hidden overflow-x-hidden">
@@ -89,23 +112,6 @@ function AppLayout({
             aria-expanded={isSidebarOpen}
           >
             <ListIcon size={22} weight="bold" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label={
-              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
-            }
-            aria-pressed={isSidebarCollapsed}
-            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isSidebarCollapsed ? (
-              <CaretRightIcon size={18} weight="bold" />
-            ) : (
-              <CaretLeftIcon size={18} weight="bold" />
-            )}
           </button>
         </div>
         <div className="flex flex-col items-center">
@@ -140,7 +146,7 @@ function AppLayout({
         onLogout={onLogout}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        isCollapsed={isSidebarCollapsed}
+        isCollapsed={effectiveSidebarCollapsed}
         onToggleCollapsed={setIsSidebarCollapsed}
       />
 
@@ -570,7 +576,11 @@ function App() {
               setShowCaregiverAssignedModal(false);
               updateAuthField("caregiverAssignmentNotified", true);
             }}
-            title="Caregiver assigned"
+            title={`Caregiver: ${
+              (Array.isArray(user?.caregivers) && user.caregivers[0]?.name) ||
+              user?.caregiver?.name ||
+              "Assigned"
+            }`}
             size="sm"
             footerContent={
               <Button
@@ -588,8 +598,20 @@ function App() {
             <div className="p-5">
               <p className="font-poppins text-sm text-text-secondary">
                 {Array.isArray(user?.caregivers) && user.caregivers[0]?.name
-                  ? `You’ve been assigned a caregiver: ${user.caregivers[0].name}. Your account is now in View Only mode.`
-                  : "You’ve been assigned a caregiver. Your account is now in View Only mode."}
+                  ? (
+                      <>
+                        You’ve been assigned a caregiver: {user.caregivers[0].name}.
+                        <br />
+                        Your account is now in View Only mode.
+                      </>
+                    )
+                  : (
+                      <>
+                        You’ve been assigned a caregiver.
+                        <br />
+                        Your account is now in View Only mode.
+                      </>
+                    )}
               </p>
             </div>
           </Modal>

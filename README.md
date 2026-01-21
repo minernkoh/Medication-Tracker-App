@@ -1,28 +1,21 @@
 # Medication Tracker App
 
-Full-stack web app for tracking medications and appointments, with **patient** and **caregiver** modes.
+Full-stack medication + appointment tracker with **Patient** and **Caregiver** workflows, **dose-level** (time-slot) logging, supply alerts, and adherence insights.
 
-## Table of contents
+## Core features
 
-- [Features](#features)
-- [Tech stack](#tech-stack)
-- [Getting started (dev)](#getting-started-dev)
-- [API overview](#api-overview)
-- [Scripts](#scripts)
-- [License](#license)
-
-## Features
-
-- **Medication tracking**: create/update meds with schedules and inventory (low-supply alerts)
-- **Medication logs**: mark a dose as taken and undo
-- **Appointments**: create/update upcoming appointments
-- **Caregiver mode**: link patients, see consolidated schedules/appointments and adherence summaries
-- **Auth + onboarding**: JWT auth, onboarding tutorial accessible from Settings
+- **Medication tracking**: create/update meds with schedules, instructions, and notes
+- **Dose logs**: mark a dose as taken (per time-slot) and undo
+- **Supply tracking**: quantity + recommended supply, with low/empty alerts
+- **Appointments**: schedule appointments, track status (Scheduled/Today/Completed/Missed/Cancelled)
+- **Caregiver mode**: link patients, view a combined daily schedule, appointments, and adherence summaries
+- **Auth + onboarding**: JWT auth, onboarding tutorial (also accessible from Settings)
+- **View-only patient mode**: when a caregiver is assigned, patient actions become read-only
 
 ## Tech stack
 
 - **Frontend**: React, Vite, Tailwind CSS, React Router, Phosphor Icons
-- **Backend**: Node.js, Express, MongoDB/Mongoose, JWT, Helmet, rate limiting
+- **Backend**: Node.js, Express, MongoDB/Mongoose, JWT
 
 ## Getting started (dev)
 
@@ -38,7 +31,7 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-### Environment variables
+### Configure environment
 
 Backend:
 
@@ -46,17 +39,12 @@ Backend:
 cp backend/env.example backend/.env
 ```
 
-Required values in `backend/.env`:
+Minimum required in `backend/.env`:
 
 - `MONGODB_URI`
 - `JWT_SECRET`
 
-Optional:
-
-- `PORT` (defaults to `5001`)
-- `HOST` (defaults to `127.0.0.1`)
-
-Frontend (optional): override the Vite dev proxy target by creating `frontend/.env`:
+Frontend (optional): override the Vite proxy target via `frontend/.env`:
 
 ```env
 VITE_API_TARGET=http://127.0.0.1:5001
@@ -72,71 +60,70 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
-- Backend runs on `http://127.0.0.1:5001` by default
-- Frontend runs on `http://localhost:5173`
-- In dev, the frontend calls the API via `/api/*` and Vite proxies to the backend (stripping the `/api` prefix)
-
-## API overview
-
-Base URL:
-
-- **From the frontend (dev)**: `/api`
-- **Directly**: `http://127.0.0.1:5001`
-
-Auth:
-
-- `POST /auth/signup`
-- `POST /auth/signin`
-
-Users:
-
-- `GET /users/me`
-- `POST /users/me/change-password`
-- `PUT /users/:id`
-- `PUT /users/:id/assign-caregiver`
-- `DELETE /users/:id`
-
-Medications:
-
-- `GET /medications` (current user)
-- `GET /medications/today`
-- `GET /medications/supply`
-- `GET /medications/date/:date` (date format: `YYYY-MM-DD`)
-- `POST /medications`
-- `GET|PUT|DELETE /medications/:id`
-- `PATCH /medications/:id/taken`
-- `PATCH /medications/:id/undo`
-- Patient-scoped (caregiver permissions):
-  - `GET|POST /patients/:patientId/medications`
-  - `PUT|DELETE /patients/:patientId/medications/:id`
-
-Appointments:
-
-- `GET /appointments` (current user)
-- `POST /appointments`
-- `GET|PUT|DELETE /appointments/:id`
-- Patient-scoped:
-  - `GET|POST /patients/:patientId/appointments`
-  - `GET|PUT|DELETE /patients/:patientId/appointments/:id`
-
-Caregiver:
-
-- `GET /caregiver/patients`
-- `POST /caregiver/patients`
-- `GET /caregiver/patients/:id`
-- `DELETE /caregiver/patients/:id`
-- `GET /caregiver/appointments`
-- `GET /caregiver/schedule?date=YYYY-MM-DD`
-
-Notes:
-
-- All endpoints except `/auth/*` require `Authorization: Bearer <token>`.
+- Backend default: `http://127.0.0.1:5001`
+- Frontend default: `http://localhost:5173`
+- In dev, the frontend calls the API via `/api/*` (proxied to the backend)
 
 ## Scripts
 
-- Backend (from `backend/`): `npm run dev`, `npm start`
-- Frontend (from `frontend/`): `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`, `npm run lint:fix`
+- Backend (`backend/`): `npm run dev`, `npm start`
+- Frontend (`frontend/`): `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`, `npm run lint:fix`
 
-## License
+## API (high level)
 
-No license file is currently included in this repository.
+### Base + auth
+
+- **Base**: `/api` (from the frontend in dev) or `http://127.0.0.1:5001`
+- **Auth header**: everything except `/auth/*` requires `Authorization: Bearer <token>`
+- **Source of truth**: route definitions live in `backend/routes/`
+
+### Endpoints (overview)
+
+- **Auth**: `POST /auth/signup`, `POST /auth/signin`
+- **Users**: `GET /users/me`, `POST /users/me/change-password`, `PUT /users/:id`, `DELETE /users/:id`
+- **Medications (current user)**:
+  - `GET /medications` (supports `?date=YYYY-MM-DD`)
+  - `POST /medications`, `GET|PUT|DELETE /medications/:id`
+  - `PATCH /medications/:id/taken`, `PATCH /medications/:id/undo` (optionally pass `date` + `timeSlot`)
+- **Appointments (current user)**: `GET /appointments`, `POST /appointments`, `GET|PUT|DELETE /appointments/:id`
+- **Caregiver**:
+  - `GET /caregiver/patients`, `POST /caregiver/patients`, `GET /caregiver/patients/:id`, `DELETE /caregiver/patients/:id`
+  - `GET /caregiver/appointments`
+  - `GET /caregiver/schedule?date=YYYY-MM-DD`
+- **Patient-scoped (caregiver permissions)**:
+  - `GET|POST /patients/:patientId/medications`, `PUT|DELETE /patients/:patientId/medications/:id`
+  - `GET|POST /patients/:patientId/appointments`, `GET|PUT|DELETE /patients/:patientId/appointments/:id`
+
+## Database schema (MongoDB/Mongoose)
+
+Schema definitions live in `backend/models/`.
+
+### `User`
+
+- **Core fields**: `name`, `email`, `password` (hashed), `role` (`patient` | `caregiver`)
+- **Relationships**:
+  - **Patient → Caregiver(s)**: `caregiver` and/or `caregivers` (references `User`)
+  - **Caregiver → Patients**: derived via reverse lookup (patients that reference the caregiver)
+
+### `Medication`
+
+- **Ownership**: `patient` (ref `User`)
+- **Scheduling**: `timeOfDay` (legacy bucket or time), and/or `timesOfDay` (array of schedule slots)
+- **Supply**: `dosage`, `unit`, `quantity`, `recommendSupply`
+- **Lifecycle**: `isArchived`, `archivedAt`, `createdAt`
+- **Daily status**: `status`, `taken`, `takenTime` (note: dose-level truth is in `MedicationLog`)
+
+### `MedicationLog`
+
+- **References**: `patient` (ref `User`), `medication` (ref `Medication`)
+- **Slot-level intake**: `date` (YYYY-MM-DD), `timeSlot` (normalized), `takenAt` (timestamp)
+- **Meaning**: one log row = one taken dose for a medication + time-slot on a date
+
+### `Appointments`
+
+- **Ownership**: `patient` (ref `User`)
+- **Fields**: `title`, `date` (plus optional `dateDay`), `time`, `doctorName`, `location`, `notes`, `status`
+
+## Sample data
+
+JSON fixtures live in `patient_sampledata/` (useful for manual imports / API testing).

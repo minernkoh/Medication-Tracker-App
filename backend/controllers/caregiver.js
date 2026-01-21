@@ -30,6 +30,41 @@ const toLocalIsoDay = (value = new Date()) => {
 const getTodayStr = () => toLocalIsoDay(new Date());
 const LOW_SUPPLY_THRESHOLD = 10;
 
+// Keep caregiver schedule/log slot keys consistent across legacy values.
+// The app historically allowed coarse buckets ("morning") and explicit HH:MM ("08:00").
+// Normalize both to canonical 24h HH:MM where possible so intake logs match schedules.
+const TIME_BUCKET_TO_24H = Object.freeze({
+  morning: "08:00",
+  afternoon: "12:00",
+  night: "20:00",
+});
+
+const normalizeTimeSlotKey = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const lowered = raw.toLowerCase();
+  if (TIME_BUCKET_TO_24H[lowered]) return TIME_BUCKET_TO_24H[lowered];
+  // Handle 12-hour format like "9:00 AM"
+  const ampmMatch = lowered.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (ampmMatch) {
+    let hour = Number(ampmMatch[1]);
+    const minute = String(ampmMatch[2]);
+    const ampm = String(ampmMatch[3]).toUpperCase();
+    if (ampm === "PM" && hour !== 12) hour += 12;
+    if (ampm === "AM" && hour === 12) hour = 0;
+    const hh = String(hour).padStart(2, "0");
+    const mm = minute.padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+  const m = lowered.match(/^(\d{1,2}):(\d{2})$/);
+  if (m) {
+    const hh = String(Number(m[1])).padStart(2, "0");
+    const mm = String(m[2]).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+  return lowered;
+};
+
 const getAppointmentDateTime = (appointment) => {
   if (!appointment) return null;
   const baseDate =
@@ -66,11 +101,29 @@ const isScheduledMedication = (med) => {
   return false;
 };
 
+// Treat "unscheduled" medications as 1 expected dose per day *only* when they are active.
+// This matches the frontend behavior where unscheduled meds can appear in "Pending Today".
+const isActiveUnscheduledMedication = (med) => {
+  if (!med) return false;
+  if (isScheduledMedication(med)) return false;
+  const status = String(med.status || "").toLowerCase();
+  return status === "pending" || status === "taken";
+};
+
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const parseIsoDayUtc = (isoDay) => {
   if (!ISO_DAY_RE.test(isoDay)) return null;
   // Treat stored YYYY-MM-DD as a UTC day.
   return new Date(`${isoDay}T00:00:00.000Z`);
+};
+
+// Parse a YYYY-MM-DD into a local (server timezone) end-of-day Date.
+// Avoids `new Date("YYYY-MM-DD")` which is UTC in JS and can shift the day.
+const parseIsoDayLocalEnd = (isoDay) => {
+  if (!ISO_DAY_RE.test(isoDay)) return null;
+  const [y, m, d] = isoDay.split("-").map((n) => Number(n));
+  if (![y, m, d].every(Number.isFinite)) return null;
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
 };
 
 const toIsoDayUtc = (date) => {
@@ -85,12 +138,15 @@ const addUtcDays = (date, days) => {
 };
 
 const addUtcMonthsStart = (date, months) => {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1),
+  );
 };
 
 // Start of week (Monday) for a given UTC date (00:00Z assumed).
 const getStartOfWeekUtcMonday = (utcDate) => {
-  if (!(utcDate instanceof Date) || Number.isNaN(utcDate.getTime())) return null;
+  if (!(utcDate instanceof Date) || Number.isNaN(utcDate.getTime()))
+    return null;
   const d = new Date(utcDate.getTime());
   const day = d.getUTCDay(); // 0 (Sun) .. 6 (Sat)
   const offset = (day + 6) % 7; // 0 for Mon, 6 for Sun
@@ -114,10 +170,18 @@ const getScheduleSlots = (med) => {
     return times
       .map((t) => String(t).trim())
       .filter(Boolean)
-      .map((t) => t.toLowerCase());
+      .map((t) => normalizeTimeSlotKey(t))
+      .filter(Boolean);
   }
-  if (med.timeOfDay) return [String(med.timeOfDay).trim().toLowerCase()].filter(Boolean);
+  if (med.timeOfDay)
+    return [normalizeTimeSlotKey(med.timeOfDay)].filter(Boolean);
   return [];
+};
+
+const getExpectedSlotsForMedication = (med) => {
+  const slots = getScheduleSlots(med);
+  if (slots.length > 0) return slots.length;
+  return isActiveUnscheduledMedication(med) ? 1 : 0;
 };
 
 const roundPercent = (taken, expected) => {
@@ -137,12 +201,13 @@ const buildAdherenceSummary = async (patientId, medications) => {
     };
   }
 
-  const scheduledMeds = (Array.isArray(medications) ? medications : []).filter(
-    isScheduledMedication,
-  );
-  const scheduledMedIds = scheduledMeds.map((m) => m._id);
-  const expectedPerDay = scheduledMeds.reduce(
-    (sum, m) => sum + getScheduleSlots(m).length,
+  const medsList = Array.isArray(medications) ? medications : [];
+  const scheduledMeds = medsList.filter(isScheduledMedication);
+  const unscheduledActiveMeds = medsList.filter(isActiveUnscheduledMedication);
+  const eligibleMeds = medsList.filter((m) => getExpectedSlotsForMedication(m) > 0);
+  const eligibleMedIds = eligibleMeds.map((m) => m._id);
+  const expectedPerDay = eligibleMeds.reduce(
+    (sum, m) => sum + getExpectedSlotsForMedication(m),
     0,
   );
 
@@ -153,9 +218,16 @@ const buildAdherenceSummary = async (patientId, medications) => {
   const startYearUtc = addUtcMonthsStart(startOfThisMonthUtc, -11);
   const startYearStr = toIsoDayUtc(startYearUtc);
 
+  const patientIdStr = patientId?.toString ? patientId.toString() : String(patientId || "");
+  const patientIdQueryValues = Array.from(
+    new Set([patientId, patientIdStr].filter(Boolean)),
+  );
+
   const logs = await MedicationLog.find({
-    patient: patientId,
-    ...(scheduledMedIds.length > 0 ? { medication: { $in: scheduledMedIds } } : {}),
+    patient: { $in: patientIdQueryValues },
+    ...(eligibleMedIds.length > 0
+      ? { medication: { $in: eligibleMedIds } }
+      : {}),
     date: { $gte: startYearStr, $lte: todayStr },
   }).select("date");
 
@@ -169,7 +241,8 @@ const buildAdherenceSummary = async (patientId, medications) => {
   const getTakenForDate = (isoDay) => takenCountByDate.get(isoDay) || 0;
 
   // Weekly (calendar week, Monday -> Sunday)
-  const weeklyStartUtc = getStartOfWeekUtcMonday(todayUtc) || addUtcDays(todayUtc, -6);
+  const weeklyStartUtc =
+    getStartOfWeekUtcMonday(todayUtc) || addUtcDays(todayUtc, -6);
   const weeklyLabels = [];
   const weeklyValues = [];
   let weeklyTakenTotal = 0;
@@ -229,7 +302,13 @@ const buildAdherenceSummary = async (patientId, medications) => {
     const startIso = toIsoDayUtc(monthStartUtc);
     const endUtc = isCurrentMonth
       ? todayUtc
-      : new Date(Date.UTC(monthStartUtc.getUTCFullYear(), monthStartUtc.getUTCMonth() + 1, 0));
+      : new Date(
+          Date.UTC(
+            monthStartUtc.getUTCFullYear(),
+            monthStartUtc.getUTCMonth() + 1,
+            0,
+          ),
+        );
     const endIso = toIsoDayUtc(endUtc);
     const daysIncluded = countDaysInclusive(startIso, endIso);
 
@@ -247,7 +326,11 @@ const buildAdherenceSummary = async (patientId, medications) => {
   }
 
   return {
-    meta: { expectedPerDay, scheduledMedications: scheduledMeds.length },
+    meta: {
+      expectedPerDay,
+      scheduledMedications: scheduledMeds.length,
+      unscheduledMedications: unscheduledActiveMeds.length,
+    },
     weekly: {
       labels: weeklyLabels,
       values: weeklyValues,
@@ -297,20 +380,28 @@ const getPatients = async (req, res) => {
         const takenMeds = meds.filter(
           (m) => m.status === "taken" || m.taken,
         ).length;
-        const scheduledMeds = meds.filter(isScheduledMedication);
-        const medicationsTotalToday = scheduledMeds.length;
-        const logs = await MedicationLog.find({
-          patient: patient._id,
-          date: today,
-        }).select("medication");
-        const takenTodayIds = new Set(logs.map((l) => l.medication.toString()));
-        const medicationsTakenToday = scheduledMeds.filter((m) =>
-          takenTodayIds.has(m._id.toString()),
-        ).length;
-        // Today's adherence rate (scheduled meds vs taken logs for today)
+        const eligibleMeds = meds.filter((m) => getExpectedSlotsForMedication(m) > 0);
+        const eligibleMedIds = eligibleMeds.map((m) => m._id);
+        const expectedDosesToday = eligibleMeds.reduce(
+          (sum, m) => sum + getExpectedSlotsForMedication(m),
+          0,
+        );
+        const patientIdQueryValues = [patient._id, patient._id.toString()];
+        const takenDosesToday =
+          eligibleMedIds.length > 0
+            ? await MedicationLog.countDocuments({
+                patient: { $in: patientIdQueryValues },
+                date: today,
+                medication: { $in: eligibleMedIds },
+              })
+            : 0;
+
+        // Keep legacy field names but use dose/slot-level semantics.
+        const medicationsTotalToday = expectedDosesToday;
+        const medicationsTakenToday = takenDosesToday;
         const adherenceRate =
-          medicationsTotalToday > 0
-            ? Math.round((medicationsTakenToday / medicationsTotalToday) * 100)
+          expectedDosesToday > 0
+            ? Math.round((takenDosesToday / expectedDosesToday) * 100)
             : 0;
 
         // Check for low supply alerts
@@ -396,7 +487,9 @@ const addPatient = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const caregiverEmail = String(caregiver.email || "").trim().toLowerCase();
+    const caregiverEmail = String(caregiver.email || "")
+      .trim()
+      .toLowerCase();
     if (caregiverEmail && caregiverEmail === requestedEmail) {
       return res.status(400).json({
         message:
@@ -455,19 +548,26 @@ const addPatient = async (req, res) => {
       (m) => m.status === "taken" || m.taken,
     ).length;
     const today = getTodayStr();
-    const scheduledMeds = meds.filter(isScheduledMedication);
-    const medicationsTotalToday = scheduledMeds.length;
-    const logs = await MedicationLog.find({
-      patient: patient._id,
-      date: today,
-    }).select("medication");
-    const takenTodayIds = new Set(logs.map((l) => l.medication.toString()));
-    const medicationsTakenToday = scheduledMeds.filter((m) =>
-      takenTodayIds.has(m._id.toString()),
-    ).length;
+    const eligibleMeds = meds.filter((m) => getExpectedSlotsForMedication(m) > 0);
+    const eligibleMedIds = eligibleMeds.map((m) => m._id);
+    const expectedDosesToday = eligibleMeds.reduce(
+      (sum, m) => sum + getExpectedSlotsForMedication(m),
+      0,
+    );
+    const patientIdQueryValues = [patient._id, patient._id.toString()];
+    const takenDosesToday =
+      eligibleMedIds.length > 0
+        ? await MedicationLog.countDocuments({
+            patient: { $in: patientIdQueryValues },
+            date: today,
+            medication: { $in: eligibleMedIds },
+          })
+        : 0;
+    const medicationsTotalToday = expectedDosesToday;
+    const medicationsTakenToday = takenDosesToday;
     const adherenceRate =
-      medicationsTotalToday > 0
-        ? Math.round((medicationsTakenToday / medicationsTotalToday) * 100)
+      expectedDosesToday > 0
+        ? Math.round((takenDosesToday / expectedDosesToday) * 100)
         : 0;
     const alerts = meds.filter((m) => {
       const qty = Number(m.quantity);
@@ -579,12 +679,25 @@ const getPatientById = async (req, res) => {
 
 const getAllAppointments = async (req, res) => {
   try {
+    const caregiverObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
+      ? new mongoose.Types.ObjectId(req.user.id)
+      : null;
+    const caregiverIds = caregiverObjectId
+      ? [req.user.id, caregiverObjectId]
+      : [req.user.id];
+
     const patients = await User.find({
-      $or: [{ caregivers: req.user.id }, { caregiver: req.user.id }],
+      $or: [
+        { caregivers: { $in: caregiverIds } },
+        { caregiver: { $in: caregiverIds } },
+      ],
     }).select("_id");
     const patientIds = patients.map((p) => p._id);
+    const patientIdQueryValues = Array.from(
+      new Set([...patientIds, ...patientIds.map((id) => id.toString())]),
+    );
     const appointments = await Appointment.find({
-      patient: { $in: patientIds },
+      patient: { $in: patientIdQueryValues },
     })
       .populate("patient", "name")
       .sort({ date: 1, time: 1 });
@@ -597,12 +710,29 @@ const getAllAppointments = async (req, res) => {
 
 const getSchedule = async (req, res) => {
   try {
-    const date = req.query.date || getTodayStr();
+    const requestedDateRaw = req.query.date || getTodayStr();
+    const date = ISO_DAY_RE.test(String(requestedDateRaw))
+      ? String(requestedDateRaw)
+      : getTodayStr();
+    const requestedDayEnd = parseIsoDayLocalEnd(date);
+    const caregiverObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
+      ? new mongoose.Types.ObjectId(req.user.id)
+      : null;
+    const caregiverIds = caregiverObjectId
+      ? [req.user.id, caregiverObjectId]
+      : [req.user.id];
+
     const patients = await User.find({
-      $or: [{ caregivers: req.user.id }, { caregiver: req.user.id }],
+      $or: [
+        { caregivers: { $in: caregiverIds } },
+        { caregiver: { $in: caregiverIds } },
+      ],
     }).select("_id name");
 
     const patientIds = patients.map((p) => p._id);
+    const patientIdQueryValues = Array.from(
+      new Set([...patientIds, ...patientIds.map((id) => id.toString())]),
+    );
     if (patientIds.length === 0) return res.json([]);
 
     const patientNameMap = new Map(
@@ -612,40 +742,60 @@ const getSchedule = async (req, res) => {
     const medications = await Medication.find({
       patient: { $in: patientIds },
       isArchived: { $ne: true },
+      ...(requestedDayEnd ? { createdAt: { $lte: requestedDayEnd } } : {}),
       $or: [
         { timeOfDay: { $ne: null } },
         { timesOfDay: { $exists: true, $ne: [] } },
+        { status: { $in: ["pending", "taken"] } },
       ],
-    }).select("_id name patient timeOfDay timesOfDay status");
+    }).select("_id name patient timeOfDay timesOfDay status createdAt");
 
     const logs = await MedicationLog.find({
-      patient: { $in: patientIds },
+      patient: { $in: patientIdQueryValues },
       date,
     }).select("medication timeSlot");
 
     const takenSet = new Set(
-      logs.map((log) => `${log.medication.toString()}-${log.timeSlot}`),
+      logs
+        .map((log) => {
+          const medId = log?.medication?.toString?.() || "";
+          const slotKey = normalizeTimeSlotKey(log?.timeSlot);
+          if (!medId || !slotKey) return null;
+          return `${medId}-${slotKey}`;
+        })
+        .filter(Boolean),
     );
 
     const schedule = medications.flatMap((med) => {
-      const times =
+      let times =
         Array.isArray(med.timesOfDay) && med.timesOfDay.length > 0
           ? med.timesOfDay
           : med.timeOfDay
             ? [med.timeOfDay]
             : [];
 
-      return times.map((time) => ({
-        id: `${med._id.toString()}-${time}`,
-        medicationId: med._id,
-        medicationName: med.name,
-        patientId: med.patient,
-        patientName: patientNameMap.get(med.patient.toString()) || "Unknown",
-        time,
-        status: takenSet.has(`${med._id.toString()}-${time}`)
-          ? "taken"
-          : "pending",
-      }));
+      if (!times.length && isActiveUnscheduledMedication(med)) {
+        // Unscheduled meds can still be tracked as 1 daily dose via the synthetic slot "scheduled".
+        times = ["scheduled"];
+      }
+
+      return times
+        .map((time) => {
+          const slotKey = normalizeTimeSlotKey(time);
+          if (!slotKey) return null;
+          return {
+            id: `${med._id.toString()}-${slotKey}`,
+            medicationId: med._id,
+            medicationName: med.name,
+            patientId: med.patient,
+            patientName: patientNameMap.get(med.patient.toString()) || "Unknown",
+            time: slotKey,
+            status: takenSet.has(`${med._id.toString()}-${slotKey}`)
+              ? "taken"
+              : "pending",
+          };
+        })
+        .filter(Boolean);
     });
 
     res.json(schedule);

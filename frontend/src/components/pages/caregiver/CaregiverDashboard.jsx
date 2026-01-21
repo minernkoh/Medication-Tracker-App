@@ -16,6 +16,8 @@ import {
   getStartOfWeek,
   formatDateNumeric,
   normalizeDateInput,
+  normalizeMedication,
+  splitMedicationsBySlot,
   toLocalIsoDay,
   TIME_BUCKET_TO_24H,
   to12HourDisplay,
@@ -58,28 +60,16 @@ const getTimeGreeting = () => {
   return "Evening";
 };
 
-// "Today's adherence" (Caregiver) is defined per-medication:
-// a medication counts as taken for the day if ANY of its scheduled time-slots is taken.
-const getPerMedicationAdherence = (items = []) => {
-  const expected = new Set();
-  const taken = new Set();
-
+// "Today's adherence" (Caregiver) is defined per-dose/per-time-slot.
+// This matches the schedule table (one row per dose) and prevents "100%" when any dose is pending.
+const getPerDoseAdherence = (items = []) => {
   const list = Array.isArray(items) ? items : [];
-  for (const item of list) {
-    const medId = item?.medicationId;
-    if (!medId) continue;
-    const key = String(medId);
-    expected.add(key);
-    if (String(item?.status || "").toLowerCase() === "taken") {
-      taken.add(key);
-    }
-  }
-
-  const expectedTotal = expected.size;
-  const takenTotal = taken.size;
+  const expectedTotal = list.length;
+  const takenTotal = list.filter(
+    (item) => String(item?.status || "").toLowerCase() === "taken",
+  ).length;
   const percent =
     expectedTotal > 0 ? Math.round((takenTotal / expectedTotal) * 100) : 0;
-
   return { expectedTotal, takenTotal, percent };
 };
 
@@ -131,8 +121,57 @@ const CaregiverDashboard = ({ userName = "" }) => {
     const buildSchedule = async () => {
       setIsScheduleLoading(true);
       try {
-        const data = await api.caregiver.getSchedule(todayStr);
-        setScheduleItems(Array.isArray(data) ? data : []);
+        const patientResults = await limitConcurrency(
+          patients.map(async (patient) => {
+            try {
+              const meds = await api.medications.getForPatient(
+                patient?.id,
+                todayStr,
+              );
+              const normalized = (Array.isArray(meds) ? meds : [])
+                .map(normalizeMedication)
+                .filter(Boolean);
+              return { patient, meds: normalized };
+            } catch {
+              return { patient, meds: [] };
+            }
+          }),
+          3,
+        );
+
+        const rows = [];
+        for (const { patient, meds } of patientResults) {
+          const patientId = patient?.id;
+          if (!patientId) continue;
+          const patientName = patient?.name || "Patient";
+
+          const split = splitMedicationsBySlot(meds);
+          const list = [...(split.pending || []), ...(split.taken || [])];
+          for (const entry of list) {
+            const source = entry?.sourceMedication || entry;
+            const medicationId = source?.id || source?._id;
+            const medicationName = entry?.name || source?.name || "Medication";
+            const time =
+              entry?.slot ||
+              entry?.timeOfDay ||
+              source?.timeOfDay ||
+              (Array.isArray(source?.timesOfDay) ? source.timesOfDay[0] : "") ||
+              "scheduled";
+            const status = String(entry?.status || "").toLowerCase() || "pending";
+
+            rows.push({
+              id: entry?.uiKey || `${patientId}-${medicationId}-${time}-${status}`,
+              medicationId,
+              medicationName,
+              patientId,
+              patientName,
+              time,
+              status,
+            });
+          }
+        }
+
+        setScheduleItems(rows);
       } catch (error) {
         showError(error.message || "Unable to load schedule");
       } finally {
@@ -141,11 +180,15 @@ const CaregiverDashboard = ({ userName = "" }) => {
     };
 
     buildSchedule();
-  }, [patients.length, showError, todayStr]);
+  }, [patients, showError, todayStr]);
 
   // Calendar: compute adherence across the visible week (combined schedule)
   useEffect(() => {
     if (!visibleWeekStart) return;
+    if (patients.length === 0) {
+      setWeekAdherence({});
+      return;
+    }
     let isActive = true;
 
     const buildWeekAdherence = async () => {
@@ -158,18 +201,43 @@ const CaregiverDashboard = ({ userName = "" }) => {
       const results = await limitConcurrency(
         days.map(async (dateStr) => {
           try {
-            const items = await api.caregiver.getSchedule(dateStr);
-            return [dateStr, Array.isArray(items) ? items : []];
+            const medsLists = await limitConcurrency(
+              patients.map(async (patient) => {
+                try {
+                  const meds = await api.medications.getForPatient(
+                    patient?.id,
+                    dateStr,
+                  );
+                  return (Array.isArray(meds) ? meds : [])
+                    .map(normalizeMedication)
+                    .filter(Boolean);
+                } catch {
+                  return [];
+                }
+              }),
+              3,
+            );
+
+            let taken = 0;
+            let pending = 0;
+            for (const meds of medsLists) {
+              const split = splitMedicationsBySlot(meds);
+              taken += (split.taken || []).length;
+              pending += (split.pending || []).length;
+            }
+
+            const total = taken + pending;
+            const percent = total > 0 ? Math.round((taken / total) * 100) : 0;
+            return [dateStr, percent];
           } catch {
-            return [dateStr, []];
+            return [dateStr, 0];
           }
         }),
-        3, // Max 3 concurrent requests
+        2, // Max 2 concurrent week buckets (each bucket fans out to patients)
       );
 
       const map = {};
-      for (const [dateStr, items] of results) {
-        const { percent } = getPerMedicationAdherence(items);
+      for (const [dateStr, percent] of results) {
         map[dateStr] = percent;
       }
 
@@ -181,7 +249,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
     return () => {
       isActive = false;
     };
-  }, [visibleWeekStart]);
+  }, [patients, visibleWeekStart]);
 
   const calendarAppointments = useMemo(() => {
     const list = Array.isArray(appointments) ? appointments : [];
@@ -208,7 +276,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
   const {
     expectedTotal: totalMedicationsDate,
     takenTotal: totalMedicationsTakenDate,
-  } = useMemo(() => getPerMedicationAdherence(scheduleItems), [scheduleItems]);
+  } = useMemo(() => getPerDoseAdherence(scheduleItems), [scheduleItems]);
 
   const totalLowSupply = patients.reduce((sum, p) => sum + (p.alerts || 0), 0);
 
@@ -435,7 +503,7 @@ const CaregiverDashboard = ({ userName = "" }) => {
     );
     const hasQuickInfo = Boolean(patient?.nextMedication);
     const { expectedTotal: total, percent: completionPercent } =
-      getPerMedicationAdherence(pStats);
+      getPerDoseAdherence(pStats);
     const adherenceTone =
       total === 0
         ? "neutral"
