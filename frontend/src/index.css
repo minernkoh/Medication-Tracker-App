@@ -1,3 +1,12 @@
+/*
+ * Global styles (Tailwind entrypoint)
+ *
+ * This file:
+ * - pulls in Tailwind layers (base/components/utilities)
+ * - sets global font + base layout rules
+ * - defines a few reusable utilities (e.g. `.no-scrollbar`)
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

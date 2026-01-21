@@ -1,3 +1,15 @@
+/**
+ * Auth controller
+ *
+ * Implements:
+ * - `signup`: create a user account (patient or caregiver)
+ * - `signin`: verify credentials and return a JWT + user profile
+ *
+ * Key functions:
+ * - `signup(req,res)`
+ * - `signin(req,res)`
+ */
+
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { validationResult } = require("express-validator");

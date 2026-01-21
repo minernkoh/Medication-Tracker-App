@@ -1,3 +1,14 @@
+/**
+ * Medication model (MongoDB / Mongoose)
+ *
+ * Stores a medication definition for a patient (name, dosage, schedule, supply).
+ * Notes:
+ * - Scheduling supports `timeOfDay` (single) OR `timesOfDay` (multiple).
+ * - "Taken" state is tracked per day in `MedicationLog` (this model also stores
+ *   convenience fields like `status/taken/takenTime`).
+ * - Soft-delete is handled via `isArchived` + `archivedAt`.
+ */
+
 const mongoose = require("mongoose");
 
 const TIME_OF_DAY_WORDS = ["morning", "afternoon", "night"];

@@ -1,3 +1,10 @@
+/**
+ * SideMenuButtons (UI component)
+ *
+ * Sidebar navigation button used by `Sidebar`.
+ * Uses Tailwind classes for hover/selected styles based on the current mode.
+ */
+
 import {
   SquaresFourIcon,
   PillIcon,
@@ -6,16 +13,6 @@ import {
   PlusIcon,
   GearIcon,
 } from "@phosphor-icons/react";
-
-/**
- * SideMenuButtons Component
- * Navigation button for sidebar - uses CSS hover states, no JS state needed
- *
- * @param {string} type - Button type: "Dashboard" | "Medications" | "Appointments" | "Add Medication" | "Patients" | "Settings"
- * @param {string} mode - App mode: "Personal" | "Caregiver"
- * @param {boolean} isSelected - Whether this button is currently selected
- * @param {function} onClick - Called when button is clicked
- */
 function SideMenuButtons({
   type = "Dashboard",
   mode = "Personal",

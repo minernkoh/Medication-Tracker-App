@@ -1,3 +1,14 @@
+/**
+ * MedicationLog model (MongoDB / Mongoose)
+ *
+ * This is the app's "intake history" table.
+ * One record represents: a patient took a specific medication for a specific
+ * date and time-slot.
+ *
+ * The unique index `(medication, date, timeSlot)` prevents duplicate logs for
+ * the same slot.
+ */
+
 const mongoose = require("mongoose");
 
 const medicationLogSchema = new mongoose.Schema(

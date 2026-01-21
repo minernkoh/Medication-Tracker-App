@@ -1,3 +1,12 @@
+/**
+ * MongoDB connection bootstrap (Mongoose)
+ *
+ * Connects using `MONGODB_URI` and sets up basic connection logging.
+ * Also performs a small index migration for the `User` collection:
+ * - drops a legacy unique index on `email`
+ * - ensures `{ email, role }` is unique (supports separate patient/caregiver accounts)
+ */
+
 const mongoose = require("mongoose");
 
 if (!process.env.MONGODB_URI) {

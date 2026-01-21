@@ -1,3 +1,10 @@
+/**
+ * TimePickerDropdown (UI component)
+ *
+ * An input-like button that opens a popover containing the scroll/wheel `TimePicker`.
+ * Uses `"HH:MM"` 24-hour values internally (optionally displayed as 12-hour).
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
@@ -7,13 +14,6 @@ import { getNowTimeInputRounded, to12HourDisplay } from "../../utils";
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
-
-/**
- * TimePickerDropdown - input-like dropdown that opens the scroll/wheel TimePicker
- *
- * - value/onChange uses "HH:MM"
- * - popover closes on outside click / Esc
- */
 function TimePickerDropdown({
   value,
   onChange,

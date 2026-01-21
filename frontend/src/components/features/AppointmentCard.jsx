@@ -1,3 +1,11 @@
+/**
+ * AppointmentCard (feature component)
+ *
+ * Shows the next upcoming appointment on the dashboard, or an empty-state prompt.
+ * Key helpers:
+ * - `splitDateTimeLabel()` formats a combined date/time label into two lines.
+ */
+
 import { useNavigate } from "react-router-dom";
 import {
   CalendarBlankIcon,

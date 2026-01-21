@@ -26,7 +26,6 @@ import { getModeHexColor } from "./utils/modeUtils";
 import {
   getAuthData,
   setAuthData,
-  removeAuthData,
   getAuthField,
   updateAuthField,
   getStoredToken,

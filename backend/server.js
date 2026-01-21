@@ -1,3 +1,12 @@
+/**
+ * Backend entry point (Express server)
+ *
+ * Starts the API server, wires up middleware, and mounts all route modules.
+ * Key ideas:
+ * - The frontend calls this server via `/api/*` (proxied in dev by Vite).
+ * - Protected routes require a JWT in `Authorization: Bearer <token>`.
+ */
+
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 require("./config/db");

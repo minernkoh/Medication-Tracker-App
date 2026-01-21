@@ -1,3 +1,13 @@
+/**
+ * Patient UI utilities
+ *
+ * Helpers for caregiver mode UI, such as:
+ * - initials generation (`getPatientInitials`)
+ * - consistent avatar colors (`getPatientAvatarColor`)
+ *
+ * The goal is stable visuals: the same patient always gets the same color.
+ */
+
 import { colors } from "../theme/tokens";
 
 // Patient color palette using design tokens

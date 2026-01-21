@@ -1,3 +1,10 @@
+/**
+ * SelectMenu (UI component)
+ *
+ * Custom dropdown/select component with a portal-rendered popover.
+ * Used across the app for consistent "select" UX in both Personal and Caregiver modes.
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CaretDownIcon, CaretUpIcon, CheckIcon } from "@phosphor-icons/react";
@@ -5,20 +12,6 @@ import { CaretDownIcon, CaretUpIcon, CheckIcon } from "@phosphor-icons/react";
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
-
-/**
- * SelectMenu - custom dropdown (styled menu, scrollable options)
- *
- * Props:
- * - value: string
- * - onChange: (nextValue: string) => void
- * - options: Array<{ value: string, label: string }>
- * - placeholder: string (optional)
- * - disabled: boolean
- * - required: boolean
- * - mode: "Personal" | "Caregiver"
- * - variant: "default" | "pill" (optional)
- */
 function SelectMenu({
   value = "",
   onChange,

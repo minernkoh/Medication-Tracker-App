@@ -1,3 +1,15 @@
+/**
+ * Appointments controller
+ *
+ * CRUD for appointments, including patient-scoped endpoints (caregiver access).
+ * Uses a timezone-safe day key:
+ * - `dateDay`: "YYYY-MM-DD" string used by the UI for filtering and calendar dots.
+ *
+ * Key functions:
+ * - `processAppointmentDate(req.body)`: normalizes `date`/`time` inputs into `dateDay` + UTC `date`
+ * - `getAppointments`, `createAppointment`, `updateAppointment`, `deleteAppointment`
+ */
+
 const Appointment = require("../models/Appointments");
 const User = require("../models/User");
 const { checkPatientAccess } = require("../utils/auth");

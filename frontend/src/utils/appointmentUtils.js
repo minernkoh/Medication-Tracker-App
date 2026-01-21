@@ -5,7 +5,7 @@
 
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function getAppointmentLocalDateTime(appointment, now = new Date()) {
+export function getAppointmentLocalDateTime(appointment) {
   const dateStr = appointment?.date;
   if (!dateStr || typeof dateStr !== "string" || !ISO_DAY_RE.test(dateStr)) return null;
 

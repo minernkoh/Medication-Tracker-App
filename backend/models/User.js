@@ -1,3 +1,17 @@
+/**
+ * User model (MongoDB / Mongoose)
+ *
+ * Stores both patient and caregiver accounts.
+ * Key fields:
+ * - `role`: "patient" | "caregiver"
+ * - `caregivers`: array of linked caregiver user ids (preferred)
+ * - `caregiver`: legacy single caregiver field (still supported)
+ *
+ * Key behavior:
+ * - Password hashing happens automatically in `pre("save")`.
+ * - `comparePassword()` verifies login credentials.
+ */
+
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 

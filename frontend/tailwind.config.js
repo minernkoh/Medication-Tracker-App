@@ -1,3 +1,10 @@
+/**
+ * Tailwind config (design system)
+ *
+ * Defines theme tokens (colors, typography, spacing, shadows) used across the UI.
+ * Keep this file in sync with `frontend/src/theme/tokens.js` (runtime tokens for charts/icons).
+ */
+
 /** @type {import('tailwindcss').Config} */
 
 // Single source of truth for colors - exported for use in components

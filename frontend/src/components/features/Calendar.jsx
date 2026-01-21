@@ -1,3 +1,15 @@
+/**
+ * Calendar (feature component)
+ *
+ * Displays:
+ * - A 7-day week strip for quick navigation
+ * - A popover date picker for jumping to specific dates
+ *
+ * Key behaviors:
+ * - Emits `onWeekChange(weekStart)` so pages can prefetch data for the visible week.
+ * - Shows appointment dots (`appointments`) and adherence indicators (`adherence` map).
+ */
+
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {

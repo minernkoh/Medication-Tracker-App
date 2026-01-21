@@ -1,3 +1,12 @@
+/**
+ * Auth middleware (JWT)
+ *
+ * Reads `Authorization: Bearer <token>` and populates `req.user` with the
+ * decoded payload (ex: `{ id, role }`).
+ *
+ * Used by almost every API route.
+ */
+
 const jwt = require("jsonwebtoken");
 
 const verifyToken = (req, res, next) => {

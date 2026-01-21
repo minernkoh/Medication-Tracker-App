@@ -1,3 +1,12 @@
+/**
+ * Appointment routes
+ *
+ * Base path (mounted in `server.js`): `/api`
+ * Supports both:
+ * - Current patient endpoints (`/appointments`)
+ * - Caregiver patient-scoped endpoints (`/patients/:patientId/appointments`)
+ */
+
 const router = require("express").Router();
 const verifyToken = require("../middleware/auth");
 const {

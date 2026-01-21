@@ -1,3 +1,14 @@
+/**
+ * Permissions middleware (patient/caregiver access)
+ *
+ * Loads the target patient record and enforces authorization rules:
+ * - Patients can view their own data
+ * - Caregivers can view/modify linked patients
+ * - Linked patients become "read-only" for modifications
+ *
+ * These checks are implemented in `backend/utils/auth.js`.
+ */
+
 const User = require("../models/User");
 const {
   canModifyPatientData: canModifyPatientDataAuth,

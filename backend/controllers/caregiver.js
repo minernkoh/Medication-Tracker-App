@@ -1,3 +1,17 @@
+/**
+ * Caregiver controller
+ *
+ * Endpoints used in Caregiver mode:
+ * - List linked patients and computed stats (adherence, low supply, next appointment)
+ * - Get all patient appointments
+ * - Build a combined daily medication schedule across all linked patients
+ *
+ * Key functions:
+ * - `getPatients`
+ * - `getSchedule` (uses `MedicationLog` to determine taken/pending per time-slot)
+ * - `buildAdherenceSummary` (weekly/monthly/yearly chart data)
+ */
+
 const User = require("../models/User");
 const Medication = require("../models/Medication");
 const MedicationLog = require("../models/MedicationLog");

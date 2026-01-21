@@ -1,3 +1,13 @@
+/**
+ * Caregiver routes
+ *
+ * Base path (mounted in `server.js`): `/api`
+ * Provides caregiver-only views:
+ * - linked patients
+ * - combined schedule (per day)
+ * - combined appointments list
+ */
+
 const router = require("express").Router();
 const verifyToken = require("../middleware/auth");
 const caregiverCtrl = require("../controllers/caregiver");

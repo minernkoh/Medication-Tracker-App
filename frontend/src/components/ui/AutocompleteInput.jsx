@@ -1,3 +1,10 @@
+/**
+ * AutocompleteInput (UI component)
+ *
+ * An input with a styled dropdown list (combobox-like).
+ * Used for searchable/selectable text fields while still behaving like a normal input.
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
@@ -5,25 +12,6 @@ import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
-
-/**
- * AutocompleteInput - input with a styled dropdown list (combobox-like)
- *
- * Props:
- * - name: string
- * - value: string
- * - onChange: (eventLike: { target: { name, value } }) => void
- * - options: Array<{ value: string, label: string }>
- * - placeholder: string
- * - disabled: boolean
- * - required: boolean
- * - className: string (applied to <input>)
- * - mode: "Personal" | "Caregiver"
- * - openOnFocus: boolean
- * - "aria-label": string
- * - ariaInvalid: boolean
- * - ariaDescribedBy: string
- */
 function AutocompleteInput({
   name,
   value = "",

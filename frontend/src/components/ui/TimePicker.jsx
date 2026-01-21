@@ -1,3 +1,14 @@
+/**
+ * TimePicker (UI component)
+ *
+ * A scroll/wheel-style time picker used by `TimePickerDropdown`.
+ * It works with values in `"HH:MM"` 24-hour format.
+ *
+ * Key helpers:
+ * - `parseTime()` validates and parses `"HH:MM"`.
+ * - `nearestInList()` snaps to the closest allowed value.
+ */
+
 import { useEffect, useMemo, useRef } from "react";
 import { getNowTimeInputRounded } from "../../utils";
 

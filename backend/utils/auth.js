@@ -1,3 +1,13 @@
+/**
+ * Authorization helpers (backend)
+ *
+ * Centralizes the "who can access which patient" rules.
+ * Key behavior:
+ * - A caregiver can access patients that list them in `caregivers` (or legacy `caregiver`).
+ * - A patient can access their own data.
+ * - If a patient is linked to a caregiver, they become **read-only** for write operations.
+ */
+
 const checkPatientAccess = (reqUser, patient, requireModify = false) => {
   if (!reqUser || !patient) {
     return { authorized: false, message: "Invalid request" };

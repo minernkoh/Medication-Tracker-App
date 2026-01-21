@@ -1,3 +1,13 @@
+/**
+ * Medications context (frontend state)
+ *
+ * Loads medications from the API and provides actions used throughout the UI:
+ * - create/update/delete meds
+ * - mark as taken / undo (with date + time-slot support)
+ *
+ * Also enforces "read-only patient" rules on the client to match backend behavior.
+ */
+
 import {
   createContext,
   useContext,

@@ -1,3 +1,15 @@
+/**
+ * User routes
+ *
+ * Base path (mounted in `server.js`): `/api`
+ * Includes:
+ * - `GET /users/me` (current profile)
+ * - `PUT /users/:id` (update profile)
+ * - `PUT /users/:id/assign-caregiver` (link caregiver to patient)
+ * - `POST /users/me/change-password`
+ * - `DELETE /users/:id`
+ */
+
 const router = require("express").Router();
 const verifyToken = require("../middleware/auth");
 const usersCtrl = require("../controllers/users");

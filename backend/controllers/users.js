@@ -1,3 +1,14 @@
+/**
+ * Users controller
+ *
+ * User profile endpoints:
+ * - `GET /users/me`: current user profile (caregiver links included)
+ * - `PUT /users/:id`: update profile (patients linked to caregivers are read-only)
+ * - `PUT /users/:id/assign-caregiver`: link a caregiver to a patient account
+ * - `POST /users/me/change-password`
+ * - `DELETE /users/:id`: delete account and related data
+ */
+
 const User = require("../models/User");
 const Medication = require("../models/Medication");
 const Appointment = require("../models/Appointments");

@@ -1,3 +1,11 @@
+/**
+ * Auth routes
+ *
+ * Base path (mounted in `server.js`): `/api/auth`
+ * - `POST /signup`
+ * - `POST /signin`
+ */
+
 const router = require("express").Router();
 const authCtrl = require("../controllers/auth");
 const { check } = require("express-validator");

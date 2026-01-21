@@ -1,3 +1,16 @@
+/**
+ * Medications controller
+ *
+ * Handles medication CRUD plus daily adherence logic.
+ * Important concept: "taken vs pending" for a specific date/time-slot is tracked
+ * in `MedicationLog`, not only on the `Medication` document.
+ *
+ * Key functions:
+ * - `getMedications`: date-aware list (supports `?date=YYYY-MM-DD` and `?status=` filtering)
+ * - `markMedicationAsTaken`: upserts a `MedicationLog` row and updates supply
+ * - `undoMarkAsTaken`: removes log(s) and restores supply
+ */
+
 const Medication = require("../models/Medication");
 const MedicationLog = require("../models/MedicationLog");
 const User = require("../models/User");

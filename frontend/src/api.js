@@ -1,3 +1,14 @@
+/**
+ * API client (frontend)
+ *
+ * Single place to call the backend.
+ * - Base URL is `/api` by default (Vite proxies this to the backend in dev).
+ * - Automatically sends the JWT via `Authorization: Bearer <token>`.
+ *
+ * Key exports:
+ * - `api.auth`, `api.medications`, `api.appointments`, `api.users`, `api.caregiver`
+ */
+
 import { getAuthData, getStoredToken, setAuthData, removeAuthData } from "./utils/storageUtils";
 import { toLocalIsoDay } from "./utils/dateUtils";
 

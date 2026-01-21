@@ -1,3 +1,11 @@
+/**
+ * Appointment model (MongoDB / Mongoose)
+ *
+ * Stores appointments for patients.
+ * Important field:
+ * - `dateDay` is the timezone-safe day key ("YYYY-MM-DD") used by the UI.
+ */
+
 const mongoose = require("mongoose");
 
 const appointmentSchema = new mongoose.Schema(

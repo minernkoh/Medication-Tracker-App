@@ -1,3 +1,13 @@
+/**
+ * Medication routes
+ *
+ * Base path (mounted in `server.js`): `/api`
+ * Highlights:
+ * - Patient-scoped endpoints: `/patients/:patientId/medications`
+ * - Daily views: `/medications?date=YYYY-MM-DD` and `/medications?status=pending|taken`
+ * - Intake actions: `PATCH /medications/:id/taken` and `/medications/:id/undo`
+ */
+
 const router = require("express").Router();
 const verifyToken = require("../middleware/auth");
 const {
