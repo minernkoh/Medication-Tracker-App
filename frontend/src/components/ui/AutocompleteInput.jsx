@@ -129,7 +129,7 @@ function AutocompleteInput({
         ? modeTextClass
         : "text-text-secondary";
 
-  const listId = id ? `${id}-listbox` : name ? `${name}-listbox` : undefined;
+  const listId = (id || name) ? `${id || name}-listbox` : undefined;
 
   const panel =
     open && panelStyle

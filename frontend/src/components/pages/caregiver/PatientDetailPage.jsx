@@ -52,6 +52,7 @@ import { getMedicationColor } from "../../../utils/medicationColors";
 import {
   getPatientAvatarColor,
   getPatientInitials,
+  getAdherenceColorClass,
 } from "../../../utils/patientUtils";
 import { getStartOfWeek, MONTHS } from "../../../utils";
 import { limitConcurrency } from "../../../utils/requestUtils";
@@ -1465,8 +1466,7 @@ function PatientDetailPage() {
                   ? Math.max(0, Math.min(100, rawValue))
                   : 0;
                 const label = adherenceLabels[index] || "";
-                const barClass =
-                  value >= 90 ? "bg-success" : value >= 70 ? "bg-warning" : "bg-danger";
+                const barClass = getAdherenceColorClass(value);
 
                 return (
                   <div

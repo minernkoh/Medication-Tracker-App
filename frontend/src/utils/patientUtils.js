@@ -111,3 +111,25 @@ export function getPatientAvatarColor(patient, fallbackIndex) {
   const hash = fnv1a32(seed);
   return PATIENT_COLORS[hash % PATIENT_COLORS.length] || colors.patient.blue;
 }
+
+/**
+ * Get background color class for adherence rate value.
+ * @param {number} value - Adherence rate (0-100)
+ * @returns {string} Tailwind CSS class for background color
+ */
+export function getAdherenceColorClass(value) {
+  if (value >= 90) return "bg-success";
+  if (value >= 70) return "bg-warning";
+  return "bg-danger";
+}
+
+/**
+ * Get text color class for adherence rate value.
+ * @param {number} value - Adherence rate (0-100)
+ * @returns {string} Tailwind CSS class for text color
+ */
+export function getAdherenceTextColorClass(value) {
+  if (value >= 90) return "text-success";
+  if (value >= 70) return "text-warning";
+  return "text-danger";
+}

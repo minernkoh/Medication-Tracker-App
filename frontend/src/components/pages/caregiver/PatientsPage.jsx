@@ -20,6 +20,8 @@ import { formatDateNumeric } from "../../../utils";
 import {
   getPatientAvatarColor,
   getPatientInitials,
+  getAdherenceColorClass,
+  getAdherenceTextColorClass,
 } from "../../../utils/patientUtils";
 import ConfirmDialog from "../../ui/ConfirmDialog";
 import { Button, DataTable, FormField } from "../../ui";
@@ -179,18 +181,14 @@ function PatientsPage() {
         <div className="flex items-center gap-2">
           <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full ${
-                value >= 90 ? "bg-success" : value >= 70 ? "bg-warning" : "bg-danger"
-              }`}
+              className={`h-full rounded-full ${getAdherenceColorClass(value)}`}
               style={{
                 width: `${value}%`,
               }}
             />
           </div>
           <span
-            className={`font-poppins text-sm font-medium ${
-              value >= 90 ? "text-success" : value >= 70 ? "text-warning" : "text-danger"
-            }`}
+            className={`font-poppins text-sm font-medium ${getAdherenceTextColorClass(value)}`}
           >
             {value}%
           </span>
@@ -362,13 +360,7 @@ function PatientsPage() {
                   {patient.medicationsTotal}
                 </span>
                 <span
-                  className={`font-poppins font-semibold ${
-                    patient.adherenceRate >= 90
-                      ? "text-success"
-                      : patient.adherenceRate >= 70
-                        ? "text-warning"
-                        : "text-danger"
-                  }`}
+                  className={`font-poppins font-semibold ${getAdherenceTextColorClass(patient.adherenceRate)}`}
                 >
                   {patient.adherenceRate}% today
                 </span>

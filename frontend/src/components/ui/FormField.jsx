@@ -47,8 +47,14 @@ function FormField({
   const inputReadOnlyClass = `${inputBaseClass} text-text-secondary bg-background-subtle border-border-default focus:border-border-default focus:ring-0 cursor-not-allowed`;
   const inputErrorClass = `${inputBaseClass} text-text-primary bg-background-default border-danger focus:border-danger focus:ring-2 focus:ring-danger/20`;
 
-  const inputClass =
-    `${error ? inputErrorClass : isReadOnly ? inputReadOnlyClass : inputNormalClass} ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
+  // Helper function to determine input class based on state
+  const getInputClass = () => {
+    if (error) return inputErrorClass;
+    if (isReadOnly) return inputReadOnlyClass;
+    return inputNormalClass;
+  };
+
+  const inputClass = `${getInputClass()} ${icon ? "pl-10" : ""} ${rightElement ? "pr-10" : ""}`.trim();
 
   const selectButtonClass = `${inputBaseClass} ${
     error

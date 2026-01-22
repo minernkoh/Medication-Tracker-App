@@ -49,8 +49,14 @@ export const to12HourDisplay = (value) => {
   const [h, m] = value.split(":");
   const hourNum = parseInt(h, 10);
   const ampm = hourNum >= 12 ? "PM" : "AM";
-  const displayHour =
-    hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+  let displayHour;
+  if (hourNum === 0) {
+    displayHour = 12;
+  } else if (hourNum > 12) {
+    displayHour = hourNum - 12;
+  } else {
+    displayHour = hourNum;
+  }
   return `${displayHour}:${m} ${ampm}`;
 };
 

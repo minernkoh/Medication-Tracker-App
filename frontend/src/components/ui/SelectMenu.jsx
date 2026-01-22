@@ -255,7 +255,11 @@ function SelectMenu({
             <CaretDownIcon
               size={16}
               weight="regular"
-              className={isPill ? "text-icon-secondary" : isPlaceholderSelected ? "text-text-secondary" : modeTextClass}
+              className={(() => {
+                if (isPill) return "text-icon-secondary";
+                if (isPlaceholderSelected) return "text-text-secondary";
+                return modeTextClass;
+              })()}
             />
           ))}
       </button>
