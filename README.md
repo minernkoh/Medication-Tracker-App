@@ -2,6 +2,8 @@
 
 > Full-stack medication and appointment tracker with **Patient** and **Caregiver** workflows, **dose-level** (time-slot) logging, supply alerts, and adherence insights.
 
+![App Screenshot](./images/AppScreenshot.png)
+
 ---
 
 ## 📑 Table of Contents
