@@ -1,0 +1,21 @@
+[
+  {
+    "_id": { "$oid": "65aa00000000000000000002" },
+    "name": "Dora Oh",
+    "email": "dora.oh@example.com",
+    "password": "$2b$10$hKLFQgn0AK4O5lByRAeO6e408bO4MWiyGU28XOO2r/Qrmh.1yewGu",
+    "role": "patient",
+    "caregivers": [],
+    "caregiver": null
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000000003" },
+    "name": "Liam Tan",
+    "email": "liam.tan@example.com",
+    "password": "$2b$10$hKLFQgn0AK4O5lByRAeO6e408bO4MWiyGU28XOO2r/Qrmh.1yewGu",
+    "role": "patient",
+    "caregivers": [],
+    "caregiver": null
+  }
+]
+

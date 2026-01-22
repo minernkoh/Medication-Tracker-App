@@ -1,0 +1,275 @@
+/**
+ * Appointments controller
+ *
+ * CRUD for appointments, including patient-scoped endpoints (caregiver access).
+ * Uses a timezone-safe day key:
+ * - `dateDay`: "YYYY-MM-DD" string used by the UI for filtering and calendar dots.
+ *
+ * Key functions:
+ * - `processAppointmentDate(req.body)`: normalizes `date`/`time` inputs into `dateDay` + UTC `date`
+ * - `getAppointments`, `createAppointment`, `updateAppointment`, `deleteAppointment`
+ */
+
+const Appointment = require("../models/Appointments");
+const User = require("../models/User");
+const { checkPatientAccess } = require("../utils/auth");
+
+const pad2 = (value) => String(value).padStart(2, "0");
+
+const toLocalDateString = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+const toLocalTimeString = (d) =>
+  `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+const processAppointmentDate = (reqBody) => {
+  const { date } = reqBody;
+  if (!date) return;
+
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
+  const applyFromDate = (d, setTime = false) => {
+    if (!d || Number.isNaN(d.getTime())) return false;
+    const dateDay = toLocalDateString(d);
+    reqBody.dateDay = dateDay;
+    // Keep `date` field populated for backwards compatibility, but store it as UTC midnight
+    // so it doesn't shift when serialized.
+    reqBody.date = new Date(`${dateDay}T00:00:00.000Z`);
+    if (setTime && !reqBody.time) {
+      reqBody.time = toLocalTimeString(d);
+    }
+    reqBody.day = days[d.getDay()];
+    return true;
+  };
+
+  if (date instanceof Date) {
+    applyFromDate(date, true);
+    return;
+  }
+
+  if (typeof date === "string") {
+    if (date.includes("GMT")) {
+      const d = new Date(date);
+      if (applyFromDate(d, true)) return;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const d = new Date(`${date}T00:00:00`);
+      if (applyFromDate(d, false)) return;
+    }
+
+    if (date.includes("T")) {
+      const d = new Date(date);
+      if (applyFromDate(d, true)) return;
+    }
+  }
+
+  const fallback = new Date(date);
+  applyFromDate(fallback, true);
+};
+
+const getAppointments = async (req, res) => {
+  try {
+    if (req.params.patientId) {
+      const patient = await User.findById(req.params.patientId);
+      if (!patient)
+        return res.status(404).json({ message: "Patient not found" });
+      const access = checkPatientAccess(req.user, patient, false);
+      if (!access.authorized)
+        return res.status(403).json({ message: access.message });
+
+      const appts = await Appointment.find({ patient: req.params.patientId });
+      return res.json(
+        (Array.isArray(appts) ? appts : []).map((a) => {
+          const obj = a.toObject({ virtuals: true });
+          if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+            obj.dateDay = obj.date.toISOString().slice(0, 10);
+          }
+          return obj;
+        }),
+      );
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === "caregiver") {
+      return res.json([]);
+    }
+    const appts = await Appointment.find({ patient: req.user.id });
+    res.json(
+      (Array.isArray(appts) ? appts : []).map((a) => {
+        const obj = a.toObject({ virtuals: true });
+        if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+          obj.dateDay = obj.date.toISOString().slice(0, 10);
+        }
+        return obj;
+      }),
+    );
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getAppointmentById = async (req, res) => {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt)
+      return res.status(404).json({ message: "Appointment not found" });
+
+    if (
+      req.params.patientId &&
+      appt.patient.toString() !== req.params.patientId
+    ) {
+      return res.status(400).json({
+        message: "Appointment does not belong to the specified patient",
+      });
+    }
+
+    const patient = await User.findById(appt.patient);
+    if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+    const access = checkPatientAccess(req.user, patient, false);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
+    }
+
+    const obj = appt.toObject({ virtuals: true });
+    if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+      obj.dateDay = obj.date.toISOString().slice(0, 10);
+    }
+    res.json(obj);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const createAppointment = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 1) {
+      console.error(
+        "MongoDB not connected. Connection state:",
+        mongoose.connection.readyState,
+      );
+      return res.status(503).json({ message: "Database not connected" });
+    }
+
+    const patientId = req.params.patientId || req.body.patient || req.user.id;
+    const patient = await User.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
+    }
+
+    processAppointmentDate(req.body);
+
+    const appt = await Appointment.create({
+      ...req.body,
+      patient: patientId,
+      createdBy: req.user.id,
+    });
+
+    const obj = appt.toObject({ virtuals: true });
+    if (!obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+      obj.dateDay = obj.date.toISOString().slice(0, 10);
+    }
+    res.status(201).json(obj);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+const updateAppointment = async (req, res) => {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt)
+      return res.status(404).json({ message: "Appointment not found" });
+
+    if (
+      req.params.patientId &&
+      appt.patient.toString() !== req.params.patientId
+    ) {
+      return res.status(400).json({
+        message: "Appointment does not belong to the specified patient",
+      });
+    }
+
+    const patient = await User.findById(appt.patient);
+    if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
+    }
+
+    processAppointmentDate(req.body);
+
+    delete req.body.patient;
+    delete req.body.createdBy;
+
+    const updatedAppt = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true },
+    );
+    const obj = updatedAppt?.toObject ? updatedAppt.toObject({ virtuals: true }) : updatedAppt;
+    if (obj && !obj.dateDay && obj.date instanceof Date && !Number.isNaN(obj.date.getTime())) {
+      obj.dateDay = obj.date.toISOString().slice(0, 10);
+    }
+    res.json(obj);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deleteAppointment = async (req, res) => {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt)
+      return res.status(404).json({ message: "Appointment not found" });
+
+    if (
+      req.params.patientId &&
+      appt.patient.toString() !== req.params.patientId
+    ) {
+      return res.status(400).json({
+        message: "Appointment does not belong to the specified patient",
+      });
+    }
+
+    const patient = await User.findById(appt.patient);
+
+    const access = checkPatientAccess(req.user, patient, true);
+    if (!access.authorized) {
+      return res.status(403).json({ message: access.message });
+    }
+
+    await Appointment.findByIdAndDelete(req.params.id);
+    res.sendStatus(204);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = {
+  getAppointments,
+  getAppointmentById,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+};

@@ -1,0 +1,68 @@
+[
+  {
+    "_id": { "$oid": "65aa00000000000000003001" },
+    "title": "Primary care follow-up",
+    "doctorName": "Dr. Patel",
+    "location": "Downtown Clinic",
+    "date": { "$date": "2026-01-29T00:00:00.000Z" },
+    "dateDay": "2026-01-29",
+    "time": "09:30",
+    "notes": "Bring medication list",
+    "status": "Scheduled",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000003003" },
+    "title": "Dental cleaning",
+    "doctorName": "Dr. Nguyen",
+    "location": "Smile Dental",
+    "date": { "$date": "2025-12-25T00:00:00.000Z" },
+    "dateDay": "2025-12-25",
+    "time": "11:00",
+    "notes": "Routine visit",
+    "status": "Completed",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000003004" },
+    "title": "Eye exam",
+    "doctorName": "Dr. Kim",
+    "location": "Vision Center",
+    "date": { "$date": "2025-11-20T00:00:00.000Z" },
+    "dateDay": "2025-11-20",
+    "time": "16:45",
+    "notes": "Bring glasses",
+    "status": "Missed",
+    "patient": { "$oid": "65aa00000000000000000002" },
+    "createdBy": { "$oid": "65aa00000000000000000002" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000004001" },
+    "title": "Primary care follow-up",
+    "doctorName": "Dr. Patel",
+    "location": "Downtown Clinic",
+    "date": { "$date": "2026-01-30T00:00:00.000Z" },
+    "dateDay": "2026-01-30",
+    "time": "09:30",
+    "notes": "Bring medication list",
+    "status": "Scheduled",
+    "patient": { "$oid": "65aa00000000000000000003" },
+    "createdBy": { "$oid": "65aa00000000000000000003" }
+  },
+  {
+    "_id": { "$oid": "65aa00000000000000004003" },
+    "title": "Dental cleaning",
+    "doctorName": "Dr. Nguyen",
+    "location": "Smile Dental",
+    "date": { "$date": "2025-12-24T00:00:00.000Z" },
+    "dateDay": "2025-12-24",
+    "time": "11:00",
+    "notes": "Routine visit",
+    "status": "Completed",
+    "patient": { "$oid": "65aa00000000000000000003" },
+    "createdBy": { "$oid": "65aa00000000000000000003" }
+  }
+]
+
